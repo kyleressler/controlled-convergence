@@ -5,41 +5,52 @@
 // ============================================================
 
   // ── SLIDES DATA ──
-  const slides = [
-    {
-      title: "The Goal of the Goal Statement",
-      body: "Before you design anything, you need to know what problem you are actually solving — not what object you plan to build. The TO BY USING WHILE framework forces this separation. It keeps your solution space open so you can evaluate many approaches fairly.",
-    },
-    {
-      title: "What Makes a Strong TO",
-      body: "The TO must be solution-neutral. It describes the outcome for a person, not a product or artifact.",
-      bad: { label: "Too solution-specific", text: '"To make a spaghetti bridge that won\'t break"' },
-      good: { label: "Solution-neutral", text: '"To help commuters cross the river safely"' },
-    },
-    {
-      title: "The Solution-Neutral Test",
-      body: 'Ask yourself: "If I solved this a completely different way — no bridge, no structure at all — would my TO still be true?" If yes, your TO is properly solution-neutral. If no, you have embedded your solution into the problem statement.',
-    },
-    {
-      title: "BY, USING, and WHILE",
-      body: "BY describes the method or approach. USING names the resource, technology, or means deployed. WHILE states a real constraint — something that could actually rule out a solution if violated. A strong WHILE is not optional — it focuses your design space.",
-    },
-    {
-      title: "A Complete Example",
-      body: "A well-formed statement brings all four parts together coherently.",
-      good: {
-        label: "Complete statement",
-        text: 'To help commuters cross the river safely BY providing a controlled crossing mechanism USING existing right-of-way infrastructure WHILE minimizing disruption to river traffic.'
-      }
-    },
-  ];
+  // Slide content now lives in sidebar-content.js (SIDEBAR_CONTENT).
+  // The old hardcoded slides array has been replaced by the context-sensitive system.
 
 
 
   // ── SIDEBAR ──
   function toggleSidebar(side) {
-    const el = document.getElementById(side === 'left' ? 'leftSidebar' : 'rightSidebar');
-    el.classList.toggle('open');
+    const leftEl  = document.getElementById('leftSidebar');
+    const rightEl = document.getElementById('rightSidebar');
+
+    if (side === 'right') {
+      const willOpen = !rightEl.classList.contains('open');
+      rightEl.classList.toggle('open');
+      document.body.classList.toggle('right-sidebar-open', willOpen);
+      if (willOpen) {
+        leftEl.classList.remove('open');        // mutual exclusion
+        loadSidebarContent(_currentPage, 0);    // populate for current page
+      }
+    } else {
+      const willOpen = !leftEl.classList.contains('open');
+      leftEl.classList.toggle('open');
+      if (willOpen) {
+        rightEl.classList.remove('open');       // mutual exclusion
+        document.body.classList.remove('right-sidebar-open');
+      }
+    }
+  }
+
+  // Open the right sidebar and jump directly to a specific slide.
+  // Called by ⓘ icons: openSidebarToSlide('tbus', 1)
+  function openSidebarToSlide(pageId, slideIdx) {
+    const rightEl = document.getElementById('rightSidebar');
+    const leftEl  = document.getElementById('leftSidebar');
+    rightEl.classList.add('open');
+    leftEl.classList.remove('open');
+    document.body.classList.add('right-sidebar-open');
+    loadSidebarContent(pageId, slideIdx);
+  }
+
+  // Populate the sidebar with the slide set for the given page.
+  function loadSidebarContent(pageId, slideIdx) {
+    const content = (typeof SIDEBAR_CONTENT !== 'undefined' && SIDEBAR_CONTENT[pageId])
+      ? SIDEBAR_CONTENT[pageId]
+      : (typeof SIDEBAR_CONTENT !== 'undefined' ? SIDEBAR_CONTENT.home : []);
+    currentSlide = Math.max(0, Math.min(content.length - 1, slideIdx || 0));
+    renderSlides(content);
   }
 
   // ── (legacy stub — setMode() for app mode switching is defined in the Quick Start section below) ──
@@ -1669,6 +1680,11 @@ ${sections}
     }
     _currentPage = pageId;
 
+    // If the right sidebar is open, refresh its content for the new page
+    if (document.getElementById('rightSidebar').classList.contains('open')) {
+      loadSidebarContent(pageId, 0);
+    }
+
     // Show/hide pages
     document.querySelectorAll('.page').forEach(p => {
       p.classList.remove('active');
@@ -2058,7 +2074,11 @@ ${sections}
         left.classList.remove('open');
       }
       if (right && right.classList.contains('open') && !right.contains(e.target)) {
-        right.classList.remove('open');
+        // Also exclude clicks on ⓘ info icons (they call openSidebarToSlide directly)
+        if (!e.target.classList.contains('info-icon')) {
+          right.classList.remove('open');
+          document.body.classList.remove('right-sidebar-open');
+        }
       }
       // Close Pugh settings panel when clicking outside it
       const panel = document.getElementById('pughSettingsPanel');
@@ -2076,7 +2096,10 @@ ${sections}
     });
   });
 
-  renderSlides();
+  loadSidebarContent('home', 0);
+  initResizeHandle();
+  loadSavedSidebarWidth();
+  initSidebarNudge();
   loadSaved();
   loadTheme();
   renderTemplateList();
@@ -2628,6 +2651,70 @@ ${sections}
       toField.value = goal;
       if (typeof onInput === 'function') onInput('to');
     }
+  }
+
+  // ── DRAG HANDLE (right sidebar resize) ──
+  function initResizeHandle() {
+    const handle  = document.getElementById('rightResizeHandle');
+    const sidebar = document.getElementById('rightSidebar');
+    if (!handle || !sidebar) return;
+
+    let startX = 0;
+    let startW = 0;
+
+    handle.addEventListener('pointerdown', function(e) {
+      startX = e.clientX;
+      startW = sidebar.offsetWidth;
+      handle.classList.add('dragging');
+      document.addEventListener('pointermove', onDrag);
+      document.addEventListener('pointerup', onDragEnd, { once: true });
+      handle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    function onDrag(e) {
+      const delta = startX - e.clientX;          // drag left = wider sidebar
+      const newW  = Math.min(520, Math.max(240, startW + delta));
+      document.documentElement.style.setProperty('--right-sidebar-w', newW + 'px');
+    }
+
+    function onDragEnd() {
+      handle.classList.remove('dragging');
+      document.removeEventListener('pointermove', onDrag);
+      const w = getComputedStyle(document.documentElement)
+        .getPropertyValue('--right-sidebar-w').trim();
+      try { localStorage.setItem('cc_rightSidebarW', w); } catch(e) {}
+    }
+  }
+
+  function loadSavedSidebarWidth() {
+    try {
+      const saved = localStorage.getItem('cc_rightSidebarW');
+      if (saved) document.documentElement.style.setProperty('--right-sidebar-w', saved);
+    } catch(e) {}
+  }
+
+  // ── SIDEBAR NUDGE (periodic attention hint) ──
+  function initSidebarNudge() {
+    const nudge = document.getElementById('rightSidebarNudge');
+    if (!nudge) return;
+
+    try {
+      let count = parseInt(localStorage.getItem('cc_sessionCount') || '0', 10) + 1;
+      localStorage.setItem('cc_sessionCount', count);
+
+      // Show on every 10th session
+      if (count % 10 !== 0) return;
+
+      setTimeout(function() {
+        nudge.classList.add('visible');
+        setTimeout(function() { nudge.classList.remove('visible'); }, 10000);
+      }, 2500);
+    } catch(e) {}
+
+    nudge.addEventListener('click', function() {
+      nudge.classList.remove('visible');
+    });
   }
 
   // ── Sync Guided state → QS display (called when entering Quick mode) ──

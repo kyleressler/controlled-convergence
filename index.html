@@ -144,6 +144,8 @@
 
 <!-- ── RIGHT SIDEBAR ── -->
 <div class="sidebar-right" id="rightSidebar">
+  <!-- Drag handle — grab to resize width -->
+  <div class="sidebar-resize-handle" id="rightResizeHandle"></div>
   <div class="sidebar-tab" onclick="toggleSidebar('right')" title="Learn">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
@@ -157,6 +159,9 @@
     </div>
   </div>
 </div>
+
+<!-- ── SIDEBAR NUDGE TOOLTIP ── -->
+<div class="sidebar-nudge" id="rightSidebarNudge">Need help? Tap here →</div>
 
 <!-- ── PROJ PAGE ── -->
 <main class="main page" id="page-proj" style="display:none">
@@ -182,7 +187,7 @@
   <div class="proj-form-card" id="projFormCard">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
-        <div class="req-form-label">Project Name</div>
+        <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
         <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
       </div>
       <div>
@@ -315,7 +320,7 @@
   </div>
 
   <div class="home-steps">
-    <div class="home-steps-title">The Controlled Convergence Workflow</div>
+    <div class="home-steps-title">The Controlled Convergence Workflow <button class="info-icon" onclick="openSidebarToSlide('home', 0)" title="About this method">ⓘ</button></div>
     <div class="home-steps-row">
       <div class="home-step">
         <div class="home-step-num">1</div>
@@ -380,7 +385,7 @@
 <!-- ── GOAL STATEMENT PAGE ── -->
 <main class="main page" id="page-tbus">
   <div class="page-header">
-    <div class="page-title">Goal Statement</div>
+    <div class="page-title">Goal Statement <button class="info-icon" onclick="openSidebarToSlide('tbus', 0)" title="What is a Goal Statement?">ⓘ</button></div>
     <div class="page-subtitle">Define what you are trying to accomplish before you decide how you are going to accomplish it.</div>
   </div>
 
@@ -413,6 +418,7 @@
       <div class="part-label-wrap">
         <span class="part-keyword to-kw">TO</span>
         <span class="part-hint">Solution-neutral intent</span>
+        <button class="info-icon" onclick="openSidebarToSlide('tbus', 1)" title="The TO · BY · USING · WHILE framework">ⓘ</button>
       </div>
       <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution." rows="3" oninput="onInput('to')"></textarea>
       <div class="part-status"><div class="status-dot" id="dot-to"></div></div>
@@ -452,6 +458,7 @@
       <div class="part-label-wrap">
         <span class="part-keyword while-kw">WHILE</span>
         <span class="part-hint">Constraint or condition</span>
+        <button class="info-icon" onclick="openSidebarToSlide('tbus', 3)" title="Common Goal Statement mistakes">ⓘ</button>
       </div>
       <textarea class="part-input" id="input-while" placeholder="What constraint or boundary must any acceptable solution respect..." rows="3" oninput="onInput('while')"></textarea>
       <div class="part-status"><div class="status-dot" id="dot-while"></div></div>
@@ -531,12 +538,12 @@
 <main class="main page" id="page-ilities" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Ilities</div>
+    <div class="page-title">Ilities <button class="info-icon" onclick="openSidebarToSlide('ilities', 0)" title="What are ilities?">ⓘ</button></div>
     <div class="page-subtitle">Select the system lifecycle properties relevant to your design. These become the categories your requirements are written against and the axes of your pairwise comparison.</div>
   </div>
 
   <div class="ility-selection-bar">
-    <span class="ility-count"><strong id="ilityCount">0</strong> of 26 selected</span>
+    <span class="ility-count"><strong id="ilityCount">0</strong> of 26 selected <button class="info-icon" onclick="openSidebarToSlide('ilities', 1)" title="How to select ilities">ⓘ</button></span>
     <div style="display:flex;gap:6px">
       <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllIlities()">Select All</button>
       <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllIlities()">Deselect All</button>
@@ -574,12 +581,12 @@
 <main class="main page" id="page-stak" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Stakeholders</div>
+    <div class="page-title">Stakeholders <button class="info-icon" onclick="openSidebarToSlide('stak', 0)" title="What are stakeholders?">ⓘ</button></div>
     <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to the who it serves or affects.</div>
   </div>
 
   <div class="stak-selection-bar">
-    <span class="stak-count"><strong id="stakCount">0</strong> selected</span>
+    <span class="stak-count"><strong id="stakCount">0</strong> selected <button class="info-icon" onclick="openSidebarToSlide('stak', 1)" title="How to identify stakeholders">ⓘ</button></span>
     <div style="display:flex;gap:6px">
       <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllStakeholders()">Select All</button>
       <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllStakeholders()">Deselect All</button>
@@ -631,7 +638,7 @@
       <button class="req-type-chip" data-type="mustnot" onclick="setReqType('mustnot', this)">Must Not</button>
     </div>
 
-    <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement</div>
+    <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement <button class="info-icon" onclick="openSidebarToSlide('requirements', 1)" title="How to write strong requirements">ⓘ</button></div>
     <textarea class="req-text-input" id="reqText" placeholder="Describe what the system shall, should, or must not do..." rows="2"></textarea>
 
     <div class="req-form-columns">
@@ -712,7 +719,7 @@
 <main class="main page" id="page-pair" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Pairwise Comparison</div>
+    <div class="page-title">Pairwise Comparison <button class="info-icon" onclick="openSidebarToSlide('pair', 0)" title="What is pairwise comparison?">ⓘ</button></div>
     <div class="page-subtitle">Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix.</div>
   </div>
 
@@ -803,7 +810,7 @@
 <main class="main page" id="page-scor" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Concept Scoring</div>
+    <div class="page-title">Concept Scoring <button class="info-icon" onclick="openSidebarToSlide('scor', 0)" title="What is concept scoring?">ⓘ</button></div>
     <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept becomes the Datum — your fixed baseline. Score each additional concept requirement by requirement, relative to the Datum.</div>
   </div>
 
@@ -940,7 +947,7 @@
 <main class="main page" id="page-pugh" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Pugh Matrix</div>
+    <div class="page-title">Pugh Matrix <button class="info-icon" onclick="openSidebarToSlide('pugh', 0)" title="What is the Pugh Matrix?">ⓘ</button></div>
     <div class="page-subtitle">Your requirements, ilities, and concept scores in one view. Concepts that outscore the Datum on high-weight requirements are your strongest candidates to converge on.</div>
   </div>
 
@@ -1238,6 +1245,7 @@
 <script src="js/auth.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/projects.js"></script>
+<script src="js/sidebar-content.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 

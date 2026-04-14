@@ -7,12 +7,24 @@
 
 // ── Sidebar slides ───────────────────────────────────────────
 
-  function renderSlides() {
-    const s = slides[currentSlide];
-    let html = `<div class="slide-number">Slide ${currentSlide + 1} of ${slides.length}</div>`;
+  // Resolve the current slide array from SIDEBAR_CONTENT.
+  // Falls back to an empty array if content not yet loaded.
+  function _getCurrentSlides() {
+    if (typeof SIDEBAR_CONTENT === 'undefined') return [];
+    return SIDEBAR_CONTENT[_currentPage] || SIDEBAR_CONTENT.home || [];
+  }
+
+  // renderSlides(arr) — render the slide panel.
+  // Pass an explicit array when switching pages; omit to re-render current page.
+  function renderSlides(arr) {
+    const slideArr = arr || _getCurrentSlides();
+    if (!slideArr || !slideArr.length) return;
+
+    const s = slideArr[currentSlide] || slideArr[0];
+    let html = `<div class="slide-number">Slide ${currentSlide + 1} of ${slideArr.length}</div>`;
     html += `<div class="slide-card">`;
     html += `<div class="slide-title">${s.title}</div>`;
-    html += `<div class="slide-body">${s.body}</div>`;
+    if (s.body) html += `<div class="slide-body">${s.body}</div>`;
     if (s.bad) {
       html += `<div class="slide-example bad"><div class="slide-example-label">✗ ${s.bad.label}</div>${s.bad.text}</div>`;
     }
@@ -21,17 +33,18 @@
     }
     html += `<div class="slide-nav">`;
     html += `<button class="slide-nav-btn" onclick="changeSlide(-1)" ${currentSlide === 0 ? 'disabled' : ''}>‹</button>`;
-    html += `<div class="slide-dots">` + slides.map((_, i) =>
+    html += `<div class="slide-dots">` + slideArr.map((_, i) =>
       `<div class="slide-dot ${i === currentSlide ? 'active' : ''}" onclick="goToSlide(${i})"></div>`
     ).join('') + `</div>`;
-    html += `<button class="slide-nav-btn" onclick="changeSlide(1)" ${currentSlide === slides.length - 1 ? 'disabled' : ''}>›</button>`;
+    html += `<button class="slide-nav-btn" onclick="changeSlide(1)" ${currentSlide === slideArr.length - 1 ? 'disabled' : ''}>›</button>`;
     html += `</div></div>`;
     document.getElementById('slideContainer').innerHTML = html;
   }
 
   function changeSlide(dir) {
-    currentSlide = Math.max(0, Math.min(slides.length - 1, currentSlide + dir));
-    renderSlides();
+    const arr = _getCurrentSlides();
+    currentSlide = Math.max(0, Math.min(arr.length - 1, currentSlide + dir));
+    renderSlides(arr);
   }
 
   function goToSlide(i) { currentSlide = i; renderSlides(); }
