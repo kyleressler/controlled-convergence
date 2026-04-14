@@ -101,7 +101,9 @@ function snapshotCurrentState(existingProject) {
       while: whileEl ? whileEl.value : (existingProject.goal && existingProject.goal.while) || ''
     },
     ilities:      Array.from(selectedIlities),
+    ilityOrder:   ilityOrder.slice(),
     stakeholders: Array.from(selectedStakeholders),
+    stakOrder:    stakOrder.slice(),
     requirements: requirements.slice(),
     concepts:     pughConcepts.slice(),
     matrix:       Object.assign({}, pughScores),
@@ -134,10 +136,12 @@ function restoreProjectState(project) {
   // Ilities
   selectedIlities = new Set(project.ilities || []);
   customIlities   = [];
+  ilityOrder      = (project.ilityOrder || []).slice();
 
   // Stakeholders
   selectedStakeholders = new Set(project.stakeholders || []);
   customStakeholders   = [];
+  stakOrder            = (project.stakOrder || []).slice();
 
   // Requirements
   requirements  = (project.requirements || []).slice();

@@ -16,10 +16,12 @@ let currentSlide = 0;
 // ── Ilities ──────────────────────────────────────────────────
 let selectedIlities = new Set();
 let customIlities = [];
+let ilityOrder = []; // user-defined card display order (array of ility IDs)
 
 // ── Stakeholders ─────────────────────────────────────────────
 let selectedStakeholders = new Set();
 let customStakeholders = [];
+let stakOrder = []; // user-defined card display order (array of stakeholder IDs)
 
 // ── Requirements ─────────────────────────────────────────────
 let requirements = [];

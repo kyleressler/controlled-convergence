@@ -30,8 +30,8 @@
     <button class="nav-tool active" data-page="home" onclick="switchPage('home', this)">HOME</button>
     <button class="nav-tool" data-page="proj" onclick="switchPage('proj', this)">PROJ</button>
     <button class="nav-tool" data-page="tbus" onclick="switchPage('tbus', this)">GOAL</button>
-    <button class="nav-tool" data-page="ilities" onclick="switchPage('ilities', this)">ILTY</button>
     <button class="nav-tool" data-page="stak" onclick="switchPage('stak', this)">STAK</button>
+    <button class="nav-tool" data-page="ilities" onclick="switchPage('ilities', this)">ILTY</button>
     <button class="nav-tool" data-page="requirements" onclick="switchPage('requirements', this)">REQS</button>
     <button class="nav-tool" data-page="pair" onclick="switchPage('pair', this)">PAIR</button>
     <button class="nav-tool" data-page="scor" onclick="switchPage('scor', this)">SCOR</button>
@@ -325,14 +325,14 @@
       <div class="home-step-arrow">→</div>
       <div class="home-step">
         <div class="home-step-num">2</div>
-        <div class="home-step-label">Ilities</div>
-        <div class="home-step-desc">Select the quality dimensions that matter most to your design.</div>
+        <div class="home-step-label">Stakeholders</div>
+        <div class="home-step-desc">Identify who is affected by and who influences the design.</div>
       </div>
       <div class="home-step-arrow">→</div>
       <div class="home-step">
         <div class="home-step-num">3</div>
-        <div class="home-step-label">Stakeholders</div>
-        <div class="home-step-desc">Identify who is affected by and who influences the design.</div>
+        <div class="home-step-label">Ilities</div>
+        <div class="home-step-desc">Select the quality dimensions that matter most to your design.</div>
       </div>
       <div class="home-step-arrow">→</div>
       <div class="home-step">
@@ -493,8 +493,8 @@
         <span class="pro-badge-inline" id="coachProBadge">PRO</span>
       </button>
       
-      <button class="btn btn-continue" id="btnContinue" disabled onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
-        Continue to Ilities →
+      <button class="btn btn-continue" id="btnContinue" disabled onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+        Continue to Stakeholders →
       </button>
     </div>
   </div>
@@ -562,8 +562,8 @@
       <p>AI Coaching Coming Soon...</p>
     </div>
     <div class="advisor-footer">
-      <button class="btn btn-continue" id="btnIlityContinue" disabled onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
-        Continue to Stakeholders →
+      <button class="btn btn-continue" id="btnIlityContinue" disabled onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+        Continue to Requirements →
       </button>
     </div>
   </div>
@@ -605,8 +605,8 @@
       <p>AI Coaching Coming Soon...</p>
     </div>
     <div class="advisor-footer">
-      <button class="btn btn-continue" id="btnStakContinue" disabled onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
-        Continue to Requirements →
+      <button class="btn btn-continue" id="btnStakContinue" disabled onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+        Continue to Ilities →
       </button>
     </div>
   </div>

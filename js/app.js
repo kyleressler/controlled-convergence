@@ -1425,6 +1425,71 @@ ${sections}
     populateReqForms();
   }
 
+  // ── CARD DRAG-TO-REORDER ──
+  // Drag state
+  let _dragCardId   = null;
+  let _dragCardType = null; // 'ility' | 'stak'
+
+  function cardDragStart(e, id, type) {
+    _dragCardId   = id;
+    _dragCardType = type;
+    e.dataTransfer.effectAllowed = 'move';
+    // Slight delay so the browser snapshot doesn't capture the faded state
+    setTimeout(() => {
+      const prefix = type === 'ility' ? 'chip-' : 'stak-chip-';
+      const el = document.getElementById(prefix + id);
+      if (el) el.classList.add('dragging');
+    }, 0);
+  }
+
+  function cardDragOver(e, id, type) {
+    if (type !== _dragCardType || id === _dragCardId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // Highlight drop target
+    const selector = type === 'ility' ? '.ility-chip' : '.stak-chip';
+    document.querySelectorAll(selector).forEach(c => c.classList.remove('drag-over'));
+    const prefix = type === 'ility' ? 'chip-' : 'stak-chip-';
+    const targetEl = document.getElementById(prefix + id);
+    if (targetEl) targetEl.classList.add('drag-over');
+  }
+
+  function cardDrop(e, id, type) {
+    e.preventDefault();
+    if (type !== _dragCardType || id === _dragCardId || !_dragCardId) return;
+    const all = type === 'ility'
+      ? [...ILITIES, ...customIlities]
+      : [...STAKEHOLDERS, ...customStakeholders];
+    const orderArr = type === 'ility' ? ilityOrder : stakOrder;
+    // Build the current ordered list of IDs
+    let ordered = all.map(x => x.id).sort((a, b) => {
+      const ai = orderArr.indexOf(a);
+      const bi = orderArr.indexOf(b);
+      return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+    });
+    // Remove dragged item and insert before the drop target
+    ordered = ordered.filter(x => x !== _dragCardId);
+    const targetIdx = ordered.indexOf(id);
+    ordered.splice(targetIdx, 0, _dragCardId);
+    // Persist order into state
+    if (type === 'ility') { ilityOrder = ordered; renderIlityGrid(); }
+    else                   { stakOrder  = ordered; renderStakGrid(); }
+    // Auto-save for member/pro users with an active project
+    if (activeProject && (userTier === 'member' || userTier === 'pro')) {
+      const snap = snapshotCurrentState(activeProject);
+      saveProject(snap).catch(err => console.warn('order save failed', err));
+    }
+  }
+
+  function cardDragEnd(e, type) {
+    _dragCardId   = null;
+    _dragCardType = null;
+    const selector = type === 'ility' ? '.ility-chip' : '.stak-chip';
+    document.querySelectorAll(selector).forEach(c => {
+      c.classList.remove('dragging', 'drag-over');
+    });
+  }
+
   // ── REQUIREMENTS ──
   requirements = [];
   reqType = 'essential';

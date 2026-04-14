@@ -235,11 +235,24 @@
   function renderIlityGrid() {
     const grid = document.getElementById('ilityGrid');
     const all = [...ILITIES, ...customIlities];
+    // Sort by user-defined order; unordered items go at the end
+    all.sort((a, b) => {
+      const ai = ilityOrder.indexOf(a.id);
+      const bi = ilityOrder.indexOf(b.id);
+      return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+    });
     grid.innerHTML = all.map(il => `
       <div class="ility-chip ${selectedIlities.has(il.id) ? 'selected' : ''}"
+           draggable="true"
+           id="chip-${il.id}"
            onclick="toggleIlity('${il.id}')"
            ondblclick="event.stopPropagation();openEditModal('ility','${il.id}')"
-           id="chip-${il.id}" title="Double-click to edit">
+           ondragstart="cardDragStart(event,'${il.id}','ility')"
+           ondragover="cardDragOver(event,'${il.id}','ility')"
+           ondrop="cardDrop(event,'${il.id}','ility')"
+           ondragend="cardDragEnd(event,'ility')"
+           title="Drag to reorder · Double-click to edit">
+        <div class="chip-drag-handle" aria-hidden="true">⠿</div>
         <div class="ility-chip-name">${il.name}</div>
         <div class="ility-chip-desc">${il.desc}</div>
       </div>`).join('');
@@ -258,11 +271,24 @@
     const grid = document.getElementById('stakGrid');
     if (!grid) return;
     const all = [...STAKEHOLDERS, ...customStakeholders];
+    // Sort by user-defined order; unordered items go at the end
+    all.sort((a, b) => {
+      const ai = stakOrder.indexOf(a.id);
+      const bi = stakOrder.indexOf(b.id);
+      return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
+    });
     grid.innerHTML = all.map(s => `
       <div class="stak-chip ${selectedStakeholders.has(s.id) ? 'selected' : ''}"
+           draggable="true"
+           id="stak-chip-${s.id}"
            onclick="toggleStak('${s.id}')"
            ondblclick="event.stopPropagation();openEditModal('stak','${s.id}')"
-           id="stak-chip-${s.id}" title="Double-click to edit">
+           ondragstart="cardDragStart(event,'${s.id}','stak')"
+           ondragover="cardDragOver(event,'${s.id}','stak')"
+           ondrop="cardDrop(event,'${s.id}','stak')"
+           ondragend="cardDragEnd(event,'stak')"
+           title="Drag to reorder · Double-click to edit">
+        <div class="chip-drag-handle" aria-hidden="true">⠿</div>
         <div class="stak-chip-name">${s.name}</div>
         <div class="stak-chip-desc">${s.desc}</div>
       </div>`).join('');
