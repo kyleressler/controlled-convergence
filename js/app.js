@@ -2066,16 +2066,24 @@ ${sections}
       if (e.target === this) closeEditModal();
     });
 
-    // Close open sidebars when clicking outside them
+    // Close open sidebars when clicking outside them.
+    // IMPORTANT: Use composedPath() rather than contains(e.target) for the right sidebar.
+    // Slide nav buttons call renderSlides() which replaces innerHTML — by the time this
+    // handler fires, e.target is already detached from the DOM, so contains() returns
+    // false even for clicks that originated inside the sidebar. composedPath() captures
+    // the full event path at dispatch time, before any DOM mutation.
     document.addEventListener('click', function(e) {
       const left  = document.getElementById('leftSidebar');
       const right = document.getElementById('rightSidebar');
+      const path  = e.composedPath ? e.composedPath() : [];
+
       if (left && left.classList.contains('open') && !left.contains(e.target)) {
         left.classList.remove('open');
       }
-      if (right && right.classList.contains('open') && !right.contains(e.target)) {
-        // Also exclude clicks on ⓘ info icons (they call openSidebarToSlide directly)
-        if (!e.target.classList.contains('info-icon')) {
+      if (right && right.classList.contains('open')) {
+        const clickedInsideRight = path.includes(right);
+        const isInfoIcon = e.target && e.target.classList && e.target.classList.contains('info-icon');
+        if (!clickedInsideRight && !isInfoIcon) {
           right.classList.remove('open');
           document.body.classList.remove('right-sidebar-open');
         }
