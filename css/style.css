@@ -190,6 +190,34 @@
       flex-shrink: 0;
     }
 
+    /* ── FLOATING LOGIN BUTTON ── */
+    #floatingLoginBtn {
+      position: fixed;
+      top: 10px;
+      right: 14px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 14px;
+      height: 32px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      box-shadow: 0 2px 8px rgba(0,122,255,0.25);
+      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+    #floatingLoginBtn:hover {
+      background: var(--accent-hover, #0062d0);
+      box-shadow: 0 4px 12px rgba(0,122,255,0.35);
+      transform: translateY(-1px);
+    }
+
     
 .nav-project-name {
   display: flex;

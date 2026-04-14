@@ -106,6 +106,12 @@
         logoutBtn.title = 'Sign in first';
       }
     }
+
+    // Floating login button — visible only when signed out
+    const floatingBtn = document.getElementById('floatingLoginBtn');
+    if (floatingBtn) {
+      floatingBtn.style.display = isSignedIn ? 'none' : 'flex';
+    }
   }
 
 
