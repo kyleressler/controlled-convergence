@@ -325,6 +325,10 @@
       var el = document.getElementById(id);
       if (el) el.value = '';
     });
+    // Reset terms checkbox and button state
+    var termsCheck = document.getElementById('authTermsCheck');
+    if (termsCheck) termsCheck.checked = false;
+    updateSignupBtn();
     ['authLoginError','authSignupError','authSignupSuccess'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) { el.style.display = 'none'; el.textContent = ''; }
@@ -808,6 +812,27 @@ ${sections}
     } else {
       alert(msg.title + '\n\n' + msg.body);
     }
+  }
+
+  // ── TERMS MODAL ──
+  function openTermsModal() {
+    const overlay = document.getElementById('termsModal');
+    if (overlay) overlay.classList.add('open');
+  }
+
+  function closeTermsModal() {
+    const overlay = document.getElementById('termsModal');
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  // Enable/disable the Create Account button based on terms checkbox state
+  function updateSignupBtn() {
+    const checked = document.getElementById('authTermsCheck')?.checked;
+    const btn     = document.getElementById('authSignupBtn');
+    if (!btn) return;
+    btn.disabled         = !checked;
+    btn.style.opacity    = checked ? '1'            : '0.45';
+    btn.style.cursor     = checked ? 'pointer'      : 'not-allowed';
   }
 
   function closeUpgradeModal() {
