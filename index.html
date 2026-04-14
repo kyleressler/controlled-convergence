@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controlled Convergence</title>
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Chart.js (Pugh concept score chart) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Supabase JS SDK (auth + database) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-logo"><span>CC</span> Controlled Convergence</div>
+  <!-- MODE TOGGLE: switches between Quick Start and Guided Mode -->
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn" id="modeBtnQuick" onclick="setMode('quick')">⚡ Quick Start</button>
+    <button class="mode-btn active" id="modeBtnGuided" onclick="setMode('guided')">◈ Guided Mode</button>
+  </div>
+  <div class="nav-tools">
+    <button class="nav-tool active" data-page="home" onclick="switchPage('home', this)">HOME</button>
+    <button class="nav-tool" data-page="proj" onclick="switchPage('proj', this)">PROJ</button>
+    <button class="nav-tool" data-page="tbus" onclick="switchPage('tbus', this)">GOAL</button>
+    <button class="nav-tool" data-page="ilities" onclick="switchPage('ilities', this)">ILTY</button>
+    <button class="nav-tool" data-page="stak" onclick="switchPage('stak', this)">STAK</button>
+    <button class="nav-tool" data-page="requirements" onclick="switchPage('requirements', this)">REQS</button>
+    <button class="nav-tool" data-page="pair" onclick="switchPage('pair', this)">PAIR</button>
+    <button class="nav-tool" data-page="scor" onclick="switchPage('scor', this)">SCOR</button>
+    <button class="nav-tool" data-page="pugh" onclick="switchPage('pugh', this)">PUGH</button>
+    <button class="nav-tool">CONV</button>
+  
+  <div class="nav-project-name" id="navProjectName" style="display:none">
+    <span class="nav-project-label">PROJECT:</span>
+    <span id="navProjectNameText"></span>
+  </div>
+</div>
+  <div class="nav-blog">BLOG</div>
+</nav>
+
+
+<!-- ── LEFT SIDEBAR ── -->
+<div class="sidebar-left" id="leftSidebar">
+  <!-- Only the hamburger tab is visible when collapsed -->
+  <div class="sidebar-tab" onclick="toggleSidebar('left')" title="Controls">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </div>
+  <!-- Initials circle — visible when collapsed, hidden when open -->
+  <div class="sidebar-initials-circle" id="sidebarInitialsCircle" onclick="toggleSidebar('left')" title="Open sidebar">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  </div>
+  <!-- Sidebar content — hidden (opacity:0) when collapsed -->
+  <div class="sidebar-content">
+
+    <!-- DEV ONLY: Tier toggle for testing — hidden in production (non-localhost) -->
+    <div id="devTierSection" style="display:none">
+      <div class="sidebar-label" style="color:var(--danger);opacity:0.7">Dev: Tier Toggle</div>
+      <div class="dev-tier-toggle">
+        <button class="dev-tier-btn active" id="devTierFree" onclick="setDevTier('free')">Free</button>
+        <button class="dev-tier-btn" id="devTierMember" onclick="setDevTier('member')">Member</button>
+        <button class="dev-tier-btn" id="devTierPro" onclick="setDevTier('pro')">Pro</button>
+      </div>
+    </div>
+
+    <div class="sidebar-label" style="margin-top:16px">Current Account Type</div>
+    <div class="account-status-wrap" id="accountStatusWrap">
+      <div class="account-tier-badge tier-free" id="accountTierBadge">Free</div>
+      <button class="account-cta-btn" id="accountCtaBtn" onclick="handleAccountCTA()">Create Free Member Account</button>
+    </div>
+
+
+    <div class="sidebar-label" style="margin-top:18px">Theme</div>
+    <div class="theme-picker">
+      <button class="theme-btn active" data-theme="engineering" onclick="setTheme('engineering', this)">
+        <div class="theme-swatch theme-swatch-engineering"></div>Engineering
+      </button>
+      <button class="theme-btn" data-theme="light" onclick="setTheme('light', this)">
+        <div class="theme-swatch theme-swatch-light"></div>Light
+      </button>
+      <button class="theme-btn" data-theme="dark" onclick="setTheme('dark', this)">
+        <div class="theme-swatch theme-swatch-dark"></div>Dark
+      </button>
+    </div>
+
+    <div class="sidebar-label" style="margin-top:20px">Actions</div>
+    <button class="action-btn" onclick="exportProjectData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export Project Data
+    </button>
+    <button class="action-btn" onclick="uploadProjectData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Project Data
+    </button>
+    <button class="action-btn" onclick="clearAllWithWarning()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Clear All
+    </button>
+    <button class="action-btn action-btn-pro" onclick="exportReport()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Export Report
+      <span class="pro-badge-inline">PRO</span>
+    </button>
+    <button class="action-btn action-btn-pro" onclick="openSaveTemplateModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M9 8h6M9 12h4"/></svg>
+      Save Template
+      <span class="pro-badge-inline">PRO</span>
+    </button>
+
+    <div style="border-top:1px solid var(--border);margin: 16px 0 12px;"></div>
+    <div class="sidebar-profile-row" id="sidebarProfileRow">
+      <div class="sidebar-profile-avatar" id="sidebarAvatarEl">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="sidebar-profile-info">
+        <div class="sidebar-profile-name" id="sidebarProfileName">Not signed in</div>
+      </div>
+    </div>
+    <button class="action-btn" onclick="handleLogout()" id="logoutBtn" style="margin-bottom:0;opacity:0.5;cursor:not-allowed" title="Sign in first">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log Out
+    </button>
+  </div>
+</div>
+
+<!-- ── RIGHT SIDEBAR ── -->
+<div class="sidebar-right" id="rightSidebar">
+  <div class="sidebar-tab" onclick="toggleSidebar('right')" title="Learn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  </div>
+  <div class="sidebar-content">
+    <div id="slideContainer">
+      <!-- slides rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── PROJ PAGE ── -->
+<main class="main page" id="page-proj" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Project Manager</div>
+    <div class="page-subtitle">Name and create your project. Your project name will appear across all tools as you work through the Controlled Convergence process.</div>
+  </div>
+
+  <div id="projActiveBanner" style="display:none">
+    <div class="proj-active-card" id="projActiveCard">
+      <div class="proj-active-label">ACTIVE PROJECT</div>
+      <div class="proj-active-name" id="projActiveName"></div>
+      <div class="proj-active-meta" id="projActiveMeta"></div>
+      <div id="projActiveDesc" style="font-size:13px;color:var(--text-light);margin-top:4px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="editActiveProject()">Edit</button>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="deactivateProject()">Close Project</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="proj-form-card" id="projFormCard">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="req-form-label">Project Name</div>
+        <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
+      </div>
+      <div>
+        <div class="req-form-label">Owner</div>
+        <input type="text" class="add-custom-input" id="projOwnerInput" placeholder="e.g. J. Smith, Team Alpha, Acme Corp..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="req-form-label">Description</div>
+      <input type="text" class="add-custom-input" id="projDescInput" placeholder="Brief description of the project goal or context..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
+    </div>
+    <div id="projFormError" style="color:var(--danger,#e53e3e);font-size:12px;margin-bottom:8px;display:none"></div>
+    <button class="btn btn-primary" onclick="createProject()">Start Project</button>
+    <div class="proj-tier-note" id="projTierNote"></div>
+  </div>
+
+  <div id="projSavedSection">
+    <div class="sidebar-label" style="margin-bottom:12px">Saved Projects</div>
+    <div id="projList" class="proj-list"></div>
+    <div id="projSaveNote" class="proj-save-note"></div>
+  </div>
+
+  <!-- Saved Templates Section -->
+  <div id="projTemplatesSection" style="margin-top:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="sidebar-label" style="margin-bottom:0">Saved Templates</div>
+      <button class="btn btn-ghost" id="startFromTemplateBtn" style="font-size:11px;padding:4px 10px;display:none" onclick="openStartFromTemplateModal()">+ Start From Template</button>
+    </div>
+    <div id="templateList" class="proj-list"></div>
+    <div id="templateEmptyState" style="font-size:13px;color:var(--text-muted);padding:12px 0;display:none">
+      No saved templates yet. Use <strong>Save Template</strong> in the sidebar to save your current session as a reusable starting point.
+    </div>
+  </div>
+
+  <div class="advisor-zone" style="margin-top:24px">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div>
+        <div class="advisor-name">STU</div>
+        <div class="advisor-role">Controlled Convergence Coach</div>
+      </div>
+    </div>
+    <div class="advisor-body" id="projAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── QUICK START PAGE ──
+     Shares the same data model as Guided Mode:
+       requirements[]   — same array, displayed as simple list
+       pughConcepts[]   — index 0 = datum (auto-created), 1+ = concepts shown here
+       pughScores{}     — same object, keyed conceptId_reqId
+       activeProject    — same object, name field used
+     On switch Quick→Guided: qsSync() writes QS field values into shared state.
+     On switch Guided→Quick: syncGuidedToQS() reads shared state into QS fields.
+-->
+<main class="main page" id="page-quick" style="display:none">
+
+  <div class="qs-header">
+    <div>
+      <div class="qs-title">Quick Start</div>
+      <div class="qs-subtitle">Jump straight in — the matrix updates as you type.</div>
+    </div>
+    <div class="qs-save-hint">Switch to Guided Mode for structured coaching, ility weighting, and PDF export.</div>
+  </div>
+
+  <!-- Project name + Goal -->
+  <div class="qs-top-grid">
+    <div class="qs-field-group">
+      <label class="qs-label" for="qsProjectName">Project Name</label>
+      <input class="qs-input" id="qsProjectName" placeholder="My Design Project" oninput="qsSync()">
+    </div>
+    <div class="qs-field-group">
+      <label class="qs-label" for="qsGoal">Goal</label>
+      <input class="qs-input" id="qsGoal" placeholder="What are you designing and why?" oninput="qsSync()">
+    </div>
+  </div>
+
+  <!-- Requirements + Concepts lists -->
+  <div class="qs-lists-grid">
+    <div class="qs-list-panel">
+      <div class="qs-list-header">
+        <span class="qs-list-title">Requirements (rows)</span>
+        <button class="qs-add-btn" onclick="addQSRequirement()">+ Add</button>
+      </div>
+      <div id="qsRequirementsList"><p class="qs-empty-hint">No requirements yet. Click + Add.</p></div>
+    </div>
+    <div class="qs-list-panel">
+      <div class="qs-list-header">
+        <span class="qs-list-title">Concepts (columns)</span>
+        <button class="qs-add-btn" onclick="addQSConcept()">+ Add</button>
+      </div>
+      <!-- Baseline Concept = pughConcepts[0], always present, always first column -->
+      <div class="qs-baseline-row">
+        <span class="qs-baseline-label">Baseline Concept</span>
+        <input class="qs-row-input qs-baseline-input" id="qsBaselineName"
+               placeholder="Datum"
+               oninput="updateQSBaseline(this.value)">
+      </div>
+      <div class="qs-concepts-divider"></div>
+      <div id="qsConceptsList"><p class="qs-empty-hint">No additional concepts yet. Click + Add.</p></div>
+    </div>
+  </div>
+
+  <!-- Simple Pugh Matrix -->
+  <div class="qs-matrix-section">
+    <div class="qs-matrix-header">
+      <span class="qs-list-title">Pugh Matrix</span>
+      <span class="qs-matrix-hint">Score each concept vs. datum: better (+), same (0), worse (−)</span>
+    </div>
+    <div id="qsMatrixWrap"><p class="qs-matrix-empty">Add requirements and concepts above to see the matrix.</p></div>
+  </div>
+
+</main>
+
+<!-- ── HOME PAGE ── -->
+<main class="main page active" id="page-home">
+  <div class="home-hero">
+    <div class="home-hero-inner">
+      <h1 class="home-headline">Make Better Design Decisions</h1>
+      <p class="home-tagline">A structured methodology for evaluating design concepts against real engineering requirements — objectively, systematically, and collaboratively.</p>
+      <div class="home-cta-row">
+        <button class="home-cta-quick" onclick="setMode('quick')">⚡ Quick Start →</button>
+        <button class="home-cta-guided" onclick="setMode('guided'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Guided Mode →</button>
+      </div>
+      <p class="home-cta-sub">Quick Start: jump straight to a matrix &nbsp;|&nbsp; Guided Mode: full structured workflow</p>
+    </div>
+  </div>
+
+  <div class="home-steps">
+    <div class="home-steps-title">The Controlled Convergence Workflow</div>
+    <div class="home-steps-row">
+      <div class="home-step">
+        <div class="home-step-num">1</div>
+        <div class="home-step-label">Goal Statement</div>
+        <div class="home-step-desc">Define what you're designing, for whom, and under what constraints.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">2</div>
+        <div class="home-step-label">Ilities</div>
+        <div class="home-step-desc">Select the quality dimensions that matter most to your design.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">3</div>
+        <div class="home-step-label">Stakeholders</div>
+        <div class="home-step-desc">Identify who is affected by and who influences the design.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">4</div>
+        <div class="home-step-label">Requirements</div>
+        <div class="home-step-desc">Capture specific, measurable engineering requirements.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">5</div>
+        <div class="home-step-label">Pairwise</div>
+        <div class="home-step-desc">Rank requirements by relative importance through pairwise comparison.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">6</div>
+        <div class="home-step-label">Score</div>
+        <div class="home-step-desc">Score each design concept against the datum for every requirement.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">7</div>
+        <div class="home-step-label">Pugh Matrix</div>
+        <div class="home-step-desc">Visualize which concepts dominate and converge on the best design.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-values">
+    <div class="home-value">
+      <div class="home-value-title">Objective Evaluation</div>
+      <div class="home-value-body">Eliminate gut-feel decisions. Score concepts against an agreed datum using a weighted matrix.</div>
+    </div>
+    <div class="home-value">
+      <div class="home-value-title">Iterative Convergence</div>
+      <div class="home-value-body">Weak concepts are eliminated. Strong concepts are hybridized. The best design emerges.</div>
+    </div>
+    <div class="home-value">
+      <div class="home-value-title">Defensible Results</div>
+      <div class="home-value-body">Export a full audit trail — requirements, scores, and matrix — ready to present to stakeholders.</div>
+    </div>
+  </div>
+</main>
+
+<!-- ── GOAL STATEMENT PAGE ── -->
+<main class="main page" id="page-tbus">
+  <div class="page-header">
+    <div class="page-title">Goal Statement</div>
+    <div class="page-subtitle">Define what you are trying to accomplish before you decide how you are going to accomplish it.</div>
+  </div>
+
+  <!-- Goal Mode Toggle -->
+  <div class="pair-mode-bar" style="margin-bottom:20px">
+    <span class="pair-mode-label">Statement Mode:</span>
+    <div class="pair-mode-toggle">
+      <button class="pair-mode-btn" id="goalModeBasicBtn" onclick="switchGoalMode('basic')">Basic</button>
+      <button class="pair-mode-btn active" id="goalModeStructuredBtn" onclick="switchGoalMode('structured')">To · By · Using · While</button>
+    </div>
+  </div>
+
+  <!-- Basic Goal Input -->
+  <div id="goalBasicForm" style="display:none">
+    <div class="statement-card">
+      <!-- uses statement-part so flex:1 on the textarea works and focus-within background fires -->
+      <div class="statement-part" style="border-bottom:none;flex-direction:column;gap:10px;padding:20px 24px 16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">Goal Statement</div>
+        <textarea class="part-input" id="input-goal-basic" placeholder="Describe what you are trying to accomplish in one clear sentence. Focus on the outcome for a person, not a product or technology." rows="5" oninput="onGoalBasicInput()" style="font-size:15px;line-height:1.7;width:100%;box-sizing:border-box;padding:0;min-height:100px"></textarea>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;padding-bottom:4px">A basic goal statement is a great starting point. Switch to <strong>To · By · Using · While</strong> mode for a structured, four-part statement that separates intent from method from constraint.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statement Form -->
+  <div class="statement-card" id="statementCard">
+
+    <!-- TO -->
+    <div class="statement-part" id="part-to">
+      <div class="part-label-wrap">
+        <span class="part-keyword to-kw">TO</span>
+        <span class="part-hint">Solution-neutral intent</span>
+      </div>
+      <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution." rows="3" oninput="onInput('to')"></textarea>
+      <div class="part-status"><div class="status-dot" id="dot-to"></div></div>
+    </div>
+    <div class="validation-msg" id="val-to">
+      <span id="val-to-text"></span>
+    </div>
+
+    <!-- BY -->
+    <div class="statement-part" id="part-by">
+      <div class="part-label-wrap">
+        <span class="part-keyword by-kw">BY</span>
+        <span class="part-hint">Solution-specific function</span>
+      </div>
+      <textarea class="part-input" id="input-by" placeholder="Describe what we are going to do to achieve our goal without specifying the form of the solution." rows="3" oninput="onInput('by')"></textarea>
+      <div class="part-status"><div class="status-dot" id="dot-by"></div></div>
+    </div>
+    <div class="validation-msg" id="val-by">
+      <span id="val-by-text"></span>
+    </div>
+
+    <!-- USING -->
+    <div class="statement-part" id="part-using" style="opacity:0.55;pointer-events:none">
+      <div class="part-label-wrap">
+        <span class="part-keyword using-kw">USING</span>
+        <span class="part-hint">Converged solution</span>
+      </div>
+      <textarea class="part-input" id="input-using" placeholder="The USING is the specific solution form we are going to use and will be determined through Controlled Convergence in our Pugh Matrix. To Be Determined..." rows="3" readonly tabindex="-1"></textarea>
+      <div class="part-status"><div class="status-dot" id="dot-using"></div></div>
+    </div>
+    <div class="validation-msg" id="val-using" style="display:none">
+      <span id="val-using-text"></span>
+    </div>
+
+    <!-- WHILE -->
+    <div class="statement-part" id="part-while">
+      <div class="part-label-wrap">
+        <span class="part-keyword while-kw">WHILE</span>
+        <span class="part-hint">Constraint or condition</span>
+      </div>
+      <textarea class="part-input" id="input-while" placeholder="What constraint or boundary must any acceptable solution respect..." rows="3" oninput="onInput('while')"></textarea>
+      <div class="part-status"><div class="status-dot" id="dot-while"></div></div>
+    </div>
+    <div class="validation-msg" id="val-while">
+      <span id="val-while-text"></span>
+    </div>
+
+  </div>
+
+  <!-- Live Preview Banner -->
+  <div class="preview-banner" id="previewBanner"></div>
+
+  <!-- Advisor Zone -->
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div>
+        <div class="advisor-name">STU</div>
+        <div class="advisor-role">Controlled Convergence Coach</div>
+      </div>
+    </div>
+
+    <div class="advisor-body" id="advisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+
+    <div class="advisor-thinking" id="advisorThinking">
+      <span>Reviewing your statement</span>
+      <div class="dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="advisor-footer">
+      <button class="btn btn-secondary" id="btnCoach" onclick="handleCoachingClick()" style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Get Coaching
+        <span class="pro-badge-inline" id="coachProBadge">PRO</span>
+      </button>
+      
+      <button class="btn btn-continue" id="btnContinue" disabled onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+        Continue to Ilities →
+      </button>
+    </div>
+  </div>
+
+  <!-- Bibliography -->
+  <div class="bibliography">
+    <div class="bib-toggle" onclick="toggleBib(this)" id="bibToggle">
+      <span class="bib-arrow">›</span>
+      Bibliography &amp; Further Reading
+    </div>
+    <div class="bib-content" id="bibContent">
+      <div>
+        <div class="bib-col-title">Primary Sources</div>
+        <div class="bib-entry">Pugh, S. <em>Total Design: Integrated Methods for Successful Product Engineering.</em> Addison-Wesley, 1991.</div>
+        <div class="bib-entry">Ulrich, K.T. &amp; Eppinger, S.D. <em>Product Design and Development.</em> McGraw-Hill, 6th ed., 2015.</div>
+        <div class="bib-entry">Pahl, G. &amp; Beitz, W. <em>Engineering Design: A Systematic Approach.</em> Springer, 3rd ed., 2007.</div>
+      </div>
+      <div>
+        <div class="bib-col-title">Related Methodology</div>
+        <div class="bib-entry">Otto, K. &amp; Wood, K. <em>Product Design: Techniques in Reverse Engineering and New Product Development.</em> Prentice Hall, 2001.</div>
+        <div class="bib-entry">Cross, N. <em>Design Thinking: Understanding How Designers Think and Work.</em> Berg Publishers, 2011.</div>
+      </div>
+      <div>
+        <div class="bib-col-title">Further Reading</div>
+        <div class="bib-entry">de Weck, O.L., Ross, A.M., Rhodes, D.H. "Investigating Relationships and Semantic Sets amongst System Lifecycle Properties (Ilities)." <em>CESUN 2012,</em> TU Delft, June 2012.</div>
+        <div class="bib-entry">de Weck, O.L., Roos, D., Magee, C. <em>Engineering Systems: Meeting Human Needs in a Complex Technological World.</em> MIT Press, 2012.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── ILITIES PAGE ── -->
+<main class="main page" id="page-ilities" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Ilities</div>
+    <div class="page-subtitle">Select the system lifecycle properties relevant to your design. These become the categories your requirements are written against and the axes of your pairwise comparison.</div>
+  </div>
+
+  <div class="ility-selection-bar">
+    <span class="ility-count"><strong id="ilityCount">0</strong> of 26 selected</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllIlities()">Select All</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllIlities()">Deselect All</button>
+    </div>
+  </div>
+
+  <div class="ility-grid" id="ilityGrid"></div>
+
+  <div class="add-custom-row" style="align-items:flex-end">
+    <div class="add-custom-fields">
+      <input class="add-custom-input" id="customIlityName" placeholder="Custom ility name...">
+      <input class="add-custom-input" id="customIlityDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomIlity()">
+    </div>
+    <button class="btn btn-secondary" onclick="addCustomIlity()">Add</button>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body" id="ilityAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnIlityContinue" disabled onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+        Continue to Stakeholders →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── STAKEHOLDERS PAGE ── -->
+<main class="main page" id="page-stak" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Stakeholders</div>
+    <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to the who it serves or affects.</div>
+  </div>
+
+  <div class="stak-selection-bar">
+    <span class="stak-count"><strong id="stakCount">0</strong> selected</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllStakeholders()">Select All</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllStakeholders()">Deselect All</button>
+    </div>
+  </div>
+
+  <div class="stak-grid" id="stakGrid"></div>
+
+  <div class="add-custom-row" style="align-items:flex-end">
+    <div class="add-custom-fields">
+      <input class="add-custom-input" id="customStakName" placeholder="Custom stakeholder title...">
+      <input class="add-custom-input" id="customStakDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomStak()">
+    </div>
+    <button class="btn btn-secondary" onclick="addCustomStak()">Add</button>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body" id="stakAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnStakContinue" disabled onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+        Continue to Requirements →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── REQUIREMENTS PAGE ── -->
+<main class="main page" id="page-requirements" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Requirements</div>
+    <div class="page-subtitle">Write requirements and classify them by type, ility, and stakeholder. The coverage charts can help you spot gaps in your requirements.</div>
+  </div>
+
+  <div class="req-form-card" id="reqFormCard">
+    <div class="req-form-label">Type</div>
+    <div class="req-type-selector" id="reqTypeSelector">
+      <button class="req-type-chip active" data-type="essential" onclick="setReqType('essential', this)">Essential</button>
+      <button class="req-type-chip" data-type="desirable" onclick="setReqType('desirable', this)">Desirable</button>
+      <button class="req-type-chip" data-type="optional" onclick="setReqType('optional', this)">Optional</button>
+      <button class="req-type-chip" data-type="willnot" onclick="setReqType('willnot', this)">Will Not</button>
+      <button class="req-type-chip" data-type="mustnot" onclick="setReqType('mustnot', this)">Must Not</button>
+    </div>
+
+    <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement</div>
+    <textarea class="req-text-input" id="reqText" placeholder="Describe what the system shall, should, or must not do..." rows="2"></textarea>
+
+    <div class="req-form-columns">
+      <div class="req-form-col">
+        <div>
+          <div class="req-form-label">Primary Ility <span style="color:var(--danger)">*</span></div>
+          <select class="req-select" id="reqPrimaryIlity" onchange="syncReqSecondary('ility')">
+            <option value="">— select —</option>
+          </select>
+        </div>
+        <div>
+          <div class="req-form-label">Secondary Ility</div>
+          <select class="req-select" id="reqSecondaryIlity">
+            <option value="">(none)</option>
+          </select>
+        </div>
+      </div>
+      <div class="req-form-col">
+        <div>
+          <div class="req-form-label">Primary Stakeholder</div>
+          <select class="req-select" id="reqPrimaryStakeholder" onchange="syncReqSecondary('stak')">
+            <option value="">— select —</option>
+          </select>
+        </div>
+        <div>
+          <div class="req-form-label">Secondary Stakeholder</div>
+          <select class="req-select" id="reqSecondaryStakeholder">
+            <option value="">(none)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:4px;align-items:center">
+      <button class="btn btn-primary" id="reqAddBtn" onclick="addRequirement()">Add Requirement</button>
+      <button class="btn btn-ghost" id="reqCancelEdit" style="display:none" onclick="cancelReqEdit()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="req-layout">
+    <div>
+      <div id="reqList" class="req-list">
+        <div class="req-empty" id="reqEmpty">No requirements yet. Add your first one above.</div>
+      </div>
+    </div>
+    <div class="req-charts-col">
+      <div class="req-chart-stack">
+        <div class="req-chart-card">
+          <div class="req-chart-title">Coverage by Ility</div>
+          <div id="reqChartIlity"></div>
+        </div>
+        <div class="req-chart-card">
+          <div class="req-chart-title">Coverage by Stakeholder</div>
+          <div id="reqChartStak"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body" id="reqAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnReqContinue" disabled onclick="alert('Pairwise Comparison coming in the next build.')">
+        Continue to Pairwise →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── PAIR PAGE ── -->
+<main class="main page" id="page-pair" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Pairwise Comparison</div>
+    <div class="page-subtitle">Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix.</div>
+  </div>
+
+  <div class="pair-mode-bar">
+    <span class="pair-mode-label">Weighting Method:</span>
+    <div class="pair-mode-toggle">
+      <button class="pair-mode-btn" onclick="handlePairModeClick('weighted', this)" id="pairWeightedBtn">Weighted</button>
+      <button class="pair-mode-btn active" onclick="handlePairModeClick('nonweighted', this)" id="pairNonWeightedBtn">Non-Weighted</button>
+    </div>
+    <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
+    <div class="pair-progress-bar-wrap" id="pairProgressWrap">
+      <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
+      <div class="pair-progress-track">
+        <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
+      </div>
+    </div>
+    <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
+  </div>
+
+  <div id="pairWeightedSection">
+    <!-- Conflict card (hidden by default) -->
+    <div class="pair-conflict-card" id="pairConflictCard" style="display:none">
+      <div class="pair-conflict-title">⚠ Logic Inconsistency Detected</div>
+      <div class="pair-conflict-body" id="pairConflictBody"></div>
+      <div class="pair-conflict-choices" id="pairConflictChoices"></div>
+    </div>
+
+    <!-- Empty state (no ilities selected) -->
+    <div class="pair-card" id="pairEmptyMsg" style="display:none;text-align:center;padding:32px 28px;color:var(--text-muted);font-size:14px">
+      Go to <strong>ILTY</strong> and select at least 2 ilities to begin the pairwise comparison.
+    </div>
+
+    <!-- Comparison card -->
+    <div class="pair-card" id="pairCompareCard">
+      <div class="pair-question">Assume all requirements have been met at the minimum acceptable level. Which ility would you spend extra time, resources, or money on?</div>
+      <div class="pair-vs-row">
+        <button class="pair-choice-btn" id="pairBtnA" onclick="choosePair('A')"></button>
+        <div class="pair-vs-label">vs</div>
+        <button class="pair-choice-btn" id="pairBtnB" onclick="choosePair('B')"></button>
+      </div>
+    </div>
+
+    <!-- Live ranking chart (appears after first choice) -->
+    <div class="pair-log" id="pairLiveChartCard" style="display:none">
+      <div class="pair-log-title" id="pairLiveChartTitle">Running Rankings</div>
+      <div id="pairLiveChart"></div>
+    </div>
+
+    <!-- Results (hidden until done) -->
+    <div class="pair-results" id="pairResults" style="display:none">
+      <div class="pair-results-header">Ility Weights — Final Rankings</div>
+      <div id="pairResultRows"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="pair-log" id="pairLog" style="display:none">
+      <div class="pair-log-title">Comparisons Made</div>
+      <div id="pairLogEntries"></div>
+    </div>
+  </div>
+
+  <div id="pairNonWeightedSection" style="display:none">
+    <div class="pair-nonweighted-card">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">Non-Weighted Mode</div>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.65">All selected ilities will carry equal weight in the Pugh matrix. This is a valid choice when your team agrees that no single system property dominates the design space, or when there is insufficient information to prioritize.</p>
+      <div id="pairNonWeightedList" style="margin-top:20px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body" id="pairAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnPairContinue" disabled onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
+        Continue to Concept Scoring →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── SCOR PAGE ── -->
+<main class="main page" id="page-scor" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Concept Scoring</div>
+    <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept becomes the Datum — your fixed baseline. Score each additional concept requirement by requirement, relative to the Datum.</div>
+  </div>
+
+  <!-- Add concept row -->
+  <div class="concept-add-row">
+    <input type="text" class="add-custom-input" id="scorConceptInput"
+      placeholder="Concept name (e.g. Cable-stayed Bridge, Pneumatic Actuator, Option 3…)"
+      style="flex:1;max-width:440px"
+      onkeydown="if(event.key==='Enter')addPughConcept()">
+    <button class="btn btn-primary" onclick="addPughConcept()">Add Concept</button>
+  </div>
+
+  <!-- Concept cards list -->
+  <div id="scorConceptCards" class="concept-cards-wrap"></div>
+
+  <!-- Empty state (no concepts yet) -->
+  <div id="scorEmptyState" style="text-align:center;padding:40px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
+    Add your first concept above. It will become the <strong>Datum</strong> — the baseline all other concepts are compared against.
+  </div>
+
+  <!-- Scoring view (shown when a concept is selected) -->
+  <div id="scorScoringView" style="display:none">
+    <div class="scor-view">
+      <div class="scor-view-header">
+        <div style="flex:1">
+          <div class="scor-view-concept-name" id="scorViewName"></div>
+          <div class="scor-view-progress" id="scorViewProgress"></div>
+          <div class="scor-progress-track"><div class="scor-progress-fill" id="scorProgressFill" style="width:0%"></div></div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="exitScoringView()">← All Concepts</button>
+      </div>
+
+      <!-- Datum definition view (replaces old datum notice) -->
+      <div id="scorDatumDefView" style="display:none">
+        <div class="scor-req-display">
+          <div class="scor-req-badges" id="datumReqBadges"></div>
+          <div class="scor-req-text"   id="datumReqText"></div>
+          <div class="scor-req-meta"   id="datumReqMeta"></div>
+        </div>
+
+        <!-- Datum performance level -->
+        <div class="datum-def-section">
+          <div class="datum-def-label">Datum Performance Level</div>
+          <input class="datum-def-input" id="datumLevelInput" type="text"
+            placeholder="e.g. 12 kg, 4.5 sec, mild steel, current manual process..."
+            oninput="saveDatumField()">
+        </div>
+
+        <!-- Advanced anchors (shown only in advanced mode) -->
+        <div id="datumAnchorSection" style="display:none">
+          <div class="datum-def-section" style="padding-top:10px">
+            <div class="datum-def-label" style="color:var(--success)">▲ Best Reasonable (+3)</div>
+            <input class="datum-def-input" id="datumAnchorHighInput" type="text"
+              placeholder="The best a concept could realistically achieve for this requirement..."
+              oninput="saveDatumField()">
+          </div>
+          <div class="datum-def-section" style="padding-top:10px">
+            <div class="datum-def-label" style="color:var(--danger)">▼ Worst Reasonable (−3)</div>
+            <input class="datum-def-input" id="datumAnchorLowInput" type="text"
+              placeholder="The worst a concept could realistically be for this requirement..."
+              oninput="saveDatumField()">
+          </div>
+        </div>
+
+        <!-- MAS selector (shown only when MAS enabled + Member+) -->
+        <div id="datumMasSection" style="display:none" class="datum-mas-row">
+          <div class="datum-mas-label">MAS</div>
+          <div class="datum-mas-btns" id="datumMasBtns"></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-left:8px">Minimum Acceptable Score for this requirement</div>
+        </div>
+
+        <div class="scor-nav-row" style="margin-top:14px">
+          <button class="btn btn-ghost" id="datumPrevBtn" onclick="datumDefNav(-1)" style="font-size:13px">← Prev</button>
+          <div class="scor-req-counter" id="datumReqCounter"></div>
+          <button class="btn btn-primary" id="datumNextBtn" onclick="datumDefNav(1)" style="font-size:13px">Next →</button>
+        </div>
+      </div>
+
+      <!-- Req-by-req scoring -->
+      <div id="scorReqView" style="display:none">
+        <div class="scor-req-display">
+          <div class="scor-req-badges" id="scorReqBadges"></div>
+          <div class="scor-req-text" id="scorReqText"></div>
+          <div class="scor-req-meta" id="scorReqMeta"></div>
+        </div>
+
+        <!-- Datum reference panel (shown when datum performance defined) -->
+        <div id="scorDatumRefPanel" class="datum-ref-panel" style="display:none"></div>
+
+        <!-- Basic scoring: +, 0, − -->
+        <div class="scor-score-row" id="scorBasicBtns">
+          <button class="scor-btn" id="scorBtnPlus"  onclick="setScore('+')">+</button>
+          <button class="scor-btn" id="scorBtnNeu"   onclick="setScore('0')">0</button>
+          <button class="scor-btn" id="scorBtnMinus" onclick="setScore('-')">−</button>
+        </div>
+        <!-- Advanced scoring: +3 to −3 (Member+) -->
+        <div class="scor-num-row" id="scorAdvBtns" style="display:none"></div>
+
+        <div class="scor-nav-row">
+          <button class="btn btn-ghost" id="scorPrevBtn" onclick="scoringNav(-1)" style="font-size:13px">← Prev</button>
+          <div class="scor-req-counter" id="scorReqCounter"></div>
+          <button class="btn btn-primary" id="scorNextBtn" onclick="scoringNav(1)" style="font-size:13px">Next →</button>
+        </div>
+
+        <!-- Concept performance input -->
+        <div class="concept-perf-section">
+          <div class="datum-def-label">Concept Performance Value <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional — for reference only)</span></div>
+          <input class="concept-perf-input" id="conceptPerfInput" type="text"
+            placeholder="e.g. 8.2 kg, 3 sec, aluminium alloy..."
+            oninput="saveConceptPerf()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnScorContinue" disabled onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+        Continue to Pugh Matrix →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── PUGH PAGE ── -->
+<main class="main page" id="page-pugh" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Pugh Matrix</div>
+    <div class="page-subtitle">Your requirements, ilities, and concept scores in one view. Concepts that outscore the Datum on high-weight requirements are your strongest candidates to converge on.</div>
+  </div>
+
+  <div class="pugh-toolbar">
+    <button class="btn btn-ghost" style="font-size:12px" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">← Edit Concepts</button>
+    <div style="flex:1"></div>
+    <!-- Settings button (Member+ only) -->
+    <button class="btn btn-ghost" id="pughSettingsBtn" style="font-size:12px;display:none;gap:6px;align-items:center" onclick="togglePughSettings()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Matrix Settings
+      <span class="member-badge-inline">MEMBER+</span>
+    </button>
+  </div>
+
+  <!-- Settings panel (collapsible, Member+ only) -->
+  <div id="pughSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px">Matrix Settings</div>
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
+      <label class="pugh-toggle-label">
+        <input type="checkbox" id="toggleAdvScoring" onchange="toggleAdvancedScoring(this)">
+        <div>
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">Advanced Scoring (±3) <span class="member-badge-inline">MEMBER+</span></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Use −3 to +3 instead of −/0/+</div>
+        </div>
+      </label>
+      <label class="pugh-toggle-label">
+        <input type="checkbox" id="toggleMTHUS" onchange="togglePughMTHUS(this)">
+        <div>
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MTHUS &amp; MTHUWS Ratios <span class="member-badge-inline">MEMBER+</span></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Show hybrid utility scores relative to theoretical max</div>
+        </div>
+      </label>
+      <label class="pugh-toggle-label">
+        <input type="checkbox" id="toggleMAS" onchange="togglePughMAS(this)">
+        <div>
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MAS (Min. Acceptable Score) <span class="member-badge-inline">MEMBER+</span></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Flag concepts below 50% of MTHUS</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="pughEmptyState" style="text-align:center;padding:52px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
+    Go to <strong>SCOR</strong> and add at least two concepts to build the matrix.
+  </div>
+
+  <!-- Matrix table -->
+  <div class="pugh-matrix-wrap" id="pughTableWrap" style="display:none">
+    <table class="pugh-table" id="pughTable"></table>
+  </div>
+
+  <!-- Concept Score Chart -->
+  <div class="pugh-chart-container" id="pughChartContainer" style="display:none">
+    <div class="pugh-chart-title">Concept Score Summary</div>
+    <div style="position:relative;height:300px;width:100%">
+      <canvas id="pughConceptChart"></canvas>
+    </div>
+  </div>
+
+  <div class="advisor-zone">
+    <div class="advisor-header">
+      <div class="advisor-avatar">STU</div>
+      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
+    </div>
+    <div class="advisor-body" id="pughAdvisorBody">
+      <p>AI Coaching Coming Soon...</p>
+    </div>
+    <div class="advisor-footer">
+      <button class="btn btn-continue" id="btnPughContinue" disabled onclick="alert('Convergence coming in the next build.')">
+        Continue to Convergence →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+
+<!-- ── EDIT MODAL ── -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">Edit</div>
+    <div class="modal-field">
+      <div class="modal-label">Name</div>
+      <input class="modal-input" id="modalName" type="text">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Description</div>
+      <input class="modal-input" id="modalDesc" type="text">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveEditModal()">Save</button>
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-delete" onclick="deleteFromModal()">Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── PUGH SCORE POPUP ── -->
+<div id="pughScorePopup" role="dialog" aria-label="Set score"></div>
+
+<!-- ── EXPORT REPORT MODAL ── -->
+<div class="modal-overlay" id="exportReportModal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Export Report</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Select the sections to include in your professional PDF report.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptTBUW" checked> Goal Statement
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptILTY" checked> Ilities
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptSTAK" checked> Stakeholders
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptREQS" checked> Requirements
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptPAIR" checked> Pairwise Rankings
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptSCOR" checked> Concept Scoring
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptPUGH" checked> Pugh Matrix
+      </label>
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">File Name</div>
+      <input type="text" id="rptFileName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Bridge_Design_Report">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">.pdf will be appended automatically</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="generateReport()">Generate PDF</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('exportReportModal').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SAVE TEMPLATE MODAL ── -->
+<div class="modal-overlay" id="saveTemplateModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Save Template</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Save the current session's structure as a reusable template for future projects.</div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Template Name</div>
+      <input type="text" id="tmplNameInput" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Medical Device Baseline, ADAS Safety Starter…">
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px">Include in Template</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="tmplILTY" checked> Selected Ilities
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="tmplSTAK" checked> Stakeholders
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="tmplREQS" checked> Requirements
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="tmplPAIR" checked> Pairwise Weights
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Goal statements and Pugh scores are project-specific and are not included in templates.</div>
+    </div>
+
+    <div style="margin-bottom:20px;padding:12px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <div style="position:relative;width:36px;height:20px;flex-shrink:0">
+          <input type="checkbox" id="tmplIsPublic" checked style="opacity:0;position:absolute;width:100%;height:100%;margin:0;cursor:pointer;z-index:1">
+          <div class="tmpl-toggle-track" id="tmplToggleTrack"></div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600">Share with Community</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">When the public template library launches, this template will be discoverable by other users.</div>
+        </div>
+      </label>
+    </div>
+
+    <div id="tmplSaveError" style="color:var(--danger);font-size:12px;margin-bottom:8px;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+      <button class="btn btn-secondary" onclick="closeSaveTemplateModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── START FROM TEMPLATE MODAL ── -->
+<div class="modal-overlay" id="startFromTemplateModal">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Start From Template</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Choose a template to load as the starting point for a new project. Your current session will be cleared.</div>
+    <div id="tmplPickerList" style="max-height:320px;overflow-y:auto;margin-bottom:16px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeStartFromTemplateModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── UPGRADE MODAL ── -->
+<div class="modal-overlay" id="upgradeModal">
+<!-- ── AUTH MODAL (Login / Sign Up) ── -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-box" style="max-width:420px">
+
+    <!-- Tab switcher -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)">
+      <button id="authTabLogin" onclick="switchAuthTab('login')"
+        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s">
+        Log In
+      </button>
+      <button id="authTabSignup" onclick="switchAuthTab('signup')"
+        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-weight:600;font-size:13px;cursor:pointer;transition:all 0.15s">
+        Sign Up — Free
+      </button>
+    </div>
+
+    <!-- Login form -->
+    <div id="authFormLogin">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Email</div>
+        <input type="email" id="authLoginEmail" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Password</div>
+        <input type="password" id="authLoginPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') submitAuthLogin()">
+      </div>
+      <div id="authLoginError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="authLoginBtn" onclick="submitAuthLogin()">Log In</button>
+        <button class="btn btn-secondary" onclick="closeAuthModal()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Sign-up form -->
+    <div id="authFormSignup" style="display:none">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+        Create a free account to save projects across sessions and devices.
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Name</div>
+        <input type="text" id="authSignupName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Your name or team name" autocomplete="name">
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Email</div>
+        <input type="email" id="authSignupEmail" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Password</div>
+        <input type="password" id="authSignupPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Min. 8 characters" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter') submitAuthSignup()">
+      </div>
+      <div id="authSignupError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <div id="authSignupSuccess" style="color:var(--success,#22c55e);font-size:12px;margin-bottom:10px;display:none"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="authSignupBtn" onclick="submitAuthSignup()">Create Account</button>
+        <button class="btn btn-secondary" onclick="closeAuthModal()">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+  <div class="modal-box">
+    <div class="modal-title" id="upgradeModalTitle">Upgrade Required</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px" id="upgradeModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeUpgradeModal()" id="upgradeModalCta">Learn More</button>
+      <button class="btn btn-secondary" onclick="closeUpgradeModal()">Not Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────
+     JavaScript — load order is critical:
+       1. config.js    ← Supabase URL + anon key → _supabase client
+       2. state.js     ← mutable app state (globals)
+       3. api.js       ← async backend interface (Supabase)
+       4. auth.js      ← authentication interface (Supabase)
+       5. analytics.js ← event tracking wrapper
+       6. projects.js  ← project model + Stripe gate
+       7. ui.js        ← all render* / update* functions
+       8. app.js       ← event handlers, business logic, init()
+     ───────────────────────────────────────────────────────── -->
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
