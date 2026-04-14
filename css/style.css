@@ -1462,7 +1462,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  writing-mode: vertical-lr;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
