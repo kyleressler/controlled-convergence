@@ -10,8 +10,8 @@
 // It cannot bypass Row Level Security (RLS) policies.
 // ============================================================
 
-const SUPABASE_URL      = 'YOUR_SUPABASE_URL_HERE';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+const SUPABASE_URL      = 'https://jqelfzqgcemtrpcrbpsl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxZWxmenFnY2VtdHJwY3JicHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzY1OTAsImV4cCI6MjA5MTcxMjU5MH0.kSZSX_yDisKBSwChNGs8qfRvPwEgurW1TncYOhwdJp8';
 
 // Create the Supabase client — available globally as `_supabase`
 // (prefixed to avoid conflict with the supabase CDN global)
