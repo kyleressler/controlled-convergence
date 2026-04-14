@@ -20,7 +20,7 @@
 
 <!-- ── NAV ── -->
 <nav class="nav">
-  <div class="nav-logo"><span>CC</span> Controlled Convergence</div>
+  <div class="nav-logo"><span>CC</span></div>
   <!-- MODE TOGGLE: switches between Quick Start and Guided Mode -->
   <div class="mode-toggle" id="modeToggle">
     <button class="mode-btn" id="modeBtnQuick" onclick="setMode('quick')">⚡ Quick Start</button>
@@ -43,7 +43,7 @@
     <span id="navProjectNameText"></span>
   </div>
 </div>
-  <div class="nav-blog">BLOG</div>
+  <button class="nav-tool nav-blog">BLOG</button>
 </nav>
 
 <!-- Floating login button — visible only when signed out -->
@@ -63,6 +63,8 @@
       <line x1="3" y1="18" x2="21" y2="18"/>
     </svg>
   </div>
+  <!-- Brand label — visible when collapsed, hidden when open -->
+  <div class="sidebar-brand" aria-hidden="true">Controlled Convergence</div>
   <!-- Initials circle — visible when collapsed, hidden when open -->
   <div class="sidebar-initials-circle" id="sidebarInitialsCircle" onclick="toggleSidebar('left')" title="Open sidebar">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

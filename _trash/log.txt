@@ -1,0 +1,5 @@
+_trash — Controlled Convergence
+================================
+Files moved here instead of deleted. Safe to empty this folder at any time.
+
+[2026-04-14] .git/index.lock — stale git lock file from a crashed git process; moved here to unblock GitHub Desktop
