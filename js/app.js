@@ -294,14 +294,10 @@
     if (!appState.currentUser) return;
     const { error } = await logout();
     if (error) { alert('Logout error: ' + error); return; }
-    // Reset in-memory project state
-    activeProject = null;
-    savedProjects  = [];
-    appState.currentProject = null;
-    appState.projects       = [];
-    updateAccountStatus();
-    updateTierBadges();
-    renderProjList();
+    // Force a full page reload after logout. This is the most reliable
+    // way to clear all in-memory and cached state across all browsers,
+    // including Safari on iOS which can silently restore sessions otherwise.
+    window.location.reload();
   }
 
   // ── Auth Modal ────────────────────────────────────────────────

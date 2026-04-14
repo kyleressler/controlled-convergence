@@ -59,6 +59,15 @@ async function register(email, password, name) {
  */
 async function logout() {
   const { error } = await _supabase.auth.signOut();
+  // Explicitly scrub Supabase session keys from localStorage.
+  // Safari on iOS doesn't always propagate the signOut() storage
+  // change reliably, so we force-clear them to prevent the session
+  // from being restored on the next page load.
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('sb-'))
+      .forEach(k => localStorage.removeItem(k));
+  } catch (e) { /* localStorage may be restricted in some Safari contexts */ }
   appState.currentUser = null;
   userTier = 'free';
   return { error: error ? error.message : null };
