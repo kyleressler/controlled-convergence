@@ -245,6 +245,7 @@
       <div class="ility-chip ${selectedIlities.has(il.id) ? 'selected' : ''}"
            draggable="true"
            id="chip-${il.id}"
+           data-id="${il.id}"
            onclick="toggleIlity('${il.id}')"
            ondblclick="event.stopPropagation();openEditModal('ility','${il.id}')"
            ondragstart="cardDragStart(event,'${il.id}','ility')"
@@ -252,7 +253,9 @@
            ondrop="cardDrop(event,'${il.id}','ility')"
            ondragend="cardDragEnd(event,'ility')"
            title="Drag to reorder · Double-click to edit">
-        <div class="chip-drag-handle" aria-hidden="true">⠿</div>
+        <div class="chip-drag-handle" aria-hidden="true"
+             ontouchstart="cardTouchStart(event,'${il.id}','ility')"
+             ontouchend="cardTouchEnd(event,'${il.id}','ility')">⠿</div>
         <div class="ility-chip-name">${il.name}</div>
         <div class="ility-chip-desc">${il.desc}</div>
       </div>`).join('');
@@ -281,6 +284,7 @@
       <div class="stak-chip ${selectedStakeholders.has(s.id) ? 'selected' : ''}"
            draggable="true"
            id="stak-chip-${s.id}"
+           data-id="${s.id}"
            onclick="toggleStak('${s.id}')"
            ondblclick="event.stopPropagation();openEditModal('stak','${s.id}')"
            ondragstart="cardDragStart(event,'${s.id}','stak')"
@@ -288,7 +292,9 @@
            ondrop="cardDrop(event,'${s.id}','stak')"
            ondragend="cardDragEnd(event,'stak')"
            title="Drag to reorder · Double-click to edit">
-        <div class="chip-drag-handle" aria-hidden="true">⠿</div>
+        <div class="chip-drag-handle" aria-hidden="true"
+             ontouchstart="cardTouchStart(event,'${s.id}','stak')"
+             ontouchend="cardTouchEnd(event,'${s.id}','stak')">⠿</div>
         <div class="stak-chip-name">${s.name}</div>
         <div class="stak-chip-desc">${s.desc}</div>
       </div>`).join('');

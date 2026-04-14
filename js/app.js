@@ -1426,15 +1426,22 @@ ${sections}
   }
 
   // ── CARD DRAG-TO-REORDER ──
-  // Drag state
-  let _dragCardId   = null;
-  let _dragCardType = null; // 'ility' | 'stak'
+  // Shared drag state (used by both mouse/HTML5 drag and touch drag)
+  let _dragCardId      = null;
+  let _dragCardType    = null; // 'ility' | 'stak'
+  // Touch-specific state
+  let _touchDragActive  = false;
+  let _touchStartX      = 0;
+  let _touchStartY      = 0;
+  let _dragSourceEl     = null;
+  let _touchMoveHandler = null;
+
+  // ── Mouse / HTML5 Drag (desktop) ──
 
   function cardDragStart(e, id, type) {
     _dragCardId   = id;
     _dragCardType = type;
     e.dataTransfer.effectAllowed = 'move';
-    // Slight delay so the browser snapshot doesn't capture the faded state
     setTimeout(() => {
       const prefix = type === 'ility' ? 'chip-' : 'stak-chip-';
       const el = document.getElementById(prefix + id);
@@ -1446,7 +1453,6 @@ ${sections}
     if (type !== _dragCardType || id === _dragCardId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    // Highlight drop target
     const selector = type === 'ility' ? '.ility-chip' : '.stak-chip';
     document.querySelectorAll(selector).forEach(c => c.classList.remove('drag-over'));
     const prefix = type === 'ility' ? 'chip-' : 'stak-chip-';
@@ -1461,20 +1467,16 @@ ${sections}
       ? [...ILITIES, ...customIlities]
       : [...STAKEHOLDERS, ...customStakeholders];
     const orderArr = type === 'ility' ? ilityOrder : stakOrder;
-    // Build the current ordered list of IDs
     let ordered = all.map(x => x.id).sort((a, b) => {
       const ai = orderArr.indexOf(a);
       const bi = orderArr.indexOf(b);
       return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
     });
-    // Remove dragged item and insert before the drop target
     ordered = ordered.filter(x => x !== _dragCardId);
     const targetIdx = ordered.indexOf(id);
     ordered.splice(targetIdx, 0, _dragCardId);
-    // Persist order into state
     if (type === 'ility') { ilityOrder = ordered; renderIlityGrid(); }
     else                   { stakOrder  = ordered; renderStakGrid(); }
-    // Auto-save for member/pro users with an active project
     if (activeProject && (userTier === 'member' || userTier === 'pro')) {
       const snap = snapshotCurrentState(activeProject);
       saveProject(snap).catch(err => console.warn('order save failed', err));
@@ -1485,9 +1487,72 @@ ${sections}
     _dragCardId   = null;
     _dragCardType = null;
     const selector = type === 'ility' ? '.ility-chip' : '.stak-chip';
-    document.querySelectorAll(selector).forEach(c => {
-      c.classList.remove('dragging', 'drag-over');
-    });
+    document.querySelectorAll(selector).forEach(c => c.classList.remove('dragging', 'drag-over'));
+  }
+
+  // ── Touch drag (iOS / iPad) ──
+  // Attached to the drag handle only, so tapping the rest of the card
+  // still fires the normal click-to-select handler.
+
+  function cardTouchStart(e, id, type) {
+    _dragCardId      = id;
+    _dragCardType    = type;
+    _touchDragActive = false;
+    const touch  = e.touches[0];
+    _touchStartX = touch.clientX;
+    _touchStartY = touch.clientY;
+    const prefix = type === 'ility' ? 'chip-' : 'stak-chip-';
+    _dragSourceEl = document.getElementById(prefix + id);
+    // Register a non-passive touchmove on the document so we can
+    // call preventDefault() and prevent page scrolling during drag.
+    _touchMoveHandler = function(ev) { _handleTouchMove(ev); };
+    document.addEventListener('touchmove', _touchMoveHandler, { passive: false });
+  }
+
+  function _handleTouchMove(e) {
+    if (!_dragCardId) return;
+    const touch = e.touches[0];
+    // Require 8px of movement before activating drag (avoids accidental triggers)
+    if (!_touchDragActive) {
+      const dx = touch.clientX - _touchStartX;
+      const dy = touch.clientY - _touchStartY;
+      if (dx * dx + dy * dy < 64) return;
+      _touchDragActive = true;
+      if (_dragSourceEl) _dragSourceEl.classList.add('dragging');
+    }
+    e.preventDefault(); // lock page scroll for the duration of the drag
+    // Highlight the card currently under the finger
+    const under   = document.elementFromPoint(touch.clientX, touch.clientY);
+    const chipEl  = under && (under.closest('.ility-chip') || under.closest('.stak-chip'));
+    const selector = _dragCardType === 'ility' ? '.ility-chip' : '.stak-chip';
+    document.querySelectorAll(selector).forEach(c => c.classList.remove('drag-over'));
+    if (chipEl && chipEl !== _dragSourceEl) chipEl.classList.add('drag-over');
+  }
+
+  function cardTouchEnd(e, id, type) {
+    // Always remove the touchmove listener first
+    if (_touchMoveHandler) {
+      document.removeEventListener('touchmove', _touchMoveHandler);
+      _touchMoveHandler = null;
+    }
+    if (!_touchDragActive) {
+      // Pure tap on the handle — ignore, no reorder
+      _dragCardId = null; _dragCardType = null; _dragSourceEl = null;
+      return;
+    }
+    // Find the card under the finger at release
+    const touch  = e.changedTouches[0];
+    const under  = document.elementFromPoint(touch.clientX, touch.clientY);
+    const chipEl = under && (under.closest('.ility-chip') || under.closest('.stak-chip'));
+    if (chipEl && chipEl !== _dragSourceEl) {
+      const targetId = chipEl.dataset.id;
+      if (targetId) cardDrop({ preventDefault: () => {} }, targetId, type);
+    } else {
+      // Dropped on nothing valid — just clear the visuals
+      const selector = type === 'ility' ? '.ility-chip' : '.stak-chip';
+      document.querySelectorAll(selector).forEach(c => c.classList.remove('dragging', 'drag-over'));
+    }
+    _dragCardId = null; _dragCardType = null; _dragSourceEl = null; _touchDragActive = false;
   }
 
   // ── REQUIREMENTS ──

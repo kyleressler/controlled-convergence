@@ -899,9 +899,16 @@
       cursor: grab;
       opacity: 0;
       transition: opacity 0.1s;
+      /* Larger touch target on mobile without changing visual size */
+      padding: 2px 4px;
+      margin: -2px -4px 3px;
     }
     .ility-chip:hover .chip-drag-handle,
     .stak-chip:hover .chip-drag-handle { opacity: 1; }
+    /* On touch devices, always show the handle — hover doesn't exist */
+    @media (hover: none) {
+      .chip-drag-handle { opacity: 0.45; font-size: 14px; }
+    }
     .ility-chip.dragging,
     .stak-chip.dragging { opacity: 0.35; }
     .ility-chip.drag-over,
