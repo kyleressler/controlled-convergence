@@ -206,15 +206,35 @@
       list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-light);font-size:13px">No saved projects yet. Create one above.</div>';
       return;
     }
-    list.innerHTML = savedProjects.map(p => `
-      <div class="proj-item" onclick="loadProject('${p.id}')" ondblclick="event.stopPropagation();editProject('${p.id}')" title="Click to activate · Double-click to edit">
+    list.innerHTML = savedProjects.map(p => {
+      const isActive = activeProject && activeProject.id === p.id;
+      const activeBorder = isActive
+        ? 'border-color:var(--accent);background:rgba(0,122,255,0.06);'
+        : '';
+      const activeIndicator = isActive
+        ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-right:6px">● Active</span>`
+        : '';
+      const activateBtn = isActive
+        ? '' // already active — no Activate button needed
+        : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
+      // Date display — handle both createdAt and created_at field names
+      const dateStr = (p.createdAt || p.created_at)
+        ? new Date(p.createdAt || p.created_at).toLocaleDateString()
+        : '';
+      return `
+      <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate · Drag not needed">
         <div style="flex:1;min-width:0">
-          <div class="proj-item-name">${p.name}</div>
+          <div class="proj-item-name">${activeIndicator}${p.name}</div>
           ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
-          <div class="proj-item-meta">${new Date(p.createdAt).toLocaleDateString()}${p.owner ? ' · ' + p.owner : ''}</div>
+          <div class="proj-item-meta">${dateStr}${p.owner ? ' · ' + p.owner : ''}</div>
         </div>
-        <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>
-      </div>`).join('');
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          ${activateBtn}
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProject('${p.id}')" title="Edit project name">Edit</button>
+          <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   function updateProjAdvisor() {

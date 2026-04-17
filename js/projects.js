@@ -86,10 +86,12 @@ function canCreateProject(user, currentCount) {
  * @returns {object} — updated project with current state merged in
  */
 function snapshotCurrentState(existingProject) {
-  const toEl    = document.getElementById('tbuw-to');
-  const byEl    = document.getElementById('tbuw-by');
-  const usingEl = document.getElementById('tbuw-using');
-  const whileEl = document.getElementById('tbuw-while');
+  // Goal statement — correct element IDs are input-to, input-by, etc.
+  const toEl       = document.getElementById('input-to');
+  const byEl       = document.getElementById('input-by');
+  const usingEl    = document.getElementById('input-using');
+  const whileEl    = document.getElementById('input-while');
+  const basicEl    = document.getElementById('input-goal-basic');
 
   return {
     ...existingProject,
@@ -98,17 +100,27 @@ function snapshotCurrentState(existingProject) {
       to:    toEl    ? toEl.value    : (existingProject.goal && existingProject.goal.to)    || '',
       by:    byEl    ? byEl.value    : (existingProject.goal && existingProject.goal.by)    || '',
       using: usingEl ? usingEl.value : (existingProject.goal && existingProject.goal.using) || '',
-      while: whileEl ? whileEl.value : (existingProject.goal && existingProject.goal.while) || ''
+      while: whileEl ? whileEl.value : (existingProject.goal && existingProject.goal.while) || '',
+      basic: basicEl ? basicEl.value : (existingProject.goal && existingProject.goal.basic) || ''
     },
-    ilities:      Array.from(selectedIlities),
-    ilityOrder:   ilityOrder.slice(),
-    stakeholders: Array.from(selectedStakeholders),
-    stakOrder:    stakOrder.slice(),
-    requirements: requirements.slice(),
-    concepts:     pughConcepts.slice(),
-    matrix:       Object.assign({}, pughScores),
-    pughSettings: Object.assign({}, pughSettings),
-    updated_at:   new Date().toISOString()
+    // typeof goalMode check: defined in app.js (loads after projects.js, but is set
+    // before any user action that would call snapshotCurrentState)
+    goalMode:         (typeof goalMode !== 'undefined') ? goalMode : (existingProject.goalMode || 'basic'),
+    currentPage:      (typeof _currentPage !== 'undefined') ? _currentPage : (existingProject.currentPage || 'tbus'),
+    ilities:          Array.from(selectedIlities),
+    customIlities:    (typeof customIlities !== 'undefined' ? customIlities : []).slice(),
+    ilityOrder:       ilityOrder.slice(),
+    stakeholders:     Array.from(selectedStakeholders),
+    customStakeholders: (typeof customStakeholders !== 'undefined' ? customStakeholders : []).slice(),
+    stakOrder:        stakOrder.slice(),
+    requirements:     requirements.slice(),
+    pairComparisons:  Object.assign({}, (typeof pairComparisons !== 'undefined' ? pairComparisons : {})),
+    concepts:         pughConcepts.slice(),
+    matrix:           Object.assign({}, pughScores),
+    pughSettings:     Object.assign({}, pughSettings),
+    datumPerformance: Object.assign({}, (typeof datumPerformance !== 'undefined' ? datumPerformance : {})),
+    conceptPerformance: Object.assign({}, (typeof conceptPerformance !== 'undefined' ? conceptPerformance : {})),
+    updated_at:       new Date().toISOString()
   };
 }
 
@@ -122,33 +134,42 @@ function restoreProjectState(project) {
   activeProject = project;
   appState.currentProject = project;
 
-  // Goal statement
+  // Goal statement — correct element IDs are input-to, input-by, etc.
   const g = project.goal || {};
-  const toEl    = document.getElementById('tbuw-to');
-  const byEl    = document.getElementById('tbuw-by');
-  const usingEl = document.getElementById('tbuw-using');
-  const whileEl = document.getElementById('tbuw-while');
+  const toEl    = document.getElementById('input-to');
+  const byEl    = document.getElementById('input-by');
+  const usingEl = document.getElementById('input-using');
+  const whileEl = document.getElementById('input-while');
+  const basicEl = document.getElementById('input-goal-basic');
   if (toEl)    toEl.value    = g.to    || '';
   if (byEl)    byEl.value    = g.by    || '';
   if (usingEl) usingEl.value = g.using || '';
   if (whileEl) whileEl.value = g.while || '';
+  if (basicEl) basicEl.value = g.basic || '';
 
   // Ilities
-  selectedIlities = new Set(project.ilities || []);
-  customIlities   = [];
-  ilityOrder      = (project.ilityOrder || []).slice();
+  selectedIlities  = new Set(project.ilities || []);
+  customIlities    = (project.customIlities || []).slice();
+  ilityOrder       = (project.ilityOrder || []).slice();
 
   // Stakeholders
   selectedStakeholders = new Set(project.stakeholders || []);
-  customStakeholders   = [];
+  customStakeholders   = (project.customStakeholders || []).slice();
   stakOrder            = (project.stakOrder || []).slice();
 
   // Requirements
   requirements  = (project.requirements || []).slice();
-  reqIdCounter  = requirements.length ? Math.max(...requirements.map(r => r.id || 0)) + 1 : 0;
+  reqIdCounter  = requirements.length
+    ? Math.max(...requirements.map(r => parseInt(String(r.id).replace('r', ''), 10) || 0)) + 1
+    : 0;
 
-  // Pugh
-  pughConcepts  = (project.concepts || []).slice();
-  pughScores    = Object.assign({}, project.matrix || {});
-  pughSettings  = Object.assign({ advancedScoring: false, showMTHUS: false, showMAS: false }, project.pughSettings || {});
+  // Pairwise
+  pairComparisons = Object.assign({}, project.pairComparisons || {});
+
+  // Pugh / scoring
+  pughConcepts        = (project.concepts || []).slice();
+  pughScores          = Object.assign({}, project.matrix || {});
+  pughSettings        = Object.assign({ advancedScoring: false, showMTHUS: false, showMAS: false }, project.pughSettings || {});
+  datumPerformance    = Object.assign({}, project.datumPerformance || {});
+  conceptPerformance  = Object.assign({}, project.conceptPerformance || {});
 }

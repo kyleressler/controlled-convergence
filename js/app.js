@@ -864,26 +864,86 @@ ${sections}
     }
     const description = descInput ? descInput.value.trim() : '';
     const owner = ownerInput ? ownerInput.value.trim() : '';
-    const project = { id: 'proj-' + Date.now(), name, description, owner, createdAt: new Date().toISOString() };
-    if (userTier !== 'free') {
-      savedProjects.push(project);
-      // api.saveProject() — async persistence (replace when Supabase is live)
-      saveProject(activeProject).catch(e => console.warn('save failed', e));
-    }
+
+    // Use the canonical project model
+    const project = createProjectModel({
+      name,
+      description,
+      owner,
+      userId: appState.currentUser ? appState.currentUser.id : null
+    });
+
+    // Clear all tool state so the new project starts fresh
+    selectedIlities.clear(); customIlities = [];  ilityOrder = [];
+    selectedStakeholders.clear(); customStakeholders = []; stakOrder = [];
+    requirements = []; reqIdCounter = 0; _editingReqId = null;
+    pairComparisons = {}; pairPairs = []; pairIndex = 0;
+    pughConcepts = []; pughScores = {}; pughAdvBackup = {};
+    pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {};
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+    goalMode = 'basic';
+
+    // Clear goal fields
+    ['input-to','input-by','input-using','input-while','input-goal-basic'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+    // Activate the new project
     activeProject = project;
+    appState.currentProject = project;
+
+    // Save the project (async, fire-and-forget)
+    if (userTier !== 'free' || appState.currentUser) {
+      savedProjects.push(project);
+      appState.projects = savedProjects.slice();
+      saveProject(project).catch(e => console.warn('save failed', e));
+    }
+
+    // Persist the active project ID so a refresh can restore it
+    try { localStorage.setItem('cc_activeProjectId', project.id); } catch(e) {}
+
     input.value = '';
     if (descInput) descInput.value = '';
     if (ownerInput) ownerInput.value = '';
     updateNavProjectName();
     renderProjPage();
+
+    // Navigate directly to the GOAL tool
+    const goalNavBtn = document.querySelector('[data-page="tbus"]');
+    switchPage('tbus', goalNavBtn);
   }
 
   function loadProject(id) {
     const proj = savedProjects.find(p => p.id === id);
     if (!proj) return;
-    activeProject = proj;
+
+    // Restore all state from the saved project
+    restoreProjectState(proj);
+
+    // Re-render all tool UIs with the restored data
     updateNavProjectName();
-    renderProjPage();
+    renderIlityGrid();
+    renderStakGrid();
+    populateReqForms();
+    renderRequirements();
+    initPairPairs();
+    renderConceptCards();
+    renderPughMatrix();
+    renderProjPage(); // updates active project banner + list
+
+    // Sync goal mode UI
+    if (typeof switchGoalMode === 'function') {
+      switchGoalMode(proj.goalMode || 'basic');
+    }
+
+    // Sync pairwise weights
+    if (pairMode === 'nonweighted') renderNonWeighted();
+    else { renderPairCard(); renderPairLiveChart(); }
+    updatePairProgress();
+
+    // Persist active project ID for refresh restore
+    try { localStorage.setItem('cc_activeProjectId', id); } catch(e) {}
   }
 
   function deleteProject(id) {
@@ -895,8 +955,16 @@ ${sections}
     renderProjPage();
   }
 
+  // Double-click on a project card: activate it and navigate to GOAL
+  function activateProjectAndGo(id) {
+    loadProject(id);
+    const goalNavBtn = document.querySelector('[data-page="tbus"]');
+    switchPage('tbus', goalNavBtn);
+  }
+
   function deactivateProject() {
     activeProject = null;
+    try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     updateNavProjectName();
     renderProjPage();
   }
@@ -1699,6 +1767,14 @@ ${sections}
   _currentPage = 'home';
 
   function switchPage(pageId, navBtn) {
+    // Save current state before leaving (nav-save)
+    if (activeProject && _currentPage && _currentPage !== pageId) {
+      const snap = snapshotCurrentState(activeProject);
+      saveProject(snap).catch(err => console.warn('[nav-save] failed', err));
+      // Also persist active project ID
+      try { localStorage.setItem('cc_activeProjectId', activeProject.id); } catch(e) {}
+    }
+
     // Mark the page we're leaving as completed
     if (_currentPage && _currentPage !== pageId) {
       _completedPages.add(_currentPage);
@@ -2141,13 +2217,36 @@ ${sections}
   updatePairGate();
   updateNavProjectName();
 
+  // ── AUTO-SAVE: every 60 seconds if there is an active project ──
+  setInterval(function() {
+    if (activeProject) {
+      const snap = snapshotCurrentState(activeProject);
+      // Update in-memory array so list reflects latest name/state
+      const idx = savedProjects.findIndex(p => p.id === snap.id);
+      if (idx >= 0) savedProjects[idx] = snap;
+      saveProject(snap).catch(err => console.warn('[auto-save] failed', err));
+    }
+  }, 60000);
+
   // Bootstrap Supabase auth — restores session, sets up onAuthStateChange listener.
   // On success, _onAuthStateUpdated() in auth.js triggers renderProjList() automatically.
   initAuth().then(function() {
     // After auth is ready, load projects if user is signed in
     if (appState.currentUser) {
       loadProjects(appState.currentUser.id).then(function(result) {
-        if (!result.error) { renderProjList(); }
+        if (!result.error) {
+          renderProjList();
+          // Restore last active project from localStorage (refresh recovery)
+          try {
+            const lastId = localStorage.getItem('cc_activeProjectId');
+            if (lastId) {
+              const last = savedProjects.find(p => p.id === lastId);
+              if (last) {
+                loadProject(lastId);
+              }
+            }
+          } catch(e) {}
+        }
       });
     }
     updateAccountStatus();

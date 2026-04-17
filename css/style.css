@@ -793,6 +793,12 @@
     }
     .btn-continue:not(:disabled):hover { background: #046645; }
 
+    .continue-btn-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+
     .advisor-thinking {
       display: none;
       align-items: center;
