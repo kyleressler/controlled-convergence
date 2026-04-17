@@ -1980,14 +1980,18 @@ body.theme-engineering .sidebar-brand {
     .datum-ref-key  { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); flex-shrink: 0; min-width: 110px; }
     .datum-ref-val  { color: var(--text); font-style: italic; }
 
-    /* ── CONCEPT PERFORMANCE INPUT ── */
-    .concept-perf-section { padding: 10px 28px 16px; border-top: 1px dashed var(--border); }
-    .concept-perf-input {
+    /* ── CONCEPT PERFORMANCE INPUT + NOTES ── */
+    .concept-perf-section  { padding: 10px 28px 0;  border-top: 1px dashed var(--border); }
+    .concept-notes-section { padding: 10px 28px 16px; }
+    .concept-perf-input,
+    .concept-notes-input {
       width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;
       box-sizing: border-box; transition: border-color 0.15s;
     }
-    .concept-perf-input:focus { outline: none; border-color: var(--accent); }
+    .concept-notes-input { resize: vertical; min-height: 64px; line-height: 1.5; }
+    .concept-perf-input:focus,
+    .concept-notes-input:focus { outline: none; border-color: var(--accent); }
 
     /* ── PUGH MAS COLUMN ── */
     .pugh-mas-cell {

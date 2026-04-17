@@ -488,11 +488,10 @@
             if (data.pugh.counter)           pughConceptCounter = data.pugh.counter;
             if (data.pugh.datumPerformance)  datumPerformance   = data.pugh.datumPerformance;
             if (data.pugh.conceptPerformance) conceptPerformance = data.pugh.conceptPerformance;
-            // Sync UI checkboxes to restored settings
-            const advCb  = document.getElementById('toggleAdvScoring');
+            // Sync UI to restored settings
+            if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
             const mCb    = document.getElementById('toggleMTHUS');
             const masCb  = document.getElementById('toggleMAS');
-            if (advCb)  advCb.checked  = pughSettings.advancedScoring;
             if (mCb)    mCb.checked    = pughSettings.showMTHUS;
             if (masCb)  masCb.checked  = pughSettings.showMAS;
             renderConceptCards();
@@ -529,7 +528,8 @@
     requirements = []; reqIdCounter = 0; renderRequirements();
     pairComparisons = {}; pairIndex = 0;
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
-    datumPerformance = {}; conceptPerformance = {};
+    datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
+    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
     exitScoringView();
     activeProject = null; updateNavProjectName();
@@ -1026,7 +1026,8 @@ ${sections}
     requirements = []; reqIdCounter = 0; _editingReqId = null;
     pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
-    pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {};
+    pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
+    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
     goalMode = 'basic';
 
@@ -2040,7 +2041,7 @@ ${sections}
     if (pageId === 'requirements') populateReqForms();
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
-    if (pageId === 'scor') { renderConceptCards(); }
+    if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
     if (pageId === 'pugh') { renderPughMatrix(); updatePughMemberToggles(); }
     if (pageId === 'pair') {
       // Free tier: force non-weighted ilities pairwise
@@ -2564,29 +2565,205 @@ ${sections}
   });
 
   // ── PUGH / SCOR STATE ──
-  pughConcepts = [];   // [{id, name}] — index 0 is always the Datum
+  pughConcepts = [];   // [{id, name, customFieldValues}] — index 0 is always the Datum
   pughScores   = {};   // key: `${conceptId}_${reqId}` → '+' | '0' | '-' | number
   pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
   pughConceptCounter = 0;
   scoringConceptId   = null;
   scoringReqIndex    = 0;
-  datumDefIndex      = 0;         // current req index in datum definition view
-  datumPerformance   = {};        // { [reqId]: { level, mas, anchorHigh, anchorLow } }
-  conceptPerformance = {};        // { 'conceptId_reqId': 'text' }
+  datumDefIndex      = 0;
+  datumPerformance   = {};
+  conceptPerformance = {};
+  conceptNotes       = {};
+  conceptCustomFields = [];
+  _cfIdCounter       = 0;
+  scorerFilter       = '';
+
+  // ── SCOR: SETTINGS PANEL ──
+
+  function toggleScoringSettings() {
+    const panel = document.getElementById('scorSettingsPanel');
+    const btn   = document.getElementById('scorSettingsBtn');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none' && panel.style.display !== '';
+    if (isOpen) {
+      closeScoringSettings();
+    } else {
+      panel.style.display = '';
+      if (btn) btn.classList.add('active');
+      renderCustomFieldsList();
+      renderScorerFilterDropdown();
+      syncScoringModeButtons();
+      // Close when clicking outside the panel or its trigger button
+      setTimeout(() => {
+        document.addEventListener('click', _scorSettingsOutsideHandler);
+      }, 0);
+    }
+  }
+
+  function closeScoringSettings() {
+    const panel = document.getElementById('scorSettingsPanel');
+    const btn   = document.getElementById('scorSettingsBtn');
+    if (panel) panel.style.display = 'none';
+    if (btn)   btn.classList.remove('active');
+    document.removeEventListener('click', _scorSettingsOutsideHandler);
+  }
+
+  function _scorSettingsOutsideHandler(e) {
+    const panel = document.getElementById('scorSettingsPanel');
+    const btn   = document.getElementById('scorSettingsBtn');
+    if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
+      closeScoringSettings();
+    }
+  }
+
+  function syncScoringModeButtons() {
+    const mode = pughSettings.advancedScoring ? 'advanced' : 'basic';
+    const basicBtn = document.getElementById('scorModeBasicBtn');
+    const advBtn   = document.getElementById('scorModeAdvancedBtn');
+    if (basicBtn) basicBtn.classList.toggle('active', mode === 'basic');
+    if (advBtn)   advBtn.classList.toggle('active', mode === 'advanced');
+    const desc = document.getElementById('scorModeDesc');
+    if (desc) desc.textContent = mode === 'advanced'
+      ? 'Score concepts from −3 (worst reasonable) to +3 (best reasonable), where 0 = Datum performance.'
+      : 'Score concepts as better (+), same (0), or worse (−) than the Datum.';
+  }
+
+  function setScoringMode(mode, btn) {
+    if (mode === 'advanced' && userTier === 'free') {
+      showUpgradePrompt('weighted-pair');
+      return;
+    }
+    if (mode === 'advanced') {
+      // Turning ON: restore saved advanced scores where available
+      Object.assign(pughScores, pughAdvBackup);
+    } else {
+      // Turning OFF: backup advanced scores, then convert to basic symbols
+      Object.keys(pughScores).forEach(k => {
+        const v = pughScores[k];
+        if (typeof v === 'number') {
+          pughAdvBackup[k] = v;
+          if (v > 0)      pughScores[k] = '+';
+          else if (v < 0) pughScores[k] = '-';
+          else            pughScores[k] = '0';
+        }
+      });
+    }
+    pughSettings.advancedScoring = (mode === 'advanced');
+    syncScoringModeButtons();
+    renderPughMatrix();
+    if (scoringConceptId) renderScoringView();
+  }
+
+  // ── SCOR: SCORER FILTER ──
+
+  function setScorerFilter(val) {
+    scorerFilter = val;
+    scoringReqIndex = 0;
+    if (scoringConceptId) renderScoringView();
+  }
+
+  function renderScorerFilterDropdown() {
+    const sel = document.getElementById('scorerFilterSelect');
+    if (!sel) return;
+    const scorerIds = [...new Set(requirements.map(r => r.scorer).filter(s => s && s.trim()))];
+    const allStakeholders = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])];
+    sel.innerHTML = '<option value="">All Requirements</option>' +
+      scorerIds.map(id => {
+        const s = allStakeholders.find(st => st.id === id);
+        const label = s ? (s.contactName ? s.name + ' — ' + s.contactName : s.name) : id;
+        return `<option value="${escHtml(id)}" ${scorerFilter === id ? 'selected' : ''}>${escHtml(label)}</option>`;
+      }).join('');
+  }
+
+  // ── SCOR: CUSTOM CONCEPT FIELDS ──
+
+  function addConceptCustomField() {
+    const nameEl = document.getElementById('scorCfNameInput');
+    const typeEl = document.getElementById('scorCfTypeSelect');
+    const name = nameEl ? nameEl.value.trim() : '';
+    if (!name) { if (nameEl) nameEl.focus(); return; }
+    conceptCustomFields.push({ id: 'cf' + (++_cfIdCounter), name, type: typeEl ? typeEl.value : 'text' });
+    if (nameEl) nameEl.value = '';
+    renderCustomFieldsList();
+  }
+
+  function removeConceptCustomField(id) {
+    conceptCustomFields = conceptCustomFields.filter(f => f.id !== id);
+    pughConcepts.forEach(c => { if (c.customFieldValues) delete c.customFieldValues[id]; });
+    renderCustomFieldsList();
+  }
+
+  function renderCustomFieldsList() {
+    const el = document.getElementById('scorCustomFieldsList');
+    if (!el) return;
+    if (conceptCustomFields.length === 0) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:8px">No custom fields defined yet.</div>';
+      return;
+    }
+    el.innerHTML = conceptCustomFields.map(f =>
+      `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:600;color:var(--text);flex:1">${escHtml(f.name)}</span>
+        <span style="font-size:11px;color:var(--text-muted);background:var(--bg);padding:2px 8px;border-radius:20px;border:1px solid var(--border)">${f.type}</span>
+        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;color:var(--danger)" onclick="removeConceptCustomField('${f.id}')">Remove</button>
+      </div>`
+    ).join('');
+  }
 
   // ── SCOR: CONCEPT MANAGEMENT ──
 
   function addPughConcept() {
     const input = document.getElementById('scorConceptInput');
-    const name  = input.value.trim();
-    if (!name) { input.focus(); return; }
-    // Duplicate name check (case-insensitive)
+    const name  = input ? input.value.trim() : '';
+    if (!name) { if (input) input.focus(); return; }
     if (pughConcepts.some(c => c.name.toLowerCase() === name.toLowerCase())) {
       alert('A concept with this name already exists.');
-      input.focus(); return;
+      if (input) input.focus(); return;
     }
-    pughConcepts.push({ id: ++pughConceptCounter, name });
-    input.value = '';
+    if (conceptCustomFields.length > 0) {
+      // Open the add concept modal to capture custom field values
+      const nameInput = document.getElementById('addConceptNameInput');
+      if (nameInput) nameInput.value = name;
+      renderAddConceptFieldInputs();
+      document.getElementById('addConceptModal').classList.add('open');
+      if (input) input.value = '';
+    } else {
+      _doAddConcept(name, {});
+      if (input) input.value = '';
+    }
+  }
+
+  function renderAddConceptFieldInputs() {
+    const container = document.getElementById('addConceptCustomFieldInputs');
+    if (!container) return;
+    container.innerHTML = conceptCustomFields.map(f =>
+      `<div class="modal-field">
+        <div class="modal-label">${escHtml(f.name)}</div>
+        <input class="modal-input" type="${f.type === 'number' ? 'number' : 'text'}"
+          id="cfInput_${f.id}" placeholder="${f.type === 'number' ? '0' : '—'}">
+      </div>`
+    ).join('');
+  }
+
+  function confirmAddConcept() {
+    const nameInput = document.getElementById('addConceptNameInput');
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) { if (nameInput) nameInput.focus(); return; }
+    const customFieldValues = {};
+    conceptCustomFields.forEach(f => {
+      const inp = document.getElementById('cfInput_' + f.id);
+      customFieldValues[f.id] = inp ? inp.value.trim() : '';
+    });
+    _doAddConcept(name, customFieldValues);
+    document.getElementById('addConceptModal').classList.remove('open');
+  }
+
+  function cancelAddConcept() {
+    document.getElementById('addConceptModal').classList.remove('open');
+  }
+
+  function _doAddConcept(name, customFieldValues) {
+    pughConcepts.push({ id: ++pughConceptCounter, name, customFieldValues: customFieldValues || {} });
     renderConceptCards();
     renderPughMatrix();
   }
@@ -2691,23 +2868,23 @@ ${sections}
 
 
   function scoringNav(dir) {
-    saveConceptPerf(); // persist before moving
-    const reqs = requirements;
+    saveConceptPerf();
+    saveConceptNote();
+    const reqs = getFilteredReqs();
     const newIdx = scoringReqIndex + dir;
     if (newIdx < 0) return;
-    if (newIdx >= reqs.length) { saveConceptPerf(); exitScoringView(); return; }
+    if (newIdx >= reqs.length) { saveConceptPerf(); saveConceptNote(); exitScoringView(); return; }
     scoringReqIndex = newIdx;
     renderScoringView();
   }
 
   function setScore(score) {
     if (!scoringConceptId) return;
-    const req = requirements[scoringReqIndex];
+    const req = getFilteredReqs()[scoringReqIndex];
     if (!req) return;
-    // Save concept performance value before advancing
     saveConceptPerf();
+    saveConceptNote();
     const key = scoringConceptId + '_' + req.id;
-    // Toggle off if clicking the same score again
     if (pughScores[key] === score) {
       delete pughScores[key];
     } else {
@@ -2718,13 +2895,14 @@ ${sections}
     renderPughMatrix();
     // Auto-advance after a brief visual pause
     setTimeout(() => {
-      if (scoringReqIndex < requirements.length - 1) { scoringReqIndex++; renderScoringView(); }
+      const filtered = getFilteredReqs();
+      if (scoringReqIndex < filtered.length - 1) { scoringReqIndex++; renderScoringView(); }
     }, 280);
   }
 
   function saveConceptPerf() {
     if (!scoringConceptId) return;
-    const req = requirements[scoringReqIndex];
+    const req = getFilteredReqs()[scoringReqIndex];
     if (!req) return;
     const val = document.getElementById('conceptPerfInput')?.value || '';
     const key = scoringConceptId + '_' + req.id;
@@ -2735,7 +2913,100 @@ ${sections}
     }
   }
 
+  function saveConceptNote() {
+    if (!scoringConceptId) return;
+    const req = getFilteredReqs()[scoringReqIndex];
+    if (!req) return;
+    const key = scoringConceptId + '_' + req.id;
+    const val = document.getElementById('conceptNotesInput')?.value || '';
+    if (val.trim()) {
+      conceptNotes[key] = val;
+    } else {
+      delete conceptNotes[key];
+    }
+  }
 
+  // Returns the requirements list filtered by the current scorerFilter.
+  // The scorer filter only affects scoring view display — never Pugh calculations.
+  function getFilteredReqs() {
+    if (!scorerFilter) return requirements;
+    return requirements.filter(r => r.scorer === scorerFilter);
+  }
+
+  // ── SCOR: CONCEPT SUMMARY ──
+
+  function showConceptSummary(conceptId) {
+    const concept = pughConcepts.find(c => c.id === conceptId);
+    if (!concept) return;
+    const isBaseline = pughConcepts[0]?.id === conceptId;
+    const advanced   = pughSettings.advancedScoring && userTier !== 'free';
+    const modeLabel  = advanced ? 'Advanced (−3 to +3)' : 'Basic (+/0/−)';
+
+    let html = '';
+
+    // Concept name + datum badge
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">`;
+    if (isBaseline) html += `<span class="concept-datum-badge">Datum</span>`;
+    html += `<span style="font-size:15px;font-weight:700;color:var(--text)">${escHtml(concept.name)}</span>`;
+    html += `</div>`;
+
+    // Custom field values
+    if (conceptCustomFields.length > 0) {
+      html += `<div style="margin-bottom:16px;padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">`;
+      html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px">Custom Fields</div>`;
+      conceptCustomFields.forEach(f => {
+        const val = concept.customFieldValues?.[f.id] || '—';
+        html += `<div style="display:flex;gap:8px;margin-bottom:4px;align-items:baseline">`;
+        html += `<span style="font-size:12px;color:var(--text-muted);min-width:130px;flex-shrink:0">${escHtml(f.name)}</span>`;
+        html += `<span style="font-size:12px;font-weight:600;color:var(--text)">${escHtml(val)}</span>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Scoring mode
+    html += `<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Scoring Mode: <strong>${modeLabel}</strong></div>`;
+
+    // Requirements
+    if (requirements.length > 0) {
+      html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">Requirements</div>`;
+      requirements.forEach(req => {
+        const key = conceptId + '_' + req.id;
+        const score = isBaseline ? null : pughScores[key];
+        const perf  = conceptPerformance[key] || '';
+        const note  = conceptNotes[key] || '';
+
+        const scoreStr  = isBaseline ? 'Datum' : (score !== undefined && score !== null ? String(score) : '—');
+        const scorePos  = !isBaseline && (score === '+' || (typeof score === 'number' && score > 0));
+        const scoreNeg  = !isBaseline && (score === '-' || (typeof score === 'number' && score < 0));
+        const scoreClr  = scorePos ? 'var(--success)' : scoreNeg ? 'var(--danger)' : 'var(--text-muted)';
+
+        const reqDisplay = (typeof buildReqSentenceHtml === 'function')
+          ? buildReqSentenceHtml(req)
+          : escHtml(req.text || req.id);
+
+        html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)">`;
+        html += `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">`;
+        html += `<div style="font-size:12px;color:var(--text);flex:1;line-height:1.5">${reqDisplay}</div>`;
+        html += `<div style="font-size:14px;font-weight:700;color:${scoreClr};flex-shrink:0;padding-top:1px">${scoreStr}</div>`;
+        html += `</div>`;
+        if (perf) html += `<div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Performance: ${escHtml(perf)}</div>`;
+        if (note) html += `<div style="font-size:11px;color:var(--text-muted);font-style:italic">"${escHtml(note)}"</div>`;
+        html += `</div>`;
+      });
+    } else {
+      html += `<div style="font-size:12px;color:var(--text-light)">No requirements added yet.</div>`;
+    }
+
+    document.getElementById('conceptSummaryTitle').textContent = concept.name + ' — Summary';
+    document.getElementById('conceptSummaryBody').innerHTML = html;
+    document.getElementById('conceptSummaryModal').classList.add('open');
+  }
+
+  function closeConceptSummary() {
+    const el = document.getElementById('conceptSummaryModal');
+    if (el) el.classList.remove('open');
+  }
 
 
   // ── PUGH MATRIX ──
@@ -2840,28 +3111,6 @@ ${sections}
   // pughScores      = currently displayed scores (symbols when basic, numbers when advanced)
   // pughAdvBackup   = preserved numeric scores even when advanced mode is off
   pughAdvBackup = {}; // {key: number}
-
-  function toggleAdvancedScoring(cb) {
-    if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }
-    if (cb.checked) {
-      // Turning ON: restore saved advanced scores where available
-      Object.assign(pughScores, pughAdvBackup);
-    } else {
-      // Turning OFF: backup advanced scores, then convert to basic symbols
-      Object.keys(pughScores).forEach(k => {
-        const v = pughScores[k];
-        if (typeof v === 'number') {
-          pughAdvBackup[k] = v;                    // preserve numeric
-          if (v > 0)      pughScores[k] = '+';
-          else if (v < 0) pughScores[k] = '-';
-          else            pughScores[k] = '0';
-        }
-      });
-    }
-    pughSettings.advancedScoring = cb.checked;
-    renderPughMatrix();
-    if (scoringConceptId) renderScoringView();
-  }
 
   function togglePughMTHUS(cb) {
     if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }

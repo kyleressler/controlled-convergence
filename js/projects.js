@@ -124,6 +124,9 @@ function snapshotCurrentState(existingProject) {
     pughSettings:     Object.assign({}, pughSettings),
     datumPerformance: Object.assign({}, (typeof datumPerformance !== 'undefined' ? datumPerformance : {})),
     conceptPerformance: Object.assign({}, (typeof conceptPerformance !== 'undefined' ? conceptPerformance : {})),
+    conceptNotes:     Object.assign({}, (typeof conceptNotes !== 'undefined' ? conceptNotes : {})),
+    conceptCustomFields: (typeof conceptCustomFields !== 'undefined' ? conceptCustomFields : []).slice(),
+    scorerFilter:     (typeof scorerFilter !== 'undefined') ? scorerFilter : '',
     updated_at:       new Date().toISOString()
   };
 }
@@ -181,4 +184,11 @@ function restoreProjectState(project) {
   pughSettings        = Object.assign({ advancedScoring: false, showMTHUS: false, showMAS: false }, project.pughSettings || {});
   datumPerformance    = Object.assign({}, project.datumPerformance || {});
   conceptPerformance  = Object.assign({}, project.conceptPerformance || {});
+  conceptNotes        = Object.assign({}, project.conceptNotes || {});
+  conceptCustomFields = (project.conceptCustomFields || []).slice();
+  _cfIdCounter        = conceptCustomFields.reduce((max, f) => {
+    const n = parseInt(String(f.id).replace('cf', ''), 10) || 0;
+    return Math.max(max, n);
+  }, 0);
+  scorerFilter        = project.scorerFilter || '';
 }

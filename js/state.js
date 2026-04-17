@@ -58,6 +58,10 @@ let scoringReqIndex = 0;
 let datumDefIndex = 0;
 let datumPerformance = {};
 let conceptPerformance = {};
+let conceptNotes = {};          // { 'conceptId_reqId': 'text' }
+let conceptCustomFields = [];   // [{ id, name, type }] — project-level custom fields
+let _cfIdCounter = 0;           // auto-increment for custom field IDs
+let scorerFilter = '';          // '' = all; otherwise stakeholder ID to filter by
 let _scorePopupConcept = null;
 let _scorePopupReq = null;
 let pughAdvBackup = {};

@@ -915,13 +915,64 @@
     <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept becomes the Datum — your fixed baseline. Score each additional concept requirement by requirement, relative to the Datum.</div>
   </div>
 
-  <!-- Add concept row -->
+  <!-- Add concept row + settings button -->
   <div class="concept-add-row">
     <input type="text" class="add-custom-input" id="scorConceptInput"
       placeholder="Concept name (e.g. Cable-stayed Bridge, Pneumatic Actuator, Option 3…)"
       style="flex:1;max-width:440px"
       onkeydown="if(event.key==='Enter')addPughConcept()">
     <button class="btn btn-primary" onclick="addPughConcept()">Add Concept</button>
+    <button class="btn btn-ghost" id="scorSettingsBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="toggleScoringSettings()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Concept Scoring Settings
+    </button>
+  </div>
+
+  <!-- Concept Scoring Settings panel -->
+  <div id="scorSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:16px">Concept Scoring Settings</div>
+
+    <!-- Section A: Custom concept fields -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Custom Concept Fields</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Define fields that apply to every concept in this project — e.g. Weight, Material, Key Innovation. You'll fill them in when adding each concept.</div>
+      <div id="scorCustomFieldsList" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="scorCfNameInput" class="add-custom-input" placeholder="Field name…" style="flex:1;max-width:200px" onkeydown="if(event.key==='Enter')addConceptCustomField()">
+        <select id="scorCfTypeSelect" class="add-custom-input" style="width:auto;flex-shrink:0">
+          <option value="text">Text</option>
+          <option value="number">Number</option>
+        </select>
+        <button class="btn btn-secondary" onclick="addConceptCustomField()" style="font-size:12px;flex-shrink:0">+ Add Field</button>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
+
+    <!-- Section B: Scoring mode (moved from PUGH) -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Scoring Mode</div>
+      <div class="pair-mode-toggle" style="display:inline-flex">
+        <button class="pair-mode-btn active" id="scorModeBasicBtn" onclick="setScoringMode('basic',this)" style="border-radius:8px 0 0 8px;font-size:12px">Basic (+/0/−)</button>
+        <button class="pair-mode-btn" id="scorModeAdvancedBtn" onclick="setScoringMode('advanced',this)" style="border-radius:0 8px 8px 0;font-size:12px">Advanced (−3 to +3) <span class="member-badge-inline">MEMBER+</span></button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px" id="scorModeDesc">Score concepts as better (+), same (0), or worse (−) than the Datum.</div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
+
+    <!-- Section C: Scorer filter -->
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Responsible Scorer Filter</div>
+      <select id="scorerFilterSelect" class="add-custom-input" onchange="setScorerFilter(this.value)" style="max-width:300px">
+        <option value="">All Requirements</option>
+      </select>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">Filters which requirements are shown during scoring. Has no effect on Pugh Matrix calculations. Assign scorers on the REQS page.</div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;text-align:right">
+      <button class="btn btn-primary" onclick="toggleScoringSettings()" style="font-size:12px">Done</button>
+    </div>
   </div>
 
   <!-- Concept cards list -->
@@ -1023,6 +1074,14 @@
             placeholder="e.g. 8.2 kg, 3 sec, aluminium alloy..."
             oninput="saveConceptPerf()">
         </div>
+
+        <!-- Notes / Comments -->
+        <div class="concept-notes-section">
+          <div class="datum-def-label">Notes / Comments <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+          <textarea class="concept-notes-input" id="conceptNotesInput" rows="3"
+            placeholder="Add notes explaining this score or capturing performance context…"
+            oninput="saveConceptNote()"></textarea>
+        </div>
       </div>
     </div>
   </div>
@@ -1069,13 +1128,6 @@
   <div id="pughSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px">Matrix Settings</div>
     <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
-      <label class="pugh-toggle-label">
-        <input type="checkbox" id="toggleAdvScoring" onchange="toggleAdvancedScoring(this)">
-        <div>
-          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">Advanced Scoring (±3) <span class="member-badge-inline">MEMBER+</span></div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Use −3 to +3 instead of −/0/+</div>
-        </div>
-      </label>
       <label class="pugh-toggle-label">
         <input type="checkbox" id="toggleMTHUS" onchange="togglePughMTHUS(this)">
         <div>
@@ -1130,6 +1182,35 @@
 
 </main>
 
+
+<!-- ── ADD CONCEPT MODAL (custom fields) ── -->
+<div class="modal-overlay" id="addConceptModal" onclick="if(event.target===this)cancelAddConcept()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Add Concept</div>
+    <div class="modal-field">
+      <div class="modal-label">Concept Name</div>
+      <input class="modal-input" id="addConceptNameInput" type="text"
+        placeholder="e.g. Cable-stayed Bridge, Option A…"
+        onkeydown="if(event.key==='Enter')confirmAddConcept()">
+    </div>
+    <div id="addConceptCustomFieldInputs"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmAddConcept()">Add Concept</button>
+      <button class="btn btn-secondary" onclick="cancelAddConcept()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONCEPT SUMMARY MODAL ── -->
+<div class="modal-overlay" id="conceptSummaryModal" onclick="if(event.target===this)closeConceptSummary()">
+  <div class="modal-box" style="max-width:580px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="conceptSummaryTitle">Concept Summary</div>
+    <div id="conceptSummaryBody" style="overflow-y:auto;flex:1;font-size:13px;line-height:1.6;padding-right:4px"></div>
+    <div class="modal-footer" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="closeConceptSummary()">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── EDIT MODAL ── -->
 <div class="modal-overlay" id="editModal">

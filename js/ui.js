@@ -1003,18 +1003,23 @@
     if (datumDefView) datumDefView.style.display = 'none';
     if (reqView)      reqView.style.display      = '';
 
-    const reqs   = requirements;
-    const total  = reqs.length;
+    const reqs  = (typeof getFilteredReqs === 'function') ? getFilteredReqs() : requirements;
+    const total = reqs.length;
     if (total === 0) {
-      document.getElementById('scorReqText').textContent = 'No requirements found. Add requirements on the REQS page first.';
+      const filterActive = (typeof scorerFilter !== 'undefined') && scorerFilter;
+      document.getElementById('scorReqText').textContent = filterActive
+        ? 'No requirements are assigned to this scorer. Adjust the filter in Concept Scoring Settings.'
+        : 'No requirements found. Add requirements on the REQS page first.';
       return;
     }
 
     const req    = reqs[scoringReqIndex];
     const scored = reqs.filter(r => pughScores[concept.id + '_' + r.id] !== undefined).length;
     const pct    = total > 0 ? Math.round((scored / total) * 100) : 0;
+    const filterLabel = (typeof scorerFilter !== 'undefined') && scorerFilter
+      ? ` (filtered)` : '';
 
-    document.getElementById('scorViewProgress').textContent   = `${scored} of ${total} requirements scored`;
+    document.getElementById('scorViewProgress').textContent   = `${scored} of ${total} requirements scored${filterLabel}`;
     document.getElementById('scorProgressFill').style.width   = pct + '%';
     document.getElementById('scorReqCounter').textContent     = `${scoringReqIndex + 1} of ${total}`;
 
@@ -1024,7 +1029,13 @@
     document.getElementById('scorReqBadges').innerHTML =
       `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`;
 
-    document.getElementById('scorReqText').textContent = req.text;
+    // Show full requirement sentence for AGILE format; plain text otherwise
+    const scorReqTextEl = document.getElementById('scorReqText');
+    if (req.format === 'agile' && typeof buildReqSentenceHtml === 'function') {
+      scorReqTextEl.innerHTML = buildReqSentenceHtml(req);
+    } else {
+      scorReqTextEl.textContent = req.text || req.id;
+    }
 
     // Ility meta (weight removed per design — not relevant in scoring view)
     const ilityName = [...ILITIES, ...customIlities].find(il => il.id === req.primary)?.name || req.primary;
@@ -1064,10 +1075,12 @@
       datumRef.style.display = 'none';
     }
 
-    // Restore concept performance value
+    // Restore concept performance value and notes
     const perfKey = concept.id + '_' + req.id;
     const perfInput = document.getElementById('conceptPerfInput');
     if (perfInput) perfInput.value = conceptPerformance[perfKey] || '';
+    const notesInput = document.getElementById('conceptNotesInput');
+    if (notesInput) notesInput.value = (typeof conceptNotes !== 'undefined' ? conceptNotes[perfKey] : '') || '';
 
     // Score buttons
     const curScore = pughScores[concept.id + '_' + req.id];
@@ -1147,6 +1160,8 @@
         <div class="concept-card-name">${c.name}</div>
         <div class="concept-card-meta">${meta}</div>
         <div class="concept-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
+            onclick="showConceptSummary(${c.id})">Summary</button>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
             onclick="renamePughConcept(${c.id})">Rename</button>
           ${deleteBtn}
