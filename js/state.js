@@ -34,10 +34,15 @@ let _modalType = '';
 let _modalId = '';
 
 // ── Pairwise ─────────────────────────────────────────────────
-let pairMode = 'nonweighted';
+let pairMode    = 'nonweighted'; // 'nonweighted' | 'weighted'
+let pairSubject = 'ilities';     // 'ilities' | 'requirements'
+let pairMethod  = 'pairwise';    // 'pairwise' | 'forcedrank'
 let pairComparisons = {};
 let pairPairs = [];
 let pairIndex = 0;
+let forcedRankOrder = [];        // ordered IDs for forced rank mode
+let _frDragId     = null;        // active drag ID for forced rank DnD
+let _frDragOverId = null;        // current drag-over target ID
 
 // ── Navigation ───────────────────────────────────────────────
 let _currentPage = 'home';

@@ -569,6 +569,21 @@
 
 // ── Pairwise page renders ─────────────────────────────────────
 
+  // Build the full display HTML for a requirement in pairwise/forced-rank contexts.
+  // AGILE: "As a [stak] I care about [ility] and I want [text] so that [soThat]"
+  // INCOSE / fallback: plain requirement text
+  function buildReqSentenceHtml(r) {
+    if (!r) return '';
+    if (r.format === 'agile') {
+      const stakName  = escHtml((typeof getStakeholderName === 'function') ? getStakeholderName(r.stakeholders && r.stakeholders[0]) : (r.stakeholders && r.stakeholders[0]) || '');
+      const ilityName = escHtml((typeof getIlityName === 'function') ? getIlityName(r.primary) : r.primary || '');
+      const want      = escHtml(r.text || '');
+      const soThat    = r.agileSoThat ? ` <span style="color:var(--text-muted);font-weight:400">so that</span> ${escHtml(r.agileSoThat)}` : '';
+      return `<span style="color:var(--text-muted);font-weight:400">As a</span> ${stakName} <span style="color:var(--text-muted);font-weight:400">I care about</span> ${ilityName} <span style="color:var(--text-muted);font-weight:400">and I want</span> ${want}${soThat}`;
+    }
+    return escHtml(r.text || r.id || '');
+  }
+
   function renderPairCard() {
     const emptyMsg    = document.getElementById('pairEmptyMsg');
     const compareCard = document.getElementById('pairCompareCard');
@@ -596,16 +611,31 @@
     const pair = remaining[0];
     if (compareCard) compareCard.style.display = '';
 
+    // Update question text based on subject
+    const qEl = document.getElementById('pairQuestion');
+    if (qEl) {
+      const subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+      qEl.textContent = subj === 'requirements'
+        ? 'Which of these two requirements is more important to the success of the design?'
+        : 'Assume that your team has achieved a perfect minimum viable product where every shall requirement is being met and none of your desirable requirements are being met. In this situation, if you had additional resources (time, money, or people), which of these would you spend your resources on?';
+    }
+
     const btnA = document.getElementById('pairBtnA');
     const btnB = document.getElementById('pairBtnB');
-    if (btnA) { 
-      btnA.innerHTML = `<div style="font-size:15px;font-weight:700;margin-bottom:5px">${getIlityNameById(pair.a)}</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);line-height:1.4">${getIlityDescById(pair.a)}</div>`;
-      btnA.dataset.id = pair.a; 
-    }
-    if (btnB) { 
-      btnB.innerHTML = `<div style="font-size:15px;font-weight:700;margin-bottom:5px">${getIlityNameById(pair.b)}</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);line-height:1.4">${getIlityDescById(pair.b)}</div>`;
-      btnB.dataset.id = pair.b; 
-    }
+    const subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+
+    const buildBtnHtml = (id) => {
+      if (subj === 'requirements') {
+        const r = (typeof requirements !== 'undefined') ? requirements.find(req => req.id === id) : null;
+        return `<div style="font-size:14px;font-weight:500;line-height:1.6;text-align:left">${buildReqSentenceHtml(r)}</div>`;
+      }
+      const name = (typeof getIlityNameById === 'function') ? getIlityNameById(id) : id;
+      const desc = (typeof getIlityDescById === 'function') ? getIlityDescById(id) : '';
+      return `<div style="font-size:15px;font-weight:700;margin-bottom:5px">${escHtml(name)}</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);line-height:1.4">${escHtml(desc)}</div>`;
+    };
+
+    if (btnA) { btnA.innerHTML = buildBtnHtml(pair.a); btnA.dataset.id = pair.a; }
+    if (btnB) { btnB.innerHTML = buildBtnHtml(pair.b); btnB.dataset.id = pair.b; }
 
     const results = document.getElementById('pairResults');
     if (results) results.style.display = 'none';
@@ -624,9 +654,10 @@
       const currentWinner = stored === 'A' ? ka : kb;
       const currentLoser  = stored === 'A' ? kb : ka;
       const flippedChoice = stored === 'A' ? 'B' : 'A';
+      const resolve = (typeof getPairSubjectName === 'function') ? getPairSubjectName : getIlityNameById;
       return `<button class="btn btn-secondary" style="font-size:12px;margin-bottom:4px"
         onclick="resolveConflict('${key}','${flippedChoice}')">
-        Flip: ${getIlityNameById(currentLoser)} &gt; ${getIlityNameById(currentWinner)}
+        Flip: ${escHtml(resolve(currentLoser))} &gt; ${escHtml(resolve(currentWinner))}
       </button>`;
     }).join('');
   }
@@ -653,10 +684,11 @@
 
     const maxPossibleWins = total - 1; // max wins any ility can have
     const weights = assignWeights(winCount);
+    const nameOf = (typeof getPairSubjectName === 'function') ? getPairSubjectName : getIlityNameById;
     const sorted = Object.keys(winCount).sort((a, b) =>
       winCount[b] !== winCount[a]
         ? winCount[b] - winCount[a]
-        : getIlityNameById(a).localeCompare(getIlityNameById(b))
+        : nameOf(a).localeCompare(nameOf(b))
     );
 
     const header = `<div class="req-bar-row" style="margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">
@@ -670,7 +702,7 @@
       const wins = winCount[id];
       const w = weights[id] ?? 1;
       const pct = maxPossibleWins > 0 ? Math.round((wins / maxPossibleWins) * 100) : 0;
-      const name = getIlityNameById(id);
+      const name = nameOf(id);
       return `<div class="req-bar-row">
         <div class="req-bar-label">${name}</div>
         <div class="req-bar-track">
@@ -734,26 +766,135 @@
   }
 
   function renderNonWeighted() {
-    const all = [...selectedIlities].map(id => {
-      return { id, name: getIlityNameById(id) };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-    const list = document.getElementById('pairNonWeightedList');
-    if (all.length === 0) {
-      list.innerHTML = '<div style="font-size:13px;color:var(--text-light)">Select ilities on the ILTY page first.</div>';
-      return;
+    const subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+    const list  = document.getElementById('pairNonWeightedList');
+    if (!list) return;
+
+    let items;
+    if (subj === 'requirements') {
+      items = requirements.map(r => ({ id: r.id, name: r.text || r.id }));
+      if (items.length === 0) {
+        list.innerHTML = '<div style="font-size:13px;color:var(--text-light)">Add requirements on the REQS page first.</div>';
+        return;
+      }
+    } else {
+      items = [...selectedIlities].map(id => ({ id, name: getIlityNameById(id) })).sort((a, b) => a.name.localeCompare(b.name));
+      if (items.length === 0) {
+        list.innerHTML = '<div style="font-size:13px;color:var(--text-light)">Select ilities on the ILTY page first.</div>';
+        return;
+      }
     }
-    list.innerHTML = all.map(il => `
+
+    list.innerHTML = items.map(item => `
       <div class="pair-result-row" style="border:1px solid var(--border);border-radius:8px">
-        <div class="pair-result-name">${il.name}</div>
+        <div class="pair-result-name">${escHtml(item.name)}</div>
         <div class="pair-result-dots">${[5,4,3,2,1].map(d => `<div class="pair-dot ${d <= 3 ? 'filled' : 'empty'}"></div>`).join('')}</div>
         <div class="pair-result-weight" style="color:var(--text-muted)">Equal</div>
       </div>`).join('');
     window._pairWeights = {};
-    all.forEach(il => { window._pairWeights[il.id] = 1; });
+    items.forEach(item => { window._pairWeights[item.id] = 1; });
     document.getElementById('btnPairContinue').disabled = false;
   }
 
-  function updatePairAdvisor() { /* AI coaching reserved */ }
+  function renderForcedRank() {
+    const listEl = document.getElementById('pairForcedRankList');
+    if (!listEl) return;
+    const subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+    const mode = (typeof pairMode    !== 'undefined') ? pairMode    : 'nonweighted';
+    const n    = (typeof forcedRankOrder !== 'undefined') ? forcedRankOrder.length : 0;
+
+    if (n < 2) {
+      listEl.innerHTML = `<div style="font-size:13px;color:var(--text-light)">Add at least 2 ${subj === 'requirements' ? 'requirements on the REQS page' : 'ilities on the ILTY page'} to use Forced Rank.</div>`;
+      document.getElementById('btnPairContinue').disabled = true;
+      return;
+    }
+
+    // Issue 1: Non-weighted forced rank always shows W:1 for all items
+    // Issue 1: Weighted forced rank assigns proportional weights (top=5, bottom=1)
+    window._pairWeights = {};
+    forcedRankOrder.forEach((id, i) => {
+      window._pairWeights[id] = (mode === 'nonweighted')
+        ? 1
+        : (n === 1 ? 5 : Math.max(1, Math.round(5 - (i / (n - 1)) * 4)));
+    });
+
+    listEl.innerHTML = forcedRankOrder.map((id, i) => {
+      const w       = window._pairWeights[id];
+      const nameHtml = subj === 'requirements'
+        // eslint-disable-next-line eqeqeq  — intentional: req.id may be int, id is always string from template
+        ? buildReqSentenceHtml((typeof requirements !== 'undefined') ? requirements.find(req => req.id == id) : null)
+        : escHtml((typeof getIlityNameById === 'function') ? getIlityNameById(id) : id);
+      const isFirst = i === 0;
+      const isLast  = i === n - 1;
+      const dots    = [5,4,3,2,1].map(d => `<div class="pair-dot ${d <= w ? 'filled' : 'empty'}"></div>`).join('');
+      // Issues 4 & 5: Use ondragover with targetId (avoids child-element dragleave bug).
+      // Buttons use onmousedown stopPropagation + draggable=false to prevent drag hijacking clicks.
+      return `<div class="pair-forced-card" draggable="true" data-fr-id="${id}"
+          ondragstart="frDragStart(event,'${id}')"
+          ondragover="frDragOver(event,'${id}')"
+          ondrop="frDrop(event,'${id}')"
+          ondragend="frDragEnd(event)">
+        <div class="pair-rank-position">${i + 1}</div>
+        <div class="pair-rank-arrows">
+          <button draggable="false" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();moveForcedRankCard('${id}',-1)" ${isFirst ? 'disabled' : ''} title="Move up">▲</button>
+          <button draggable="false" onmousedown="event.stopPropagation()" onclick="event.stopPropagation();moveForcedRankCard('${id}',1)"  ${isLast  ? 'disabled' : ''} title="Move down">▼</button>
+        </div>
+        <div class="pair-rank-name">${nameHtml}</div>
+        <div class="pair-rank-weight">
+          <span class="pair-rank-dots">${dots}</span>
+          <span class="pair-rank-wval">W:${w}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('btnPairContinue').disabled = false;
+  }
+
+  function updatePairSubtitle() {
+    const el = document.getElementById('pairSubtitle');
+    if (!el) return;
+    const subj  = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+    const meth  = (typeof pairMethod  !== 'undefined') ? pairMethod  : 'pairwise';
+    const mode  = (typeof pairMode    !== 'undefined') ? pairMode    : 'nonweighted';
+    const items = subj === 'requirements' ? 'requirements' : 'ilities';
+
+    if (meth === 'forcedrank' && mode === 'weighted') {
+      el.textContent = `Drag or use the ↑↓ arrows to rank your ${items} from most to least important. Weights (1–5) are assigned automatically based on rank position and fed into the Pugh Matrix.`;
+    } else if (mode === 'nonweighted') {
+      el.textContent = `All selected ${items} carry equal weight in the Pugh Matrix. Switch to Weighted if your team wants to prioritize some ${items} over others.`;
+    } else {
+      el.textContent = subj === 'requirements'
+        ? 'Compare your requirements head-to-head to establish their relative importance in the Pugh Matrix.'
+        : 'Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix. Answer from the perspective of the MVP premise.';
+    }
+  }
+
+  function updatePairAdvisor() {
+    const el = document.getElementById('pairAdvisorBody');
+    if (!el) return;
+    const subj  = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+    const meth  = (typeof pairMethod  !== 'undefined') ? pairMethod  : 'pairwise';
+    const mode  = (typeof pairMode    !== 'undefined') ? pairMode    : 'nonweighted';
+    const item  = subj === 'requirements' ? 'requirement' : 'ility';
+    const items = subj === 'requirements' ? 'requirements' : 'ilities';
+
+    let html;
+    if (meth === 'forcedrank') {
+      html = `<p>In <strong>Forced Rank</strong> mode, place each ${item} in an explicit order from most to least important. The top-ranked ${item} receives weight 5; the bottom receives weight 1. Intermediate positions are distributed proportionally.</p>
+              <p>Drag cards to reorder, or use the ↑↓ arrows on each card. Your rankings update in real time and are saved automatically.</p>`;
+    } else if (mode === 'nonweighted') {
+      html = `<p>In <strong>Non-Weighted</strong> mode, all ${items} carry equal weight of 1 in the Pugh Matrix. This is appropriate when your team agrees that all ${items} are equally important, or when there is insufficient information to prioritize.</p>`;
+    } else {
+      if (subj === 'ilities') {
+        html = `<p>For each pair, answer from the perspective of the MVP premise:</p>
+                <p style="font-style:italic;color:var(--text-muted);font-size:13px;border-left:3px solid var(--border);padding-left:10px;margin:10px 0">"Assume that your team has achieved a perfect minimum viable product where every shall requirement is being met and none of your desirable requirements are being met. In this situation, if you had additional resources (time, money, or people), which of these would you spend your resources on?"</p>
+                <p>This framing ensures your weights reflect where <em>additional investment</em> would have the greatest impact — not just what is needed to meet minimum requirements.</p>`;
+      } else {
+        html = `<p>For each pair, consider which requirement is more important to the overall success of the design. Your answers establish relative importance weights for each requirement in the Pugh Matrix.</p>`;
+      }
+    }
+    el.innerHTML = html;
+  }
 
 
 

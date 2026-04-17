@@ -791,6 +791,146 @@ ${sections}
     setPairMode(mode, btn);
   }
 
+  function handlePairSubjectClick(subject, btn) {
+    if (subject === 'requirements' && userTier === 'free') {
+      showUpgradePrompt('pair-subject-req');
+      return;
+    }
+    pairSubject = subject;
+    btn.closest('.pair-mode-toggle').querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    initPairPairs();
+    initForcedRankOrder();
+    syncPairView();
+  }
+
+  function handlePairMethodClick(method, btn) {
+    pairMethod = method;
+    btn.closest('.pair-mode-toggle').querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (method === 'forcedrank') initForcedRankOrder();
+    syncPairView();
+  }
+
+  // Show/hide the correct content section based on all three toggle states.
+  function syncPairView() {
+    const ws  = document.getElementById('pairWeightedSection');
+    const nws = document.getElementById('pairNonWeightedSection');
+    const frs = document.getElementById('pairForcedRankSection');
+    const pw  = document.getElementById('pairProgressWrap');
+    const mrow = document.getElementById('pairMethodRow');
+    const isForced   = pairMethod === 'forcedrank';
+    const isWeighted = pairMode   === 'weighted';
+
+    // Non-weighted: hide the Method row entirely (method is irrelevant)
+    if (mrow) mrow.style.display = isWeighted ? '' : 'none';
+
+    // In non-weighted mode, always show the non-weighted section regardless of method
+    if (ws)  ws.style.display  = (isWeighted && !isForced) ? '' : 'none';
+    if (nws) nws.style.display = (!isWeighted) ? '' : 'none';
+    if (frs) frs.style.display = (isWeighted && isForced)  ? '' : 'none';
+    if (pw)  pw.style.display  = (isWeighted && !isForced) ? '' : 'none';
+
+    // Update non-weighted section title/desc for current subject
+    const nwTitle = document.getElementById('pairNonWeightedTitle');
+    const nwDesc  = document.getElementById('pairNonWeightedDesc');
+    if (nwTitle) nwTitle.textContent = pairSubject === 'requirements' ? 'Non-Weighted Requirements Mode' : 'Non-Weighted Mode';
+    if (nwDesc)  nwDesc.textContent  = pairSubject === 'requirements'
+      ? 'All selected requirements will carry equal weight. This is appropriate when your team cannot yet prioritize or agrees that all requirements are equally important.'
+      : 'All selected ilities will carry equal weight in the Pugh matrix. This is a valid choice when your team agrees that no single system property dominates the design space, or when there is insufficient information to prioritize.';
+
+    if (isForced) {
+      renderForcedRank();
+    } else if (!isWeighted) {
+      renderNonWeighted();
+    } else {
+      renderPairCard();
+    }
+    updatePairSubtitle();
+    updatePairAdvisor();
+  }
+
+  // Build the initial forced rank order (or preserve existing valid order).
+  function initForcedRankOrder() {
+    const ids = pairSubject === 'requirements'
+      ? requirements.map(r => String(r.id))   // always strings so inline handlers match
+      : [...selectedIlities].sort();
+    const existingValid = forcedRankOrder.map(String).filter(id => ids.includes(id));
+    const incoming      = ids.filter(id => !existingValid.includes(id));
+    forcedRankOrder = [...existingValid, ...incoming];
+  }
+
+  // Resolve the name for either an ility or requirement ID depending on pairSubject.
+  function getPairSubjectName(id) {
+    if (pairSubject === 'requirements') {
+      const r = requirements.find(req => req.id === id);
+      return r ? (r.text || r.id) : id;
+    }
+    return getIlityNameById(id);
+  }
+
+  // Resolve a short description for a pair subject item.
+  function getPairSubjectDesc(id) {
+    if (pairSubject === 'requirements') {
+      const r = requirements.find(req => req.id === id);
+      return r ? (r.agileSoThat || '') : '';
+    }
+    return getIlityDescById(id);
+  }
+
+  // Forced rank — move a card up or down by one position.
+  function moveForcedRankCard(id, dir) {
+    const idx = forcedRankOrder.indexOf(id);
+    if (idx === -1) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= forcedRankOrder.length) return;
+    forcedRankOrder.splice(idx, 1);
+    forcedRankOrder.splice(newIdx, 0, id);
+    renderForcedRank();
+  }
+
+  // Forced rank — drag-and-drop handlers.
+  // Uses ondragover-with-ID approach to avoid the classic child-element dragleave bug.
+  function frDragStart(event, id) {
+    _frDragId = id;
+    setTimeout(() => {
+      const el = document.querySelector(`.pair-forced-card[data-fr-id="${id}"]`);
+      if (el) el.classList.add('fr-dragging');
+    }, 0);
+  }
+  function frDragOver(event, targetId) {
+    event.preventDefault();
+    if (!_frDragId || _frDragId === targetId) return;
+    if (_frDragOverId !== targetId) {
+      // Clear previous highlight
+      if (_frDragOverId) {
+        const old = document.querySelector(`.pair-forced-card[data-fr-id="${_frDragOverId}"]`);
+        if (old) old.classList.remove('fr-drag-over');
+      }
+      _frDragOverId = targetId;
+      event.currentTarget.classList.add('fr-drag-over');
+    }
+  }
+  function frDrop(event, targetId) {
+    event.preventDefault();
+    _frDragOverId = null;
+    document.querySelectorAll('.pair-forced-card').forEach(el => el.classList.remove('fr-drag-over'));
+    if (!_frDragId || _frDragId === targetId) { _frDragId = null; return; }
+    const fromIdx = forcedRankOrder.indexOf(_frDragId);
+    const toIdx   = forcedRankOrder.indexOf(targetId);
+    if (fromIdx !== -1 && toIdx !== -1) {
+      forcedRankOrder.splice(fromIdx, 1);
+      forcedRankOrder.splice(toIdx, 0, _frDragId);
+    }
+    _frDragId = null;
+    renderForcedRank();
+  }
+  function frDragEnd(event) {
+    _frDragId = null;
+    _frDragOverId = null;
+    document.querySelectorAll('.pair-forced-card').forEach(el => el.classList.remove('fr-dragging', 'fr-drag-over'));
+  }
+
   const upgradeMessages = {
     'free-custom-ility': { title: 'Sign Up to Add Custom Ilities', body: 'Creating a free account lets you add up to 10 custom ilities and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
     'free-custom-stak': { title: 'Sign Up to Add Custom Stakeholders', body: 'Creating a free account lets you add up to 10 custom stakeholders and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
@@ -805,6 +945,7 @@ ${sections}
     'member-contact-name': { title: 'Contact Name is a Member Feature', body: 'Create a free Member account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
     'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro Members can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
     'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro Members can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during concept scoring in SCOR, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
+    'pair-subject-req': { title: 'Requirements Comparison is a Member Feature', body: 'Create a free Member account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.', cta: 'Create Free Account' },
   };
 
   function showUpgradePrompt(type) {
@@ -883,7 +1024,7 @@ ${sections}
     selectedIlities.clear(); customIlities = [];  ilityOrder = [];
     selectedStakeholders.clear(); customStakeholders = []; stakOrder = [];
     requirements = []; reqIdCounter = 0; _editingReqId = null;
-    pairComparisons = {}; pairPairs = []; pairIndex = 0;
+    pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {};
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
@@ -1693,10 +1834,13 @@ ${sections}
   _modalId = '';
 
   // ── PAIRWISE STATE ──
-  pairMode = 'nonweighted';
+  pairMode    = 'nonweighted';
+  pairSubject = 'ilities';
+  pairMethod  = 'pairwise';
   pairComparisons = {};
   pairPairs = [];
   pairIndex = 0;
+  forcedRankOrder = [];
 
   const reqTypePlaceholders = {
     essential: 'The system shall...',
@@ -1899,27 +2043,32 @@ ${sections}
     if (pageId === 'scor') { renderConceptCards(); }
     if (pageId === 'pugh') { renderPughMatrix(); updatePughMemberToggles(); }
     if (pageId === 'pair') {
-      initPairPairs();
+      // Free tier: force non-weighted ilities pairwise
       if (userTier === 'free') {
-        pairMode = 'nonweighted';
-        const wBtn = document.getElementById('pairWeightedBtn');
-        const nwBtn = document.getElementById('pairNonWeightedBtn');
-        if (wBtn) wBtn.classList.remove('active');
-        if (nwBtn) nwBtn.classList.add('active');
-        const ws = document.getElementById('pairWeightedSection');
-        const nws = document.getElementById('pairNonWeightedSection');
-        if (ws) ws.style.display = 'none';
-        if (nws) nws.style.display = '';
-        const pw = document.getElementById('pairProgressWrap');
-        if (pw) pw.style.display = 'none';
-        const gate = document.getElementById('pairWeightedGate');
-        if (gate) gate.style.display = '';
-      } else {
-        renderPairCard();
+        pairMode    = 'nonweighted';
+        pairSubject = 'ilities';
+        pairMethod  = 'pairwise';
       }
+      // Gate badges
+      const wGate = document.getElementById('pairWeightedGate');
+      const sGate = document.getElementById('pairSubjectGate');
+      if (wGate) wGate.style.display = userTier === 'free' ? '' : 'none';
+      if (sGate) sGate.style.display = userTier === 'free' ? '' : 'none';
+      // Sync all three toggle button states from current state vars
+      const syncBtn = (id, active) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', active);
+      };
+      syncBtn('pairNonWeightedBtn', pairMode    === 'nonweighted');
+      syncBtn('pairWeightedBtn',    pairMode    === 'weighted');
+      syncBtn('pairIlitiesBtn',     pairSubject === 'ilities');
+      syncBtn('pairReqsBtn',        pairSubject === 'requirements');
+      syncBtn('pairPairwiseBtn',    pairMethod  === 'pairwise');
+      syncBtn('pairForcedRankBtn',  pairMethod  === 'forcedrank');
+      initPairPairs();
+      initForcedRankOrder();
+      syncPairView();
       updatePairProgress();
-      updatePairAdvisor();
-      renderNonWeighted();
     }
   }
 
@@ -2104,18 +2253,16 @@ ${sections}
   // ── PAIRWISE COMPARISON ──
   function setPairMode(mode, btn) {
     pairMode = mode;
-    document.querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
+    // Only clear active within the same toggle group, not across all three rows.
+    btn.closest('.pair-mode-toggle').querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('pairWeightedSection').style.display = mode === 'weighted' ? '' : 'none';
-    document.getElementById('pairNonWeightedSection').style.display = mode === 'weighted' ? 'none' : '';
-    document.getElementById('pairProgressWrap').style.display = mode === 'weighted' ? '' : 'none';
-    if (mode === 'nonweighted') renderNonWeighted();
-    else renderPairCard();
-    updatePairAdvisor();
+    syncPairView();
   }
 
   function initPairPairs() {
-    const ids = [...selectedIlities].sort();
+    const ids = pairSubject === 'requirements'
+      ? requirements.map(r => r.id)
+      : [...selectedIlities].sort();
     const newPairs = [];
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
@@ -2137,21 +2284,21 @@ ${sections}
     if (!confirm('Reset all pairwise comparisons? This will clear all rankings and start over.')) return;
     pairComparisons = {};
     pairIndex = 0;
+    forcedRankOrder = [];
     initPairPairs();
-    const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
-    hide('pairConflictCard');
-    hide('pairResults');
-    hide('pairLog');
-    hide('pairLiveChartCard');
+    initForcedRankOrder();
+    ['pairConflictCard','pairResults','pairLog','pairLiveChartCard'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
     const titleEl = document.getElementById('pairLiveChartTitle');
     if (titleEl) titleEl.textContent = 'Running Rankings';
     const cont = document.getElementById('btnPairContinue');
     if (cont) cont.disabled = true;
     const card = document.getElementById('pairCompareCard');
     if (card) card.style.display = '';
-    renderPairCard();
+    syncPairView();
     updatePairProgress();
-    updatePairAdvisor();
   }
 
   function reopenComparison(key) {
@@ -2227,7 +2374,7 @@ ${sections}
             };
             return {
               cycle: [a, b, c],
-              msg: `Circular ranking: <strong>${getIlityNameById(a)}</strong> > <strong>${getIlityNameById(b)}</strong> > <strong>${getIlityNameById(c)}</strong> > <strong>${getIlityNameById(a)}</strong>. Flip one edge to break the cycle.`,
+              msg: `Circular ranking: <strong>${getPairSubjectName(a)}</strong> > <strong>${getPairSubjectName(b)}</strong> > <strong>${getPairSubjectName(c)}</strong> > <strong>${getPairSubjectName(a)}</strong>. Flip one edge to break the cycle.`,
               edges: [
                 { winner: a, loser: b, ...edge(a, b) },
                 { winner: b, loser: c, ...edge(b, c) },
@@ -2263,7 +2410,9 @@ ${sections}
   }
 
   function calcWinCounts() {
-    const allIds = [...selectedIlities];
+    const allIds = pairSubject === 'requirements'
+      ? requirements.map(r => r.id)
+      : [...selectedIlities];
     const winCount = {};
     allIds.forEach(id => { winCount[id] = 0; });
     for (const [key, val] of Object.entries(pairComparisons)) {

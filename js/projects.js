@@ -116,6 +116,9 @@ function snapshotCurrentState(existingProject) {
     stakOrder:        stakOrder.slice(),
     requirements:     requirements.slice(),
     pairComparisons:  Object.assign({}, (typeof pairComparisons !== 'undefined' ? pairComparisons : {})),
+    pairSubject:      (typeof pairSubject     !== 'undefined') ? pairSubject     : 'ilities',
+    pairMethod:       (typeof pairMethod      !== 'undefined') ? pairMethod      : 'pairwise',
+    forcedRankOrder:  (typeof forcedRankOrder !== 'undefined' ? forcedRankOrder : []).slice(),
     concepts:         pughConcepts.slice(),
     matrix:           Object.assign({}, pughScores),
     pughSettings:     Object.assign({}, pughSettings),
@@ -168,6 +171,9 @@ function restoreProjectState(project) {
 
   // Pairwise
   pairComparisons = Object.assign({}, project.pairComparisons || {});
+  pairSubject     = project.pairSubject     || 'ilities';
+  pairMethod      = project.pairMethod      || 'pairwise';
+  forcedRankOrder = (project.forcedRankOrder || []).slice();
 
   // Pugh / scoring
   pughConcepts        = (project.concepts || []).slice();

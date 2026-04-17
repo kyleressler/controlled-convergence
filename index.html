@@ -791,23 +791,43 @@
 
   <div class="page-header">
     <div class="page-title">Pairwise Comparison <button class="info-icon" onclick="openSidebarToSlide('pair', 0)" title="What is pairwise comparison?">ⓘ</button></div>
-    <div class="page-subtitle">Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix.</div>
+    <div class="page-subtitle" id="pairSubtitle">Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix.</div>
   </div>
 
   <div class="pair-mode-bar">
-    <span class="pair-mode-label">Weighting Method:</span>
-    <div class="pair-mode-toggle">
-      <button class="pair-mode-btn" onclick="handlePairModeClick('weighted', this)" id="pairWeightedBtn">Weighted</button>
-      <button class="pair-mode-btn active" onclick="handlePairModeClick('nonweighted', this)" id="pairNonWeightedBtn">Non-Weighted</button>
+    <!-- Row 1: Weighting -->
+    <div class="pair-toggle-row">
+      <span class="pair-mode-label">Weighting:</span>
+      <div class="pair-mode-toggle">
+        <button class="pair-mode-btn active" onclick="handlePairModeClick('nonweighted', this)" id="pairNonWeightedBtn">Non-Weighted</button>
+        <button class="pair-mode-btn" onclick="handlePairModeClick('weighted', this)" id="pairWeightedBtn">Weighted</button>
+      </div>
+      <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
+      <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
+        <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
+        <div class="pair-progress-track">
+          <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
     </div>
-    <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
-    <div class="pair-progress-bar-wrap" id="pairProgressWrap">
-      <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
-      <div class="pair-progress-track">
-        <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
+    <!-- Row 2: Compare Subject (Member+) -->
+    <div class="pair-toggle-row">
+      <span class="pair-mode-label">Compare:</span>
+      <div class="pair-mode-toggle">
+        <button class="pair-mode-btn active" onclick="handlePairSubjectClick('ilities', this)" id="pairIlitiesBtn">Ilities</button>
+        <button class="pair-mode-btn" onclick="handlePairSubjectClick('requirements', this)" id="pairReqsBtn">Requirements</button>
+      </div>
+      <span id="pairSubjectGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
+    </div>
+    <!-- Row 3: Method (hidden in non-weighted mode) -->
+    <div class="pair-toggle-row" id="pairMethodRow">
+      <span class="pair-mode-label">Method:</span>
+      <div class="pair-mode-toggle">
+        <button class="pair-mode-btn active" onclick="handlePairMethodClick('pairwise', this)" id="pairPairwiseBtn">Pairwise</button>
+        <button class="pair-mode-btn" onclick="handlePairMethodClick('forcedrank', this)" id="pairForcedRankBtn">Forced Rank</button>
       </div>
     </div>
-    <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
   </div>
 
   <div id="pairWeightedSection">
@@ -825,7 +845,7 @@
 
     <!-- Comparison card -->
     <div class="pair-card" id="pairCompareCard">
-      <div class="pair-question">Assume all requirements have been met at the minimum acceptable level. Which ility would you spend extra time, resources, or money on?</div>
+      <div class="pair-question" id="pairQuestion">Assume that your team has achieved a perfect minimum viable product where every shall requirement is being met and none of your desirable requirements are being met. In this situation, if you had additional resources (time, money, or people), which of these would you spend your resources on?</div>
       <div class="pair-vs-row">
         <button class="pair-choice-btn" id="pairBtnA" onclick="choosePair('A')"></button>
         <div class="pair-vs-label">vs</div>
@@ -854,9 +874,17 @@
 
   <div id="pairNonWeightedSection" style="display:none">
     <div class="pair-nonweighted-card">
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">Non-Weighted Mode</div>
-      <p style="font-size:14px;color:var(--text-muted);line-height:1.65">All selected ilities will carry equal weight in the Pugh matrix. This is a valid choice when your team agrees that no single system property dominates the design space, or when there is insufficient information to prioritize.</p>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px" id="pairNonWeightedTitle">Non-Weighted Mode</div>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.65" id="pairNonWeightedDesc">All selected ilities will carry equal weight in the Pugh matrix. This is a valid choice when your team agrees that no single system property dominates the design space, or when there is insufficient information to prioritize.</p>
       <div id="pairNonWeightedList" style="margin-top:20px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+
+  <!-- Forced Rank section -->
+  <div id="pairForcedRankSection" style="display:none">
+    <div class="pair-card">
+      <div class="pair-question" id="pairForcedRankQuestion">Drag cards or use the ↑↓ arrows to rank from most to least important. Weights (1–5) are assigned automatically based on position and carried into the Pugh Matrix.</div>
+      <div id="pairForcedRankList" class="pair-forced-list"></div>
     </div>
   </div>
 

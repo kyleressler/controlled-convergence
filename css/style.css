@@ -1345,8 +1345,8 @@
     /* ── PAIR TOOL ── */
     .pair-mode-bar {
       display: flex;
-      align-items: center;
-      gap: 16px;
+      flex-direction: column;
+      gap: 10px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -1510,6 +1510,84 @@
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 24px;
+    }
+
+    /* Pair toggle rows */
+    .pair-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Forced Rank */
+    .pair-forced-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .pair-forced-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: grab;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .pair-forced-card:active { cursor: grabbing; }
+    .pair-forced-card.fr-dragging { opacity: 0.4; }
+    .pair-forced-card.fr-drag-over {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-light);
+    }
+    .pair-rank-position {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-light);
+      min-width: 22px;
+      text-align: center;
+    }
+    .pair-rank-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .pair-rank-arrows button {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .pair-rank-arrows button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .pair-rank-arrows button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .pair-rank-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .pair-rank-weight {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .pair-rank-dots { display: flex; gap: 3px; }
+    .pair-rank-wval {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 26px;
+      text-align: right;
     }
 
     /* ── REQS FORM COLUMN LAYOUT ── */
