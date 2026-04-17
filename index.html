@@ -644,6 +644,15 @@
     <div class="page-subtitle">Write requirements and classify them by type, ility, and stakeholder. The coverage charts can help you spot gaps in your requirements.</div>
   </div>
 
+  <!-- Format toggle -->
+  <div class="pair-mode-bar" style="margin-bottom:16px">
+    <span class="pair-mode-label">Format:</span>
+    <div class="pair-mode-toggle">
+      <button class="pair-mode-btn active" id="reqFmtAgileBtn" onclick="switchReqFormat('agile')">AGILE / JIRA</button>
+      <button class="pair-mode-btn" id="reqFmtIncoseBtn" onclick="switchReqFormat('incose')">SYSTEM / INCOSE</button>
+    </div>
+  </div>
+
   <div class="req-form-card" id="reqFormCard">
     <div class="req-form-label">Type</div>
     <div class="req-type-selector" id="reqTypeSelector">
@@ -654,41 +663,85 @@
       <button class="req-type-chip" data-type="mustnot" onclick="setReqType('mustnot', this)">Must Not</button>
     </div>
 
-    <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement <button class="info-icon" onclick="openSidebarToSlide('requirements', 1)" title="How to write strong requirements">ⓘ</button></div>
-    <textarea class="req-text-input" id="reqText" placeholder="Describe what the system shall, should, or must not do..." rows="2"></textarea>
-
-    <div class="req-form-columns">
-      <div class="req-form-col">
-        <div>
-          <div class="req-form-label">Primary Ility <span style="color:var(--danger)">*</span></div>
-          <select class="req-select" id="reqPrimaryIlity" onchange="syncReqSecondary('ility')">
-            <option value="">— select —</option>
-          </select>
-        </div>
-        <div>
-          <div class="req-form-label">Secondary Ility</div>
-          <select class="req-select" id="reqSecondaryIlity">
-            <option value="">(none)</option>
-          </select>
-        </div>
+    <!-- ── AGILE / JIRA form ── -->
+    <div id="reqAgileSection" style="margin-top:12px">
+      <div class="req-agile-row">
+        <span class="req-agile-label">As a</span>
+        <select class="req-select" id="reqAgileStakeholder" style="flex:1">
+          <option value="">— select stakeholder —</option>
+        </select>
       </div>
-      <div class="req-form-col">
-        <div>
-          <div class="req-form-label">Primary Stakeholder</div>
-          <select class="req-select" id="reqPrimaryStakeholder" onchange="syncReqSecondary('stak')">
-            <option value="">— select —</option>
-          </select>
+      <div class="req-agile-row">
+        <span class="req-agile-label">I care about</span>
+        <select class="req-select" id="reqAgileIlity" style="flex:1">
+          <option value="">— select ility —</option>
+        </select>
+      </div>
+      <div class="req-agile-row" style="align-items:flex-start">
+        <span class="req-agile-label" style="margin-top:8px">and I want</span>
+        <textarea class="req-text-input" id="reqAgileWant"
+          placeholder="what you want the system to do or provide..."
+          rows="2" style="flex:1;margin:0"></textarea>
+      </div>
+      <div class="req-agile-row" style="align-items:flex-start">
+        <span class="req-agile-label req-agile-optional" style="margin-top:8px">so that</span>
+        <textarea class="req-text-input" id="reqAgileSoThat"
+          placeholder="(optional) the outcome or reason this matters..."
+          rows="2" style="flex:1;margin:0"></textarea>
+      </div>
+    </div>
+
+    <!-- ── SYSTEM / INCOSE form ── -->
+    <div id="reqIncoseSection" style="display:none">
+      <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement <button class="info-icon" onclick="openSidebarToSlide('requirements', 1)" title="How to write strong requirements">ⓘ</button></div>
+      <textarea class="req-text-input" id="reqText" placeholder="The system shall..." rows="2"></textarea>
+
+      <div class="req-form-columns">
+        <div class="req-form-col">
+          <div>
+            <div class="req-form-label">Primary Ility <span style="color:var(--danger)">*</span></div>
+            <select class="req-select" id="reqPrimaryIlity" onchange="syncReqSecondary('ility')">
+              <option value="">— select —</option>
+            </select>
+          </div>
+          <div>
+            <div class="req-form-label">Secondary Ility</div>
+            <select class="req-select" id="reqSecondaryIlity">
+              <option value="">(none)</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <div class="req-form-label">Secondary Stakeholder</div>
-          <select class="req-select" id="reqSecondaryStakeholder">
-            <option value="">(none)</option>
-          </select>
+        <div class="req-form-col">
+          <div>
+            <div class="req-form-label">Primary Stakeholder</div>
+            <select class="req-select" id="reqPrimaryStakeholder" onchange="syncReqSecondary('stak')">
+              <option value="">— select —</option>
+            </select>
+          </div>
+          <div>
+            <div class="req-form-label">Secondary Stakeholder</div>
+            <select class="req-select" id="reqSecondaryStakeholder">
+              <option value="">(none)</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:4px;align-items:center">
+    <!-- ── Responsible Scorer (Pro, both modes) ── -->
+    <div style="margin-top:12px">
+      <div class="req-form-label" style="display:flex;align-items:center;gap:6px">
+        Responsible Scorer
+        <span class="pro-badge-inline" style="margin-left:0">PRO</span>
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional — who will score this requirement in SCOR)</span>
+      </div>
+      <select class="req-select" id="reqScorer" style="width:100%"
+        onfocus="if(userTier!=='pro'){this.blur();showUpgradePrompt('pro-scorer');}">
+        <option value="">— none —</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
       <button class="btn btn-primary" id="reqAddBtn" onclick="addRequirement()">Add Requirement</button>
       <button class="btn btn-ghost" id="reqCancelEdit" style="display:none" onclick="cancelReqEdit()">Cancel</button>
     </div>

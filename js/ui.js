@@ -365,21 +365,41 @@
       .filter(s => selectedStakeholders.has(s.id))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    function fillSelect(id, items, label, addBlank) {
+    function fillSelect(id, items, label) {
       const el = document.getElementById(id);
       if (!el) return;
       const cur = el.value;
-      const blank = addBlank ? `<option value="">${label}</option>` : `<option value="">${label}</option>`;
-      el.innerHTML = blank + items.map(it => `<option value="${it.id}" ${cur === it.id ? 'selected' : ''}>${it.name}</option>`).join('');
+      el.innerHTML = `<option value="">${label}</option>` + items.map(it => `<option value="${it.id}" ${cur === it.id ? 'selected' : ''}>${escHtml(it.name)}</option>`).join('');
     }
 
-    fillSelect('reqPrimaryIlity',       allIlities,       '— select —', false);
-    fillSelect('reqSecondaryIlity',     allIlities,       '(none)',      true);
-    fillSelect('reqPrimaryStakeholder', allStakeholders,  '— select —',  false);
-    fillSelect('reqSecondaryStakeholder', allStakeholders, '(none)',    true);
-    // Sync secondaries in case a primary is already set (e.g. when editing)
+    // INCOSE dropdowns
+    fillSelect('reqPrimaryIlity',         allIlities,       '— select —');
+    fillSelect('reqSecondaryIlity',       allIlities,       '(none)');
+    fillSelect('reqPrimaryStakeholder',   allStakeholders,  '— select —');
+    fillSelect('reqSecondaryStakeholder', allStakeholders,  '(none)');
     syncReqSecondary('ility');
     syncReqSecondary('stak');
+
+    // AGILE dropdowns
+    fillSelect('reqAgileStakeholder', allStakeholders, '— select stakeholder —');
+    fillSelect('reqAgileIlity',       allIlities,      '— select ility —');
+
+    // Responsible Scorer — only stakeholders with a contact name entered
+    const scorerEl = document.getElementById('reqScorer');
+    if (scorerEl) {
+      const curScorer = scorerEl.value;
+      const scorerStakeholders = allStakeholders.filter(s => s.contactName && s.contactName.trim());
+      scorerEl.innerHTML = '<option value="">— none —</option>' + scorerStakeholders.map(s => {
+        let label = escHtml(s.name);
+        if (s.contactTitle || s.contactName) {
+          const parts = [s.name];
+          if (s.contactTitle) parts.push(s.contactTitle);
+          if (s.contactName)  parts.push(s.contactName);
+          label = escHtml(parts.join(' — '));
+        }
+        return `<option value="${s.id}" ${curScorer === s.id ? 'selected' : ''}>${label}</option>`;
+      }).join('');
+    }
   }
 
   function renderRequirements() {
@@ -391,25 +411,67 @@
       empty.style.display = '';
     } else {
       empty.style.display = 'none';
-      list.innerHTML = requirements.map(r => `
+      list.innerHTML = requirements.map(r => {
+        const typeLabel = r.type === 'willnot' ? 'WILL NOT' : r.type === 'mustnot' ? 'MUST NOT' : r.type.toUpperCase();
+
+        // Build display text based on format
+        let displayText;
+        if (r.format === 'agile') {
+          const sid = r.stakeholders && r.stakeholders[0];
+          const stakName = getStakeholderName(sid);
+          const stakDesc = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])].find(s => s.id === sid)?.desc || '';
+          const stakTag = `<span class="req-tag req-tag-stakeholder" data-tooltip="${escHtml(stakName + (stakDesc ? ': ' + stakDesc : ''))}">${escHtml(stakName)}</span>`;
+          const ilityName = getIlityName(r.primary);
+          const ilityDesc = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])].find(i => i.id === r.primary)?.desc || '';
+          const ilityTag = `<span class="req-tag req-tag-primary" data-tooltip="${escHtml(ilityName + (ilityDesc ? ': ' + ilityDesc : ''))}">${escHtml(ilityName)}</span>`;
+          const want = escHtml(r.text || '');
+          const soThat = r.agileSoThat ? ` <span style="color:var(--text-muted)">so that</span> ${escHtml(r.agileSoThat)}` : '';
+          displayText = `<span style="color:var(--text-muted)">As a</span> ${stakTag} <span style="color:var(--text-muted)">I care about</span> ${ilityTag} <span style="color:var(--text-muted)">and I want</span> ${want}${soThat}`;
+        } else {
+          displayText = escHtml(r.text || '');
+        }
+
+        // Build ility tags with hover tooltip
+        const primaryIlityName = getIlityName(r.primary);
+        const primaryIlityDesc = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])].find(i => i.id === r.primary)?.desc || '';
+        const ilityTag = r.format === 'agile'
+          ? '' // already in sentence display; don't duplicate
+          : `<span class="req-tag req-tag-primary" data-tooltip="${escHtml(primaryIlityName + (primaryIlityDesc ? ': ' + primaryIlityDesc : ''))}">${escHtml(primaryIlityName)}</span>`;
+        const secondaryTags = (r.format !== 'agile' ? (r.secondaries || []) : []).map(sid => {
+          const sn = getIlityName(sid);
+          const sd = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])].find(i => i.id === sid)?.desc || '';
+          return `<span class="req-tag req-tag-secondary" data-tooltip="${escHtml(sn + (sd ? ': ' + sd : ''))}">${escHtml(sn)}</span>`;
+        }).join('');
+
+        // Stakeholder tags with hover tooltip
+        const stakeholderTags = (r.format !== 'agile' ? (r.stakeholders || []) : []).map(sid => {
+          const sn = getStakeholderName(sid);
+          const sd = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])].find(s => s.id === sid)?.desc || '';
+          return `<span class="req-tag req-tag-stakeholder" data-tooltip="${escHtml(sn + (sd ? ': ' + sd : ''))}">${escHtml(sn)}</span>`;
+        }).join('');
+
+        const hasTags = ilityTag || secondaryTags || stakeholderTags;
+        const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}</div>` : '';
+
+        return `
         <div class="req-item" ondblclick="editRequirement(${r.id})" title="Double-click to edit" style="cursor:default">
           <div class="req-item-header">
-            <span class="req-type-badge badge-${r.type}">${r.type === 'willnot' ? 'WILL NOT' : r.type === 'mustnot' ? 'MUST NOT' : r.type.toUpperCase()}</span>
-            <span class="req-item-text">${r.text}</span>
-            <button class="req-item-delete" onclick="event.stopPropagation();deleteRequirement(${r.id})" title="Delete">×</button>
+            <span class="req-type-badge badge-${r.type}">${typeLabel}</span>
+            <span class="req-item-text">${displayText}</span>
+            <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
+              <button class="req-item-edit" onclick="event.stopPropagation();editRequirement(${r.id})" title="Edit">Edit</button>
+              <button class="req-item-delete" onclick="event.stopPropagation();deleteRequirement(${r.id})" title="Delete">×</button>
+            </div>
           </div>
-          <div class="req-item-tags">
-            <span class="req-tag req-tag-primary">${getIlityName(r.primary)}</span>
-            ${r.secondaries.map(s => `<span class="req-tag req-tag-secondary">${getIlityName(s)}</span>`).join('')}
-            ${r.stakeholders.map(s => `<span class="req-tag req-tag-stakeholder">${getStakeholderName(s)}</span>`).join('')}
-          </div>
-        </div>`).join('');
+          ${tagsRow}
+        </div>`;
+      }).join('');
       list.appendChild(empty);
     }
 
     renderChart();
     updateReqAdvisor();
-    document.getElementById('btnReqContinue').disabled = requirements.length < 3;
+    document.getElementById('btnReqContinue').disabled = requirements.length < 1;
   }
 
   function renderChart() {

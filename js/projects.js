@@ -107,6 +107,7 @@ function snapshotCurrentState(existingProject) {
     // before any user action that would call snapshotCurrentState)
     goalMode:         (typeof goalMode !== 'undefined') ? goalMode : (existingProject.goalMode || 'basic'),
     currentPage:      (typeof _currentPage !== 'undefined') ? _currentPage : (existingProject.currentPage || 'tbus'),
+    reqFormat:        (typeof reqFormat !== 'undefined') ? reqFormat : (existingProject.reqFormat || 'agile'),
     ilities:          Array.from(selectedIlities),
     customIlities:    (typeof customIlities !== 'undefined' ? customIlities : []).slice(),
     ilityOrder:       ilityOrder.slice(),
@@ -162,6 +163,8 @@ function restoreProjectState(project) {
   reqIdCounter  = requirements.length
     ? Math.max(...requirements.map(r => parseInt(String(r.id).replace('r', ''), 10) || 0)) + 1
     : 0;
+  if (typeof reqFormat !== 'undefined') reqFormat = project.reqFormat || 'agile';
+  if (typeof switchReqFormat === 'function') switchReqFormat(project.reqFormat || 'agile');
 
   // Pairwise
   pairComparisons = Object.assign({}, project.pairComparisons || {});

@@ -804,6 +804,7 @@ ${sections}
     'pugh-settings': { title: 'Matrix Settings require a Member Account', body: 'Free Members can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
     'member-contact-name': { title: 'Contact Name is a Member Feature', body: 'Create a free Member account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
     'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro Members can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
+    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro Members can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during concept scoring in SCOR, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
   };
 
   function showUpgradePrompt(type) {
@@ -1685,6 +1686,7 @@ ${sections}
   reqType = 'essential';
   reqIdCounter = 0;
   _editingReqId = null;
+  let reqFormat = 'agile'; // 'agile' | 'incose'
 
   // ── MODAL STATE ──
   _modalType = '';
@@ -1713,6 +1715,21 @@ ${sections}
   }
 
 
+  function switchReqFormat(format) {
+    reqFormat = format;
+    const agileSection  = document.getElementById('reqAgileSection');
+    const incoseSection = document.getElementById('reqIncoseSection');
+    const agileBtn  = document.getElementById('reqFmtAgileBtn');
+    const incoseBtn = document.getElementById('reqFmtIncoseBtn');
+    const typeSelector  = document.getElementById('reqTypeSelector');
+    if (agileSection)  agileSection.style.display  = format === 'agile'  ? '' : 'none';
+    if (incoseSection) incoseSection.style.display = format === 'incose' ? '' : 'none';
+    if (agileBtn)  agileBtn.classList.toggle('active',  format === 'agile');
+    if (incoseBtn) incoseBtn.classList.toggle('active', format === 'incose');
+    if (typeSelector)  typeSelector.style.display  = format === 'agile' ? 'none' : '';
+    populateReqForms();
+  }
+
   // Remove the selected primary option from the corresponding secondary select
   function syncReqSecondary(type) {
     const primaryId   = type === 'ility' ? 'reqPrimaryIlity'         : 'reqPrimaryStakeholder';
@@ -1732,32 +1749,77 @@ ${sections}
   }
 
   function addRequirement() {
-    const text = document.getElementById('reqText').value.trim();
-    const primaryIlity = document.getElementById('reqPrimaryIlity').value;
-    const secondaryIlity = document.getElementById('reqSecondaryIlity').value;
-    const primaryStak = document.getElementById('reqPrimaryStakeholder').value;
-    const secondaryStak = document.getElementById('reqSecondaryStakeholder').value;
+    const scorer = document.getElementById('reqScorer')?.value || '';
 
-    if (!text) { document.getElementById('reqText').focus(); return; }
-    if (!primaryIlity) { document.getElementById('reqPrimaryIlity').focus(); return; }
+    if (reqFormat === 'agile') {
+      const stakeholder = document.getElementById('reqAgileStakeholder').value;
+      const ility       = document.getElementById('reqAgileIlity').value;
+      const want        = document.getElementById('reqAgileWant').value.trim();
+      const soThat      = document.getElementById('reqAgileSoThat').value.trim();
 
-    const secondaries = (secondaryIlity && secondaryIlity !== primaryIlity) ? [secondaryIlity] : [];
-    const stakeholders = [primaryStak];
-    if (secondaryStak && secondaryStak !== primaryStak) stakeholders.push(secondaryStak);
+      if (!stakeholder) { document.getElementById('reqAgileStakeholder').focus(); return; }
+      if (!ility)       { document.getElementById('reqAgileIlity').focus(); return; }
+      if (!want)        { document.getElementById('reqAgileWant').focus(); return; }
 
-    if (_editingReqId !== null) {
-      // Update existing
-      const idx = requirements.findIndex(r => r.id === _editingReqId);
-      if (idx !== -1) requirements[idx] = { id: _editingReqId, text, type: reqType, primary: primaryIlity, secondaries, stakeholders };
-      cancelReqEdit();
+      const req = {
+        id: _editingReqId !== null ? _editingReqId : ++reqIdCounter,
+        format: 'agile',
+        text: want,        // the "and I want" portion — primary display text
+        agileSoThat: soThat,
+        type: reqType,
+        primary: ility,
+        secondaries: [],
+        stakeholders: [stakeholder],
+        scorer,
+      };
+
+      if (_editingReqId !== null) {
+        const idx = requirements.findIndex(r => r.id === _editingReqId);
+        if (idx !== -1) requirements[idx] = req;
+        cancelReqEdit();
+      } else {
+        requirements.push(req);
+        document.getElementById('reqAgileStakeholder').value = '';
+        document.getElementById('reqAgileIlity').value = '';
+        document.getElementById('reqAgileWant').value = '';
+        document.getElementById('reqAgileSoThat').value = '';
+        if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
+      }
+
     } else {
-      const req = { id: ++reqIdCounter, text, type: reqType, primary: primaryIlity, secondaries, stakeholders };
-      requirements.push(req);
-      document.getElementById('reqText').value = '';
-      document.getElementById('reqPrimaryIlity').value = '';
-      document.getElementById('reqSecondaryIlity').value = '';
-      document.getElementById('reqPrimaryStakeholder').value = '';
-      document.getElementById('reqSecondaryStakeholder').value = '';
+      // SYSTEM / INCOSE format
+      const text         = document.getElementById('reqText').value.trim();
+      const primaryIlity = document.getElementById('reqPrimaryIlity').value;
+      const secondaryIlity = document.getElementById('reqSecondaryIlity').value;
+      const primaryStak  = document.getElementById('reqPrimaryStakeholder').value;
+      const secondaryStak = document.getElementById('reqSecondaryStakeholder').value;
+
+      if (!text) { document.getElementById('reqText').focus(); return; }
+      if (!primaryIlity) { document.getElementById('reqPrimaryIlity').focus(); return; }
+
+      const secondaries  = (secondaryIlity && secondaryIlity !== primaryIlity) ? [secondaryIlity] : [];
+      const stakeholders = [primaryStak];
+      if (secondaryStak && secondaryStak !== primaryStak) stakeholders.push(secondaryStak);
+
+      const req = {
+        id: _editingReqId !== null ? _editingReqId : ++reqIdCounter,
+        format: 'incose',
+        text, type: reqType, primary: primaryIlity, secondaries, stakeholders, scorer,
+      };
+
+      if (_editingReqId !== null) {
+        const idx = requirements.findIndex(r => r.id === _editingReqId);
+        if (idx !== -1) requirements[idx] = req;
+        cancelReqEdit();
+      } else {
+        document.getElementById('reqText').value = '';
+        document.getElementById('reqPrimaryIlity').value = '';
+        document.getElementById('reqSecondaryIlity').value = '';
+        document.getElementById('reqPrimaryStakeholder').value = '';
+        document.getElementById('reqSecondaryStakeholder').value = '';
+        if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
+        requirements.push(req);
+      }
     }
 
     renderRequirements();
@@ -1777,7 +1839,7 @@ ${sections}
   }
 
   function getStakeholderName(id) {
-    return STAKEHOLDERS.find(s => s.id === id)?.name || id;
+    return [...STAKEHOLDERS, ...customStakeholders].find(s => s.id === id)?.name || id;
   }
 
 
@@ -1979,20 +2041,37 @@ ${sections}
     const req = requirements.find(r => r.id === id);
     if (!req) return;
     _editingReqId = id;
-    document.getElementById('reqText').value = req.text;
+
     // Set type chip
     document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
     const chip = document.querySelector(`.req-type-chip[data-type="${req.type}"]`);
     if (chip) { chip.classList.add('active'); reqType = req.type; }
-    // Set dropdowns
-    populateReqForms();
-    setTimeout(() => {
-      document.getElementById('reqPrimaryIlity').value = req.primary || '';
-      document.getElementById('reqSecondaryIlity').value = req.secondaries[0] || '';
-      document.getElementById('reqPrimaryStakeholder').value = req.stakeholders[0] || '';
-      document.getElementById('reqSecondaryStakeholder').value = req.stakeholders[1] || '';
-    }, 10);
-    document.getElementById('reqFormTitle').textContent = 'Edit Requirement';
+
+    // Switch to the format this requirement was written in
+    const fmt = req.format || 'incose';
+    switchReqFormat(fmt);
+
+    if (fmt === 'agile') {
+      setTimeout(() => {
+        document.getElementById('reqAgileStakeholder').value = req.stakeholders[0] || '';
+        document.getElementById('reqAgileIlity').value       = req.primary || '';
+        document.getElementById('reqAgileWant').value        = req.text || '';
+        document.getElementById('reqAgileSoThat').value      = req.agileSoThat || '';
+        if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
+      }, 15);
+    } else {
+      populateReqForms();
+      setTimeout(() => {
+        document.getElementById('reqText').value = req.text || '';
+        document.getElementById('reqPrimaryIlity').value       = req.primary || '';
+        document.getElementById('reqSecondaryIlity').value     = req.secondaries[0] || '';
+        document.getElementById('reqPrimaryStakeholder').value = req.stakeholders[0] || '';
+        document.getElementById('reqSecondaryStakeholder').value = req.stakeholders[1] || '';
+        if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
+      }, 15);
+    }
+
+    document.getElementById('reqFormTitle') && (document.getElementById('reqFormTitle').textContent = 'Edit Requirement');
     document.getElementById('reqAddBtn').textContent = 'Save Changes';
     document.getElementById('reqCancelEdit').style.display = '';
     document.getElementById('reqFormCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2000,10 +2079,21 @@ ${sections}
 
   function cancelReqEdit() {
     _editingReqId = null;
-    document.getElementById('reqText').value = '';
-    document.getElementById('reqFormTitle').textContent = 'Requirement Statement';
+    // Clear INCOSE fields
+    const reqTextEl = document.getElementById('reqText');
+    if (reqTextEl) reqTextEl.value = '';
+    const reqFormTitleEl = document.getElementById('reqFormTitle');
+    if (reqFormTitleEl) reqFormTitleEl.textContent = 'Requirement Statement';
     document.getElementById('reqAddBtn').textContent = 'Add Requirement';
     document.getElementById('reqCancelEdit').style.display = 'none';
+    // Clear AGILE fields
+    ['reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    // Clear Responsible Scorer
+    const scorerEl = document.getElementById('reqScorer');
+    if (scorerEl) scorerEl.value = '';
     // Reset type to Essential
     document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
     const chip = document.querySelector('.req-type-chip[data-type="essential"]');

@@ -796,6 +796,7 @@
     .continue-btn-wrap {
       display: flex;
       justify-content: flex-end;
+      margin-top: 24px;
       margin-bottom: 12px;
     }
 
@@ -1125,16 +1126,62 @@
     .req-item-text { font-size: 14px; color: var(--text); line-height: 1.5; flex: 1; }
     .req-item-delete { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 16px; line-height: 1; padding: 0 4px; }
     .req-item-delete:hover { color: var(--danger); }
+    .req-item-edit { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+    .req-item-edit:hover { background: var(--accent-light); color: var(--accent); }
     .req-item-tags { display: flex; flex-wrap: wrap; gap: 5px; }
     .req-tag {
       font-size: 11px;
       font-weight: 600;
       padding: 2px 8px;
       border-radius: 4px;
+      position: relative;
+      cursor: default;
     }
     .req-tag-primary { background: var(--accent); color: #fff; }
     .req-tag-secondary { background: var(--accent-light); color: var(--accent); }
     .req-tag-stakeholder { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); font-weight: 400; }
+    /* Hover tooltip on req tags */
+    .req-tag[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-muted);
+      white-space: normal;
+      min-width: 140px;
+      max-width: 260px;
+      z-index: 200;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      pointer-events: none;
+      text-align: left;
+      line-height: 1.5;
+    }
+    /* AGILE form sentence rows */
+    .req-agile-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .req-agile-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      min-width: 100px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .req-agile-optional {
+      font-weight: 400;
+      font-style: italic;
+    }
 
     /* bar chart */
     .req-charts-col {
