@@ -313,7 +313,17 @@
       const bi = stakOrder.indexOf(b.id);
       return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
     });
-    grid.innerHTML = all.map(s => `
+    grid.innerHTML = all.map(s => {
+      // Contact info — build inline display only if fields are set
+      // Privacy: these are only visible in the user's own session (project data is RLS-isolated)
+      const contactParts = [];
+      if (s.contactName)  contactParts.push(escHtml(s.contactName));
+      if (s.contactTitle) contactParts.push(escHtml(s.contactTitle));
+      if (s.contactEmail) contactParts.push(`<a href="mailto:${escHtml(s.contactEmail)}" onclick="event.stopPropagation()" style="color:var(--accent)">${escHtml(s.contactEmail)}</a>`);
+      const contactHtml = contactParts.length
+        ? `<div class="stak-chip-contact" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5">${contactParts.join(' · ')}</div>`
+        : '';
+      return `
       <div class="stak-chip ${selectedStakeholders.has(s.id) ? 'selected' : ''}"
            draggable="true"
            id="stak-chip-${s.id}"
@@ -328,9 +338,11 @@
         <div class="chip-drag-handle" aria-hidden="true"
              ontouchstart="cardTouchStart(event,'${s.id}','stak')"
              ontouchend="cardTouchEnd(event,'${s.id}','stak')">⠿</div>
-        <div class="stak-chip-name">${s.name}</div>
-        <div class="stak-chip-desc">${s.desc}</div>
-      </div>`).join('');
+        <div class="stak-chip-name">${escHtml(s.name)}</div>
+        <div class="stak-chip-desc">${escHtml(s.desc)}</div>
+        ${contactHtml}
+      </div>`;
+    }).join('');
     const count = document.getElementById('stakCount');
     if (count) count.textContent = selectedStakeholders.size;
     const cont = document.getElementById('btnStakContinue');

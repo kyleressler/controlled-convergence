@@ -802,6 +802,8 @@ ${sections}
     'member-project-limit': { title: 'Project Limit Reached', body: 'Free Members can save up to 3 projects. Delete a project to make room, or upgrade to Pro for up to 50 projects.', cta: 'Upgrade to Pro' },
     'templates': { title: 'Templates is a Pro Feature', body: 'Pro Members can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
     'pugh-settings': { title: 'Matrix Settings require a Member Account', body: 'Free Members can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
+    'member-contact-name': { title: 'Contact Name is a Member Feature', body: 'Create a free Member account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
+    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro Members can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
   };
 
   function showUpgradePrompt(type) {
@@ -1516,8 +1518,11 @@ ${sections}
       showUpgradePrompt('member-stak-limit');
       return;
     }
-    const nameInput = document.getElementById('customStakName');
-    const descInput = document.getElementById('customStakDesc');
+    const nameInput         = document.getElementById('customStakName');
+    const descInput         = document.getElementById('customStakDesc');
+    const contactNameInput  = document.getElementById('customStakContactName');
+    const contactTitleInput = document.getElementById('customStakContactTitle');
+    const contactEmailInput = document.getElementById('customStakContactEmail');
     const name = nameInput.value.trim();
     const desc = descInput.value.trim() || 'Custom stakeholder';
     if (!name) { nameInput.focus(); return; }
@@ -1527,11 +1532,20 @@ ${sections}
       alert('A stakeholder with this name already exists.');
       nameInput.focus(); return;
     }
-    const id = 'custom-sk-' + name.toLowerCase().replace(/\s+/g, '-');
-    customStakeholders.push({ id, name, desc });
+    const id = 'custom-sk-' + name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+
+    // Contact fields — only stored if tier allows; never exposed in shared/community data
+    const contactName  = (userTier === 'member' || userTier === 'pro') ? (contactNameInput?.value.trim()  || '') : '';
+    const contactTitle = (userTier === 'pro')                          ? (contactTitleInput?.value.trim() || '') : '';
+    const contactEmail = (userTier === 'pro')                          ? (contactEmailInput?.value.trim() || '') : '';
+
+    customStakeholders.push({ id, name, desc, contactName, contactTitle, contactEmail });
     selectedStakeholders.add(id);
     nameInput.value = '';
     descInput.value = '';
+    if (contactNameInput)  contactNameInput.value  = '';
+    if (contactTitleInput) contactTitleInput.value = '';
+    if (contactEmailInput) contactEmailInput.value = '';
     renderStakGrid();
     populateReqForms();
   }
@@ -1884,6 +1898,20 @@ ${sections}
     document.getElementById('modalTitle').textContent = type === 'ility' ? 'Edit Ility' : 'Edit Stakeholder';
     document.getElementById('modalName').value = item.name;
     document.getElementById('modalDesc').value = item.desc || '';
+
+    // Show/populate contact fields only for stakeholders
+    const contactSection = document.getElementById('modalContactFields');
+    if (contactSection) {
+      if (type === 'stak') {
+        contactSection.style.display = '';
+        document.getElementById('modalContactName').value  = item.contactName  || '';
+        document.getElementById('modalContactTitle').value = item.contactTitle || '';
+        document.getElementById('modalContactEmail').value = item.contactEmail || '';
+      } else {
+        contactSection.style.display = 'none';
+      }
+    }
+
     document.getElementById('editModal').classList.add('open');
     setTimeout(() => document.getElementById('modalName').focus(), 50);
   }
@@ -1905,10 +1933,17 @@ ${sections}
       else if (custom) { custom.name = name; custom.desc = desc; }
       renderIlityGrid(); populateReqForms();
     } else if (_modalType === 'stak') {
+      // Contact fields — enforce tier before saving
+      const contactName  = (userTier === 'member' || userTier === 'pro')
+        ? (document.getElementById('modalContactName')?.value.trim()  || '') : '';
+      const contactTitle = (userTier === 'pro')
+        ? (document.getElementById('modalContactTitle')?.value.trim() || '') : '';
+      const contactEmail = (userTier === 'pro')
+        ? (document.getElementById('modalContactEmail')?.value.trim() || '') : '';
       const builtin = STAKEHOLDERS.find(s => s.id === _modalId);
       const custom = customStakeholders.find(s => s.id === _modalId);
-      if (builtin) { builtin.name = name; builtin.desc = desc; }
-      else if (custom) { custom.name = name; custom.desc = desc; }
+      if (builtin) { builtin.name = name; builtin.desc = desc; builtin.contactName = contactName; builtin.contactTitle = contactTitle; builtin.contactEmail = contactEmail; }
+      else if (custom) { custom.name = name; custom.desc = desc; custom.contactName = contactName; custom.contactTitle = contactTitle; custom.contactEmail = contactEmail; }
       renderStakGrid(); populateReqForms();
     }
     closeEditModal();

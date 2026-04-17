@@ -539,7 +539,10 @@
       <input class="add-custom-input" id="customIlityName" placeholder="Custom ility name...">
       <input class="add-custom-input" id="customIlityDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomIlity()">
     </div>
-    <button class="btn btn-secondary" onclick="addCustomIlity()">Add</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-secondary" onclick="addCustomIlity()">Add</button>
+      <span class="member-badge-inline">MEMBER+</span>
+    </div>
   </div>
 
   <!-- Continue button — above the advisor zone -->
@@ -579,12 +582,39 @@
 
   <div class="stak-grid" id="stakGrid"></div>
 
-  <div class="add-custom-row" style="align-items:flex-end">
-    <div class="add-custom-fields">
-      <input class="add-custom-input" id="customStakName" placeholder="Custom stakeholder title...">
-      <input class="add-custom-input" id="customStakDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomStak()">
+  <div class="add-custom-row" style="align-items:flex-end;flex-direction:column;gap:8px">
+    <div style="display:flex;gap:8px;width:100%;align-items:flex-end">
+      <div class="add-custom-fields" style="flex:1">
+        <input class="add-custom-input" id="customStakName" placeholder="Stakeholder label (e.g. End User, Technician)...">
+        <input class="add-custom-input" id="customStakDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomStak()">
+      </div>
+      <button class="btn btn-secondary" onclick="addCustomStak()">Add</button>
     </div>
-    <button class="btn btn-secondary" onclick="addCustomStak()">Add</button>
+    <!-- Contact fields — tier-gated -->
+    <div style="display:flex;gap:8px;width:100%;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
+        <input class="add-custom-input" id="customStakContactName"
+          placeholder="Contact name (optional)"
+          style="flex:1"
+          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('member-contact-name');}">
+        <span class="member-badge-inline" style="white-space:nowrap;flex-shrink:0">MEMBER+</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
+        <input class="add-custom-input" id="customStakContactTitle"
+          placeholder="Contact title (optional)"
+          style="flex:1"
+          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+        <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
+        <input class="add-custom-input" id="customStakContactEmail"
+          type="email"
+          placeholder="Contact email (optional)"
+          style="flex:1"
+          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+        <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
+      </div>
+    </div>
   </div>
 
   <!-- Continue button — above the advisor zone -->
@@ -1031,6 +1061,25 @@
     <div class="modal-field">
       <div class="modal-label">Description</div>
       <input class="modal-input" id="modalDesc" type="text">
+    </div>
+    <!-- Contact fields — only shown when editing a stakeholder -->
+    <div id="modalContactFields" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">Contact Info <span style="font-weight:400;text-transform:none;letter-spacing:0">(private — never shared)</span></div>
+      <div class="modal-field">
+        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Contact Name <span class="member-badge-inline">MEMBER+</span></div>
+        <input class="modal-input" id="modalContactName" type="text" placeholder="e.g. Jane Smith"
+          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('member-contact-name');}">
+      </div>
+      <div class="modal-field">
+        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Title <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
+        <input class="modal-input" id="modalContactTitle" type="text" placeholder="e.g. Senior Tractor Operator"
+          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+      </div>
+      <div class="modal-field">
+        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Email <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
+        <input class="modal-input" id="modalContactEmail" type="email" placeholder="e.g. jane@company.com"
+          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveEditModal()">Save</button>
