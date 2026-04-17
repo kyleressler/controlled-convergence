@@ -252,12 +252,12 @@
   function checkContinue() {
     const to = document.getElementById('input-to').value.trim();
     const by = document.getElementById('input-by').value.trim();
-    const using = document.getElementById('input-using').value.trim();
     const wh = document.getElementById('input-while').value.trim();
 
-    const allFilled = to && by && using && wh;
+    // USING is withheld (locked) until convergence — don't require it for Continue
+    const allFilled = to && by && wh;
     const toCheck = checkTo(to);
-    const toOk = !toCheck || toCheck.type === 'success';
+    const toOk = !toCheck || toCheck.type !== 'danger';
 
     document.getElementById('btnContinue').disabled = !(allFilled && toOk);
   }

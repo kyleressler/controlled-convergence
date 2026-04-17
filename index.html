@@ -397,34 +397,34 @@
   <div class="pair-mode-bar" style="margin-bottom:20px">
     <span class="pair-mode-label">Statement Mode:</span>
     <div class="pair-mode-toggle">
-      <button class="pair-mode-btn" id="goalModeBasicBtn" onclick="switchGoalMode('basic')">Basic</button>
-      <button class="pair-mode-btn active" id="goalModeStructuredBtn" onclick="switchGoalMode('structured')">To · By · Using · While</button>
+      <button class="pair-mode-btn active" id="goalModeBasicBtn" onclick="switchGoalMode('basic')">Basic</button>
+      <button class="pair-mode-btn" id="goalModeStructuredBtn" onclick="switchGoalMode('structured')">To · By</button>
     </div>
   </div>
 
   <!-- Basic Goal Input -->
-  <div id="goalBasicForm" style="display:none">
+  <div id="goalBasicForm">
     <div class="statement-card">
       <!-- uses statement-part so flex:1 on the textarea works and focus-within background fires -->
       <div class="statement-part" style="border-bottom:none;flex-direction:column;gap:10px;padding:20px 24px 16px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">Goal Statement</div>
-        <textarea class="part-input" id="input-goal-basic" placeholder="Describe what you are trying to accomplish in one clear sentence. Focus on the outcome for a person, not a product or technology." rows="5" oninput="onGoalBasicInput()" style="font-size:15px;line-height:1.7;width:100%;box-sizing:border-box;padding:0;min-height:100px"></textarea>
-        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;padding-bottom:4px">A basic goal statement is a great starting point. Switch to <strong>To · By · Using · While</strong> mode for a structured, four-part statement that separates intent from method from constraint.</div>
+        <textarea class="part-input" id="input-goal-basic" placeholder="Describe what you are trying to accomplish in one clear sentence. Focus on the outcome for a person, not a product or technology.&#10;&#10;Example: Help first-year engineering students evaluate competing design concepts objectively and reach a defensible recommendation before their final review." rows="5" oninput="onGoalBasicInput()" style="font-size:15px;line-height:1.7;width:100%;box-sizing:border-box;padding:0;min-height:100px"></textarea>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;padding-bottom:4px">A basic goal statement is a great starting point. Switch to <strong>To · By · While</strong> mode for a structured, three-part statement that separates intent from method from constraint.</div>
       </div>
     </div>
   </div>
 
   <!-- Statement Form -->
-  <div class="statement-card" id="statementCard">
+  <div class="statement-card" id="statementCard" style="display:none">
 
     <!-- TO -->
     <div class="statement-part" id="part-to">
       <div class="part-label-wrap">
         <span class="part-keyword to-kw">TO</span>
-        <span class="part-hint">Solution-neutral intent</span>
-        <button class="info-icon" onclick="openSidebarToSlide('tbus', 1)" title="The TO · BY · USING · WHILE framework">ⓘ</button>
+        <span class="part-hint">Solution-neutral intent — describe the outcome for a person, not a product</span>
+        <button class="info-icon" onclick="openSidebarToSlide('tbus', 1)" title="The TO · BY · WHILE framework">ⓘ</button>
       </div>
-      <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution." rows="3" oninput="onInput('to')"></textarea>
+      <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution.&#10;&#10;Example: Help commuters cross the river between downtown and Riverside safely, at any time of year." rows="3" oninput="onInput('to')"></textarea>
       <div class="part-status"><div class="status-dot" id="dot-to"></div></div>
     </div>
     <div class="validation-msg" id="val-to">
@@ -435,9 +435,9 @@
     <div class="statement-part" id="part-by">
       <div class="part-label-wrap">
         <span class="part-keyword by-kw">BY</span>
-        <span class="part-hint">Solution-specific function</span>
+        <span class="part-hint">How you will accomplish the To — specific function or approach</span>
       </div>
-      <textarea class="part-input" id="input-by" placeholder="Describe what we are going to do to achieve our goal without specifying the form of the solution." rows="3" oninput="onInput('by')"></textarea>
+      <textarea class="part-input" id="input-by" placeholder="How will you accomplish the To above? Unlike the To, the By can and should be specific.&#10;&#10;Example: providing a fixed crossing structure that supports pedestrians and cyclists in all weather conditions." rows="3" oninput="onInput('by')"></textarea>
       <div class="part-status"><div class="status-dot" id="dot-by"></div></div>
     </div>
     <div class="validation-msg" id="val-by">
@@ -464,7 +464,7 @@
         <span class="part-hint">Constraint or condition</span>
         <button class="info-icon" onclick="openSidebarToSlide('tbus', 3)" title="Common Goal Statement mistakes">ⓘ</button>
       </div>
-      <textarea class="part-input" id="input-while" placeholder="What constraint or boundary must any acceptable solution respect..." rows="3" oninput="onInput('while')"></textarea>
+      <textarea class="part-input" id="input-while" placeholder="A real constraint that could actually eliminate a concept if violated. Ask: would a concept that ignores this still be acceptable?&#10;&#10;Example: staying within a $4M capital budget and minimizing disruption to ongoing river traffic." rows="3" oninput="onInput('while')"></textarea>
       <div class="part-status"><div class="status-dot" id="dot-while"></div></div>
     </div>
     <div class="validation-msg" id="val-while">

@@ -233,31 +233,34 @@
     else if (field === 'while') result = checkWhile(text);
     else result = null;
 
-    const valEl = document.getElementById('val-' + field);
-    const valTextEl = document.getElementById('val-' + field + '-text');
-    const dotEl = document.getElementById('dot-' + field);
+    // Auto-coaching is disabled on the GOAL page — no inline messages fire as you type
+    if (_currentPage !== 'tbus') {
+      const valEl = document.getElementById('val-' + field);
+      const valTextEl = document.getElementById('val-' + field + '-text');
+      const dotEl = document.getElementById('dot-' + field);
 
-    valEl.className = 'validation-msg';
-    dotEl.className = 'status-dot';
+      valEl.className = 'validation-msg';
+      dotEl.className = 'status-dot';
 
-    if (result && text.trim().length > 3) {
-      if (userTier === 'free' || userTier === 'member') {
-        // Only show danger warnings; replace coaching with upgrade prompt
-        if (result.type === 'danger') {
-          valEl.classList.add('visible', 'danger');
-          dotEl.classList.add('fail');
-          valTextEl.textContent = result.msg;
+      if (result && text.trim().length > 3) {
+        if (userTier === 'free' || userTier === 'member') {
+          // Only show danger warnings; replace coaching with upgrade prompt
+          if (result.type === 'danger') {
+            valEl.classList.add('visible', 'danger');
+            dotEl.classList.add('fail');
+            valTextEl.textContent = result.msg;
+          } else {
+            valEl.classList.add('visible', 'warn');
+            dotEl.classList.add('warn');
+            valTextEl.textContent = '✨ Pro Members get AI coaching on each section. Upgrade for personalized feedback.';
+          }
         } else {
-          valEl.classList.add('visible', 'warn');
-          dotEl.classList.add('warn');
-          valTextEl.textContent = '✨ Pro Members get AI coaching on each section. Upgrade for personalized feedback.';
+          valEl.classList.add('visible');
+          if (result.type === 'warn') { valEl.classList.add('warn'); dotEl.classList.add('warn'); }
+          if (result.type === 'danger') { valEl.classList.add('danger'); dotEl.classList.add('fail'); }
+          if (result.type === 'success') { valEl.classList.add('success'); dotEl.classList.add('pass'); }
+          valTextEl.textContent = result.msg;
         }
-      } else {
-        valEl.classList.add('visible');
-        if (result.type === 'warn') { valEl.classList.add('warn'); dotEl.classList.add('warn'); }
-        if (result.type === 'danger') { valEl.classList.add('danger'); dotEl.classList.add('fail'); }
-        if (result.type === 'success') { valEl.classList.add('success'); dotEl.classList.add('pass'); }
-        valTextEl.textContent = result.msg;
       }
     }
 
@@ -1271,8 +1274,8 @@ ${sections}
     document.getElementById('advisorThinking').classList.remove('visible');
   }
 
-  // ── GOAL MODE (Basic vs. To·By·Using·While) ──
-  let goalMode = 'structured'; // 'basic' | 'structured'
+  // ── GOAL MODE (Basic vs. To·By) ──
+  let goalMode = 'basic'; // 'basic' | 'structured'
 
   function switchGoalMode(mode) {
     goalMode = mode;
@@ -1290,6 +1293,8 @@ ${sections}
       const toVal = document.getElementById('input-to')?.value || '';
       const basicEl = document.getElementById('input-goal-basic');
       if (basicEl && toVal && !basicEl.value) basicEl.value = toVal;
+      // Auto-focus so the user can start typing immediately
+      setTimeout(() => { if (basicEl) basicEl.focus(); }, 50);
     } else {
       basicForm.style.display     = 'none';
       structuredForm.style.display = '';
@@ -1302,6 +1307,8 @@ ${sections}
         toEl.value = basicVal;
         onInput('to');
       }
+      // Auto-focus the TO field
+      setTimeout(() => { if (toEl) toEl.focus(); }, 50);
     }
   }
 
@@ -1801,6 +1808,15 @@ ${sections}
 
     // Page-specific init
     if (pageId === 'quick') { syncGuidedToQS(); } // sync guided state → QS display when entering quick
+    if (pageId === 'tbus') {
+      // Focus the active goal input so the user can type immediately
+      setTimeout(() => {
+        const el = goalMode === 'basic'
+          ? document.getElementById('input-goal-basic')
+          : document.getElementById('input-to');
+        if (el) el.focus();
+      }, 50);
+    }
     if (pageId === 'requirements') populateReqForms();
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
