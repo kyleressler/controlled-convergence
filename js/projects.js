@@ -127,6 +127,7 @@ function snapshotCurrentState(existingProject) {
     conceptNotes:     Object.assign({}, (typeof conceptNotes !== 'undefined' ? conceptNotes : {})),
     conceptCustomFields: (typeof conceptCustomFields !== 'undefined' ? conceptCustomFields : []).slice(),
     scorerFilter:     (typeof scorerFilter !== 'undefined') ? scorerFilter : '',
+    pairMode:         (typeof pairMode     !== 'undefined') ? pairMode     : 'nonweighted',
     updated_at:       new Date().toISOString()
   };
 }
@@ -191,4 +192,5 @@ function restoreProjectState(project) {
     return Math.max(max, n);
   }, 0);
   scorerFilter        = project.scorerFilter || '';
+  if (typeof pairMode !== 'undefined') pairMode = project.pairMode || 'nonweighted';
 }

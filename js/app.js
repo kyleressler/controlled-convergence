@@ -1085,6 +1085,25 @@ ${sections}
       switchGoalMode(proj.goalMode || 'basic');
     }
 
+    // Sync PUGH settings panel checkboxes to restored state
+    const mCb   = document.getElementById('toggleMTHUS');
+    const masCb = document.getElementById('toggleMAS');
+    if (mCb)   mCb.checked   = !!(pughSettings && pughSettings.showMTHUS);
+    if (masCb) masCb.checked = !!(pughSettings && pughSettings.showMAS);
+
+    // Sync PAIR mode toggle buttons to restored pairMode
+    const syncBtn = (id, active) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', active); };
+    syncBtn('pairNonWeightedBtn', pairMode    === 'nonweighted');
+    syncBtn('pairWeightedBtn',    pairMode    === 'weighted');
+    syncBtn('pairIlitiesBtn',     pairSubject === 'ilities');
+    syncBtn('pairReqsBtn',        pairSubject === 'requirements');
+    syncBtn('pairPairwiseBtn',    pairMethod  === 'pairwise');
+    syncBtn('pairForcedRankBtn',  pairMethod  === 'forcedrank');
+
+    // Sync SCOR settings
+    if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
+    if (typeof renderScorerFilterDropdown === 'function') renderScorerFilterDropdown();
+
     // Sync pairwise weights
     if (pairMode === 'nonweighted') renderNonWeighted();
     else { renderPairCard(); renderPairLiveChart(); }
@@ -2038,11 +2057,19 @@ ${sections}
         if (el) el.focus();
       }, 50);
     }
-    if (pageId === 'requirements') populateReqForms();
+    if (pageId === 'requirements') { populateReqForms(); switchReqFormat(reqFormat); }
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
     if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
-    if (pageId === 'pugh') { renderPughMatrix(); updatePughMemberToggles(); }
+    if (pageId === 'pugh') {
+      renderPughMatrix();
+      updatePughMemberToggles();
+      // Sync settings panel checkboxes to loaded state
+      const mCb   = document.getElementById('toggleMTHUS');
+      const masCb = document.getElementById('toggleMAS');
+      if (mCb)   mCb.checked   = !!(pughSettings && pughSettings.showMTHUS);
+      if (masCb) masCb.checked = !!(pughSettings && pughSettings.showMAS);
+    }
     if (pageId === 'pair') {
       // Free tier: force non-weighted ilities pairwise
       if (userTier === 'free') {

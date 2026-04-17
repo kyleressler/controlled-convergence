@@ -456,7 +456,7 @@
         return `
         <div class="req-item" ondblclick="editRequirement(${r.id})" title="Double-click to edit" style="cursor:default">
           <div class="req-item-header">
-            <span class="req-type-badge badge-${r.type}">${typeLabel}</span>
+            ${r.format !== 'agile' ? `<span class="req-type-badge badge-${r.type}">${typeLabel}</span>` : ''}
             <span class="req-item-text">${displayText}</span>
             <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
               <button class="req-item-edit" onclick="event.stopPropagation();editRequirement(${r.id})" title="Edit">Edit</button>
@@ -933,8 +933,9 @@
     // Type badge
     const typeColors = { essential:'var(--accent)', desirable:'var(--success)', optional:'var(--text-muted)', willnot:'var(--warn)', mustnot:'var(--danger)' };
     const typeLabels = { essential:'Essential', desirable:'Desirable', optional:'Optional', willnot:'Will Not', mustnot:'Must Not' };
-    document.getElementById('datumReqBadges').innerHTML =
-      `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`;
+    document.getElementById('datumReqBadges').innerHTML = req.format !== 'agile'
+      ? `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`
+      : '';
     document.getElementById('datumReqText').textContent = req.text;
     const ilityName = [...ILITIES, ...customIlities].find(il => il.id === req.primary)?.name || req.primary || '';
     document.getElementById('datumReqMeta').innerHTML = ilityName ? `<span>Ility: <strong>${ilityName}</strong></span>` : '';
@@ -1026,8 +1027,9 @@
     // Type badge
     const typeColors = { essential:'var(--accent)', desirable:'var(--success)', optional:'var(--text-muted)', willnot:'var(--warn)', mustnot:'var(--danger)' };
     const typeLabels = { essential:'Essential', desirable:'Desirable', optional:'Optional', willnot:'Will Not', mustnot:'Must Not' };
-    document.getElementById('scorReqBadges').innerHTML =
-      `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`;
+    document.getElementById('scorReqBadges').innerHTML = req.format !== 'agile'
+      ? `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`
+      : '';
 
     // Show full requirement sentence for AGILE format; plain text otherwise
     const scorReqTextEl = document.getElementById('scorReqText');
@@ -1197,6 +1199,14 @@
     if (tableWrap)  tableWrap.style.display  = '';
     if (emptyState) emptyState.style.display = 'none';
 
+    // Always recompute weights from saved pair state (handles load without visiting PAIR)
+    recomputePairWeights();
+
+    // True only when the user has turned on weighted mode for ilities (Member/Pro only)
+    const isWeightedMode = (typeof pairMode    !== 'undefined' ? pairMode    : 'nonweighted') === 'weighted'
+                        && (typeof pairSubject !== 'undefined' ? pairSubject : 'ilities')     === 'ilities'
+                        && userTier !== 'free';
+
     // Ordered ility groups (only those with selected ilities that have reqs)
     const ilityOrder = [...ILITIES, ...customIlities].filter(il => selectedIlities.has(il.id));
     const reqsByIlity = {};
@@ -1233,7 +1243,7 @@
       const reqs = reqsByIlity[il.id];
       if (!reqs || reqs.length === 0) return;
       const w = window._pairWeights?.[il.id];
-      const wStr = w ? ` <span style="font-weight:400;opacity:0.7">· W:${w}</span>` : '';
+      const wStr = isWeightedMode ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}">${il.name}${wStr}</td></tr>`;
       reqs.forEach(req => html += pughReqRow(req, showMASCol));
     });
@@ -1244,7 +1254,7 @@
     }
 
     // Summary rows
-    html += pughSummaryRows();
+    html += pughSummaryRows(isWeightedMode);
 
     html += '</tbody>';
     table.innerHTML = html;
@@ -1257,9 +1267,12 @@
   }
 
   function pughReqRow(req, showMASCol) {
-    const typeTag = { essential:'E', desirable:'D', optional:'O', willnot:'WN', mustnot:'MN' }[req.type] || '';
+    const typeTag = req.format !== 'agile'
+      ? ({ essential:'E', desirable:'D', optional:'O', willnot:'WN', mustnot:'MN' }[req.type] || '')
+      : '';
     const typeColor = { essential:'var(--accent)', desirable:'var(--success)', optional:'var(--text-muted)', willnot:'var(--warn)', mustnot:'var(--danger)' }[req.type] || 'var(--text-muted)';
-    const reqCell = `<td class="pugh-req-col"><span class="pugh-req-type-tag" style="color:${typeColor}">${typeTag}</span><span class="pugh-req-text">${req.text}</span></td>`;
+    const typeTagHtml = typeTag ? `<span class="pugh-req-type-tag" style="color:${typeColor}">${typeTag}</span>` : '';
+    const reqCell = `<td class="pugh-req-col">${typeTagHtml}<span class="pugh-req-text">${req.text}</span></td>`;
 
     // MAS cell
     const masData = datumPerformance[req.id];
@@ -1328,7 +1341,7 @@
     return { plusCount, minusCount, neuCount, net, weightedNet: Math.round(weightedNet * 10) / 10 };
   }
 
-  function pughSummaryRows() {
+  function pughSummaryRows(isWeightedMode) {
     const nonDatum   = pughConcepts.slice(1);
     const summaries  = nonDatum.map(c => calcConceptSummary(c.id));
     const showMASCol = pughSettings.showMAS && userTier !== 'free';
@@ -1367,10 +1380,12 @@
       <td class="pugh-summary-label-cell">Utility Score <span style="font-weight:400;opacity:0.65">(${maxUtil})</span></td>${datumCell}
       ${summaries.map(s => netCell(s.net)).join('')}
     </tr>`;
-    rows += `<tr class="pugh-summary-section">
-      <td class="pugh-summary-label-cell">Utility Score Weighted <span style="font-weight:400;opacity:0.65">(${maxUtilW})</span></td>${datumCell}
-      ${summaries.map(s => netCell(s.weightedNet)).join('')}
-    </tr>`;
+    if (isWeightedMode) {
+      rows += `<tr class="pugh-summary-section">
+        <td class="pugh-summary-label-cell">Utility Score Weighted <span style="font-weight:400;opacity:0.65">(${maxUtilW})</span></td>${datumCell}
+        ${summaries.map(s => netCell(s.weightedNet)).join('')}
+      </tr>`;
+    }
 
     if (pughSettings.showMTHUS && userTier !== 'free') {
       const { mthus, mthuws } = calcMTHUS();
@@ -1381,13 +1396,15 @@
           return `<td class="pugh-sum-mthus">${ratio}</td>`;
         }).join('')}
       </tr>`;
-      rows += `<tr class="pugh-summary-section">
-        <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUWS Ratio <span style="font-weight:400;opacity:0.75">(${mthuws})</span></td>${datumCell}
-        ${summaries.map(s => {
-          const ratio = mthuws !== 0 ? (s.weightedNet / mthuws * 100).toFixed(1) + '%' : '—';
-          return `<td class="pugh-sum-mthus">${ratio}</td>`;
-        }).join('')}
-      </tr>`;
+      if (isWeightedMode) {
+        rows += `<tr class="pugh-summary-section">
+          <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUWS Ratio <span style="font-weight:400;opacity:0.75">(${mthuws})</span></td>${datumCell}
+          ${summaries.map(s => {
+            const ratio = mthuws !== 0 ? (s.weightedNet / mthuws * 100).toFixed(1) + '%' : '—';
+            return `<td class="pugh-sum-mthus">${ratio}</td>`;
+          }).join('')}
+        </tr>`;
+      }
     }
 
     // MAS % row — replaces old "50% MTHUS" row
@@ -1419,6 +1436,49 @@
   }
 
 
+// ── Pugh weights helper ──────────────────────────────────────
+
+  // Recomputes window._pairWeights from saved pair state so the PUGH matrix
+  // always shows correct weights even when loaded without visiting the PAIR page.
+  function recomputePairWeights() {
+    const mode   = (typeof pairMode    !== 'undefined') ? pairMode    : 'nonweighted';
+    const subj   = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+    const method = (typeof pairMethod  !== 'undefined') ? pairMethod  : 'pairwise';
+    const ids    = [...(typeof selectedIlities !== 'undefined' ? selectedIlities : [])];
+    const weights = {};
+
+    if (mode === 'nonweighted' || subj !== 'ilities') {
+      // Non-weighted or comparing requirements — ilities all carry equal weight 1
+      ids.forEach(id => { weights[id] = 1; });
+      window._pairWeights = weights;
+      return;
+    }
+
+    if (method === 'forcedrank') {
+      const order = (typeof forcedRankOrder !== 'undefined') ? forcedRankOrder : [];
+      const n = order.length;
+      order.forEach((id, i) => {
+        weights[id] = n === 1 ? 5 : Math.max(1, Math.round(5 - (i / (n - 1)) * 4));
+      });
+      ids.forEach(id => { if (weights[id] === undefined) weights[id] = 1; });
+      window._pairWeights = weights;
+      return;
+    }
+
+    // Weighted pairwise — derive from win counts (reuses app.js helpers if loaded)
+    if (typeof calcWinCounts === 'function' && typeof assignWeights === 'function') {
+      const wc = calcWinCounts();
+      if (Object.keys(wc).length > 0) {
+        window._pairWeights = assignWeights(wc);
+        return;
+      }
+    }
+
+    // Fallback: equal weights
+    ids.forEach(id => { weights[id] = 1; });
+    window._pairWeights = weights;
+  }
+
 // ── Pugh concept chart ────────────────────────────────────────
 
   function renderPughConceptChart() {
@@ -1440,12 +1500,14 @@
 
     const nonDatum = pughConcepts.slice(1);
 
-    // Check if all pairwise weights are 1 (unweighted)
-    const allWeightsAreOne = requirements.every(r => (window._pairWeights?.[r.primary] || 1) === 1);
+    // Determine if we're in weighted mode (mirrors the same check in renderPughMatrix)
+    const isWeightedMode = (typeof pairMode    !== 'undefined' ? pairMode    : 'nonweighted') === 'weighted'
+                        && (typeof pairSubject !== 'undefined' ? pairSubject : 'ilities')     === 'ilities'
+                        && userTier !== 'free';
 
-    const chartData = nonDatum.map((concept, idx) => {
+    const chartData = nonDatum.map((concept) => {
       let plusCount = 0;
-      let minusCount = 0; // stored as negative so bars go below zero
+      let minusCount = 0; // stored as negative so bars extend below zero
       let utilityScore = 0;
       let utilityScoreWeighted = 0;
 
@@ -1454,36 +1516,31 @@
         if (score === undefined || score === null) return;
         const scoreNum = scoreToNum(score);
         if (scoreNum > 0) plusCount++;
-        else if (scoreNum < 0) minusCount--; // negative so chart bar goes down
+        else if (scoreNum < 0) minusCount--; // negative = bar goes downward
         const weight = window._pairWeights?.[req.primary] || 1;
         utilityScore += scoreNum;
         utilityScoreWeighted += scoreNum * weight;
       });
 
       utilityScoreWeighted = Math.round(utilityScoreWeighted * 10) / 10;
-      const finalUtility = allWeightsAreOne ? utilityScore : utilityScoreWeighted;
+      // Chart always shows the score appropriate for the current mode
+      const finalUtility = isWeightedMode ? utilityScoreWeighted : utilityScore;
 
-      return { label: 'C' + (idx + 1), plusCount, minusCount, utilityScore: finalUtility };
+      return { label: concept.name, plusCount, minusCount, utilityScore: finalUtility };
     });
 
-    const labels       = chartData.map(d => d.label);
-    const plusCounts   = chartData.map(d => d.plusCount);
-    const minusCounts  = chartData.map(d => d.minusCount); // negative values
+    const labels        = chartData.map(d => d.label);
+    const plusCounts    = chartData.map(d => d.plusCount);
+    const minusCounts   = chartData.map(d => d.minusCount);
     const utilityScores = chartData.map(d => d.utilityScore);
 
-    // Y-axis range for counts: symmetric around 0
-    const maxPos = Math.max(...plusCounts, 0);
-    const maxNeg = Math.min(...minusCounts, 0); // most negative value
-    const countMax = Math.ceil(maxPos * 1.15) || 1;
-    const countMin = Math.floor(maxNeg * 1.15) || -1;
+    // Single Y-axis range: covers counts and utility scores together
+    const allValues  = [...plusCounts, ...minusCounts, ...utilityScores, 0];
+    // Always include 0 so the baseline is always visible on the axis
+    const combinedMin = Math.min(Math.floor(Math.min(...allValues) * 1.2), -1);
+    const combinedMax = Math.max(Math.ceil(Math.max(...allValues) * 1.2),  1);
 
-    // Y-axis range for utility score
-    const minU = Math.min(...utilityScores);
-    const maxU = Math.max(...utilityScores);
-    const uRange = Math.abs(maxU - minU);
-    const uPad = uRange === 0 ? 1 : uRange * 0.15;
-
-    const utilityLabel = allWeightsAreOne ? 'Utility Score' : 'Utility Score Weighted';
+    const utilityLabel = isWeightedMode ? 'Utility Score (Weighted)' : 'Utility Score';
 
     const ctx = canvas.getContext('2d');
     window._pughChart = new Chart(ctx, {
@@ -1491,6 +1548,15 @@
       data: {
         labels,
         datasets: [
+          // Order left→right within each group: Utility (black), + Count (green), − Count (red)
+          {
+            label: utilityLabel,
+            data: utilityScores,
+            backgroundColor: 'rgba(20,20,20,0.82)',
+            borderWidth: 0,
+            yAxisID: 'y',
+            order: 1
+          },
           {
             label: '+ Count',
             data: plusCounts,
@@ -1506,22 +1572,6 @@
             borderWidth: 0,
             yAxisID: 'y',
             order: 2
-          },
-          {
-            label: utilityLabel,
-            data: utilityScores,
-            borderColor: '#111',
-            borderWidth: 2,
-            backgroundColor: 'transparent',
-            type: 'line',
-            yAxisID: 'y1',
-            fill: false,
-            tension: 0.1,
-            pointRadius: 4,
-            pointBackgroundColor: '#111',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            order: 1
           }
         ]
       },
@@ -1535,10 +1585,16 @@
             labels: { font: { size: 12 }, padding: 12, usePointStyle: true }
           },
           tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.82)',
             padding: 10,
             callbacks: {
-              label: ctx2 => ctx2.dataset.label + ': ' + Math.abs(ctx2.parsed.y)
+              label: ctx2 => {
+                const v = ctx2.parsed.y;
+                // Counts are stored as negatives so bars go downward — show absolute value
+                // Utility scores keep their sign so negative concepts display correctly
+                const isCountBar = ctx2.dataset.label === '+ Count' || ctx2.dataset.label === '− Count';
+                return ctx2.dataset.label + ': ' + (isCountBar ? Math.abs(v) : v);
+              }
             }
           }
         },
@@ -1546,27 +1602,23 @@
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: true, text: 'Count', font: { size: 12, weight: 600 } },
-            min: countMin,
-            max: countMax,
+            title: { display: true, text: 'Utility / Count', font: { size: 12, weight: 600 } },
+            min: combinedMin,
+            max: combinedMax,
             grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { font: { size: 11 }, stepSize: 1,
-              callback: v => Math.abs(v) // show absolute values on axis labels
+            ticks: {
+              font: { size: 11 },
+              stepSize: 1,
+              callback: v => Number.isInteger(v) ? Math.abs(v) : null
             }
           },
-          y1: {
-            type: 'linear',
-            position: 'right',
-            title: { display: true, text: 'Utility Score', font: { size: 12, weight: 600 } },
-            min: minU - uPad,
-            max: maxU + uPad,
-            grid: { drawOnChartArea: false },
-            ticks: { font: { size: 11 } }
-          },
           x: {
-            title: { display: true, text: 'Concept', font: { size: 12, weight: 600 } },
             grid: { display: false },
-            ticks: { font: { size: 12, weight: 600 } }
+            ticks: {
+              font: { size: 11, weight: 600 },
+              maxRotation: 90,
+              minRotation: 45    // rotate labels vertically to handle long concept names
+            }
           }
         }
       }
