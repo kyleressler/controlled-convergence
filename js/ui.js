@@ -1755,5 +1755,132 @@
     html += '</tr></tfoot></table></div>';
 
     wrap.innerHTML = html;
+
+    // Render the concept score chart below the matrix
+    renderQSConceptChart();
+  }
+
+  function renderQSConceptChart() {
+    const chartContainer = document.getElementById('qsChartContainer');
+    const canvas         = document.getElementById('qsConceptChart');
+    if (!chartContainer || !canvas) return;
+
+    const nonDatum = pughConcepts.slice(1);
+
+    if (pughConcepts.length < 2 || requirements.length === 0) {
+      chartContainer.style.display = 'none';
+      return;
+    }
+    chartContainer.style.display = '';
+
+    if (window._qsChart) {
+      window._qsChart.destroy();
+      window._qsChart = null;
+    }
+
+    const chartData = nonDatum.map((concept) => {
+      let plusCount  = 0;
+      let minusCount = 0; // stored negative so bars extend downward
+      let netScore   = 0;
+
+      requirements.forEach(req => {
+        const score = pughScores[concept.id + '_' + req.id];
+        if (score === undefined || score === null || score === '') return;
+        const n = scoreToNum(score);
+        if (n > 0) plusCount++;
+        else if (n < 0) minusCount--;
+        netScore += n;
+      });
+
+      return { label: concept.name, plusCount, minusCount, netScore };
+    });
+
+    const labels      = chartData.map(d => d.label);
+    const plusCounts  = chartData.map(d => d.plusCount);
+    const minusCounts = chartData.map(d => d.minusCount);
+    const netScores   = chartData.map(d => d.netScore);
+
+    const allValues  = [...plusCounts, ...minusCounts, ...netScores, 0];
+    const combinedMin = Math.min(Math.floor(Math.min(...allValues) * 1.2), -1);
+    const combinedMax = Math.max(Math.ceil(Math.max(...allValues) * 1.2),  1);
+
+    const ctx = canvas.getContext('2d');
+    window._qsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Net Score',
+            data: netScores,
+            backgroundColor: 'rgba(20,20,20,0.82)',
+            borderWidth: 0,
+            yAxisID: 'y',
+            order: 1
+          },
+          {
+            label: '+ Count',
+            data: plusCounts,
+            backgroundColor: 'rgba(34,197,94,0.8)',
+            borderWidth: 0,
+            yAxisID: 'y',
+            order: 2
+          },
+          {
+            label: '− Count',
+            data: minusCounts,
+            backgroundColor: 'rgba(239,68,68,0.8)',
+            borderWidth: 0,
+            yAxisID: 'y',
+            order: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { font: { size: 12 }, padding: 12, usePointStyle: true }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.82)',
+            padding: 10,
+            callbacks: {
+              label: ctx2 => {
+                const v = ctx2.parsed.y;
+                const isCountBar = ctx2.dataset.label === '+ Count' || ctx2.dataset.label === '− Count';
+                return ctx2.dataset.label + ': ' + (isCountBar ? Math.abs(v) : v);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: 'Score / Count', font: { size: 12, weight: 600 } },
+            min: combinedMin,
+            max: combinedMax,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: {
+              font: { size: 11 },
+              stepSize: 1,
+              callback: v => Number.isInteger(v) ? Math.abs(v) : null
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 11, weight: 600 },
+              maxRotation: 90,
+              minRotation: 45
+            }
+          }
+        }
+      }
+    });
   }
 

@@ -2156,7 +2156,8 @@ body.theme-engineering .sidebar-brand {
       color: var(--text-muted, #888);
       margin-bottom: 12px;
     }
-    #pughConceptChart {
+    #pughConceptChart,
+    #qsConceptChart {
       height: 300px;
       width: 100%;
     }
