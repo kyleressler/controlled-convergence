@@ -565,6 +565,7 @@
     exitScoringView();
     activeProject = null; updateNavProjectName();
     populateReqForms();
+    if (typeof syncSidebarPrefs === 'function') syncSidebarPrefs();
     const ab = document.getElementById('advisorBody');
     if (ab) ab.innerHTML = '<p>Start writing your goal statement above — I\'ll help you sharpen each part as you go.</p><p>The most important thing to get right first is your <strong>TO</strong>. It must describe an outcome for a person, not a product or technology.</p>';
     // nav buttons always active — no disable
@@ -1134,6 +1135,9 @@ ${sections}
     if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
     if (typeof renderScorerFilterDropdown === 'function') renderScorerFilterDropdown();
 
+    // Sync sidebar preference toggles to restored state
+    if (typeof syncSidebarPrefs === 'function') syncSidebarPrefs();
+
     // Sync pairwise weights
     if (pairMode === 'nonweighted') renderNonWeighted();
     else { renderPairCard(); renderPairLiveChart(); }
@@ -1481,8 +1485,8 @@ ${sections}
     if (mode === 'basic') {
       basicForm.style.display     = '';
       structuredForm.style.display = 'none';
-      basicBtn.classList.add('active');
-      structuredBtn.classList.remove('active');
+      if (basicBtn)     basicBtn.classList.add('active');
+      if (structuredBtn) structuredBtn.classList.remove('active');
       // Pre-fill basic field with the TO content if it has something
       const toVal = document.getElementById('input-to')?.value || '';
       const basicEl = document.getElementById('input-goal-basic');
@@ -1492,8 +1496,8 @@ ${sections}
     } else {
       basicForm.style.display     = 'none';
       structuredForm.style.display = '';
-      basicBtn.classList.remove('active');
-      structuredBtn.classList.add('active');
+      if (basicBtn)     basicBtn.classList.remove('active');
+      if (structuredBtn) structuredBtn.classList.add('active');
       // If switching to structured and TO is empty, pre-fill from basic
       const basicVal = document.getElementById('input-goal-basic')?.value || '';
       const toEl = document.getElementById('input-to');
@@ -1574,54 +1578,53 @@ ${sections}
 
   // ── ILITIES DATA ──
   const ILITIES = [
-    { id: 'usability',         name: 'Usability',         desc: 'Ease of use for the intended user' },
-    { id: 'reliability',       name: 'Reliability',       desc: 'Consistent performance over time' },
-    { id: 'safety',            name: 'Safety',            desc: 'Freedom from unacceptable harm or risk' },
-    { id: 'affordability',     name: 'Affordability',     desc: 'Total cost within acceptable limits' },
-    { id: 'maintainability',   name: 'Maintainability',   desc: 'Ease of upkeep and repair' },
-    { id: 'durability',        name: 'Durability',        desc: 'Resistance to wear and degradation' },
-    { id: 'manufacturability', name: 'Manufacturability', desc: 'Ease and efficiency of production' },
-    { id: 'scalability',       name: 'Scalability',       desc: 'Ability to grow with increased demand' },
-    { id: 'sustainability',    name: 'Sustainability',    desc: 'Minimal long-term environmental impact' },
-    { id: 'flexibility',       name: 'Flexibility',       desc: 'Adaptability to changing requirements' },
-    { id: 'portability',       name: 'Portability',       desc: 'Ease of moving or transporting' },
-    { id: 'modularity',        name: 'Modularity',        desc: 'Composed of interchangeable, separable units' },
-    { id: 'interoperability',  name: 'Interoperability',  desc: 'Works with other systems and standards' },
-    { id: 'aesthetics',        name: 'Aesthetics',        desc: 'Visual and sensory appeal to users' },
-    { id: 'resilience',        name: 'Resilience',        desc: 'Recovery from disruption or failure' },
-    { id: 'extensibility',     name: 'Extensibility',     desc: 'Easy to add new capabilities over time' },
     { id: 'accessibility',     name: 'Accessibility',     desc: 'Usable by people with a range of abilities and disabilities' },
-    { id: 'security',          name: 'Security',          desc: 'Protection against unauthorized access or attack' },
-    { id: 'testability',       name: 'Testability',       desc: 'Ease of verifying correct behavior through testing' },
-    { id: 'repairability',     name: 'Repairability',     desc: 'Ease of diagnosing and fixing failures in the field' },
+    { id: 'aesthetics',        name: 'Aesthetics',        desc: 'Visual and sensory appeal to users' },
+    { id: 'affordability',     name: 'Affordability',     desc: 'Total cost within acceptable limits' },
+    { id: 'availability',      name: 'Availability',      desc: 'Proportion of time the system is operational and accessible' },
     { id: 'compatibility',     name: 'Compatibility',     desc: 'Ability to coexist with existing systems and environments' },
-    { id: 'privacy',           name: 'Privacy',           desc: 'Control over personal or sensitive data collected and shared' },
-    { id: 'adaptability',      name: 'Adaptability',      desc: 'Capacity to change function or form to meet new conditions' },
-    { id: 'learnability',      name: 'Learnability',      desc: 'Speed and ease with which new users become proficient' },
-    { id: 'observability',     name: 'Observability',     desc: 'Ability to monitor internal state through external outputs' },
     { id: 'deployability',     name: 'Deployability',     desc: 'Ease and reliability of releasing the system into production' },
+    { id: 'durability',        name: 'Durability',        desc: 'Resistance to wear and degradation' },
+    { id: 'extensibility',     name: 'Extensibility',     desc: 'Easy to add new capabilities over time' },
+    { id: 'flexibility',       name: 'Flexibility',       desc: 'Adaptability to changing requirements' },
+    { id: 'interoperability',  name: 'Interoperability',  desc: 'Works with other systems and standards' },
+    { id: 'maintainability',   name: 'Maintainability',   desc: 'Ease of upkeep and repair' },
+    { id: 'manufacturability', name: 'Manufacturability', desc: 'Ease and efficiency of production' },
+    { id: 'modularity',        name: 'Modularity',        desc: 'Composed of interchangeable, separable units' },
+    { id: 'observability',     name: 'Observability',     desc: 'Ability to monitor internal state through external outputs' },
+    { id: 'performance',       name: 'Performance',       desc: 'Speed, throughput, and responsiveness under expected load' },
+    { id: 'portability',       name: 'Portability',       desc: 'Ease of moving or transporting' },
+    { id: 'privacy',           name: 'Privacy',           desc: 'Control over personal or sensitive data collected and shared' },
+    { id: 'reliability',       name: 'Reliability',       desc: 'Consistent performance over time' },
+    { id: 'resilience',        name: 'Resilience',        desc: 'Recovery from disruption or failure' },
+    { id: 'safety',            name: 'Safety',            desc: 'Freedom from unacceptable harm or risk' },
+    { id: 'scalability',       name: 'Scalability',       desc: 'Ability to grow with increased demand' },
+    { id: 'security',          name: 'Security',          desc: 'Protection against unauthorized access or attack' },
+    { id: 'sustainability',    name: 'Sustainability',    desc: 'Minimal long-term environmental impact' },
+    { id: 'testability',       name: 'Testability',       desc: 'Ease of verifying correct behavior through testing' },
+    { id: 'usability',         name: 'Usability',         desc: 'Ease of use for the intended user' },
   ];
 
   const STAKEHOLDERS = [
-    { id: 'end-user',       name: 'End User',                   desc: 'The primary person who uses or operates the system' },
-    { id: 'safety-officer', name: 'Safety Officer',             desc: 'Responsible for hazard identification and risk mitigation' },
-    { id: 'mfg-engineer',   name: 'Manufacturing Engineer',     desc: 'Oversees production feasibility and process design' },
-    { id: 'maintenance',    name: 'Maintenance Technician',     desc: 'Performs ongoing upkeep, repair, and inspection' },
     { id: 'management',     name: 'Business / Management',      desc: 'Sets strategic direction, approves budgets, owns outcomes' },
-    { id: 'regulatory',     name: 'Regulatory Body',            desc: 'Enforces standards, codes, and compliance requirements' },
-    { id: 'environmental',  name: 'Environmental / Community',  desc: 'Affected by environmental impact or community outcomes' },
-    { id: 'procurement',    name: 'Procurement',                desc: 'Manages supplier relationships and cost of materials' },
-    { id: 'design-team',    name: 'Design Team',                desc: 'Engineers and designers responsible for the system' },
     { id: 'customer',       name: 'Customer / Client',          desc: 'Commissions or purchases the system; defines success criteria' },
-    { id: 'qa',             name: 'Quality Assurance',          desc: 'Verifies the system meets defined quality standards' },
-    { id: 'legal',          name: 'Legal / Compliance',         desc: 'Ensures adherence to laws, contracts, and IP requirements' },
-    { id: 'it-admin',       name: 'IT / System Administrator',  desc: 'Manages infrastructure, deployment, and system access' },
-    { id: 'proj-manager',   name: 'Project Manager',            desc: 'Coordinates schedule, resources, and stakeholder communication' },
-    { id: 'training',       name: 'Training & Support',         desc: 'Delivers user education and ongoing technical assistance' },
-    { id: 'supply-chain',   name: 'Supply Chain / Vendor',      desc: 'Provides components, materials, or outsourced services' },
-    { id: 'integrator',     name: 'Third-Party Integrator',     desc: 'Connects the system with external platforms or services' },
-    { id: 'investor',       name: 'Investor / Board',           desc: 'Provides funding and holds accountability for ROI' },
+    { id: 'design-team',    name: 'Design Team',                desc: 'Engineers and designers responsible for the system' },
+    { id: 'end-user',       name: 'End User',                   desc: 'The primary person who uses or operates the system' },
     { id: 'public',         name: 'General Public / Society',   desc: 'Broadly affected communities and the wider public interest' },
+    { id: 'investor',       name: 'Investor / Board',           desc: 'Provides funding and holds accountability for ROI' },
+    { id: 'it-admin',       name: 'IT / System Administrator',  desc: 'Manages infrastructure, deployment, and system access' },
+    { id: 'legal',          name: 'Legal / Compliance',         desc: 'Ensures adherence to laws, contracts, and IP requirements' },
+    { id: 'maintenance',    name: 'Maintenance Technician',     desc: 'Performs ongoing upkeep, repair, and inspection' },
+    { id: 'mfg-engineer',   name: 'Manufacturing Engineer',     desc: 'Oversees production feasibility and process design' },
+    { id: 'marketing',      name: 'Marketing / Sales',          desc: 'Defines market positioning, customer-facing features, and commercial requirements' },
+    { id: 'operator',       name: 'Operator',                   desc: 'Directly runs or controls the system during normal operations' },
+    { id: 'procurement',    name: 'Procurement',                desc: 'Manages supplier relationships and cost of materials' },
+    { id: 'proj-manager',   name: 'Project Manager',            desc: 'Coordinates schedule, resources, and stakeholder communication' },
+    { id: 'qa',             name: 'Quality Assurance',          desc: 'Verifies the system meets defined quality standards' },
+    { id: 'regulatory',     name: 'Regulatory Body',            desc: 'Enforces standards, codes, and compliance requirements' },
+    { id: 'safety-officer', name: 'Safety Officer',             desc: 'Responsible for hazard identification and risk mitigation' },
+    { id: 'supply-chain',   name: 'Supply Chain / Vendor',      desc: 'Provides components, materials, or outsourced services' },
+    { id: 'training',       name: 'Training & Support',         desc: 'Delivers user education and ongoing technical assistance' },
   ];
 
   selectedIlities = new Set();
@@ -3278,24 +3281,83 @@ ${sections}
     if (btn)   btn.classList.remove('active');
   }
 
+  // ── SIDEBAR PREFERENCES ──
+
+  function prefSetGoalMode(mode) {
+    switchGoalMode(mode);
+    syncSidebarPrefs();
+  }
+
+  function prefSetReqFormat(format) {
+    switchReqFormat(format);
+    syncSidebarPrefs();
+  }
+
+  function prefSetPairMode(mode) {
+    if (mode === 'weighted' && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
+    pairMode = mode;
+    syncPairView();
+    syncSidebarPrefs();
+  }
+
+  function prefSetPairSubject(subject) {
+    if (subject === 'requirements' && userTier === 'free') { showUpgradePrompt('pair-subject-req'); return; }
+    pairSubject = subject;
+    initPairPairs();
+    initForcedRankOrder();
+    syncPairView();
+    syncSidebarPrefs();
+  }
+
+  function prefSetPairMethod(method) {
+    pairMethod = method;
+    if (method === 'forcedrank') initForcedRankOrder();
+    syncPairView();
+    syncSidebarPrefs();
+  }
+
+  function prefSetScoringMode(mode) {
+    setScoringMode(mode);
+    syncSidebarPrefs();
+  }
+
+  function prefSetMAS(on) {
+    if (on && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
+    pughSettings.showMAS = on;
+    renderPughMatrix();
+    syncSidebarPrefs();
+  }
+
+  function prefSetMTHUS(on) {
+    if (on && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
+    pughSettings.showMTHUS = on;
+    renderPughMatrix();
+    syncSidebarPrefs();
+  }
+
+  function syncSidebarPrefs() {
+    const sb = (id, active) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', active); };
+    sb('prefGoalBasicBtn',       goalMode    === 'basic');
+    sb('prefGoalToByBtn',        goalMode    === 'structured');
+    sb('prefReqAgileBtn',        reqFormat   === 'agile');
+    sb('prefReqSystemBtn',       reqFormat   === 'incose');
+    sb('prefPairNonWeightedBtn', pairMode    === 'nonweighted');
+    sb('prefPairWeightedBtn',    pairMode    === 'weighted');
+    sb('prefPairIlitiesBtn',     pairSubject === 'ilities');
+    sb('prefPairReqsBtn',        pairSubject === 'requirements');
+    sb('prefPairPairwiseBtn',    pairMethod  === 'pairwise');
+    sb('prefPairForcedRankBtn',  pairMethod  === 'forcedrank');
+    sb('prefScorModeBasicBtn',   !pughSettings.advancedScoring);
+    sb('prefScorModeAdvBtn',     !!pughSettings.advancedScoring);
+    sb('prefMASOffBtn',          !pughSettings.showMAS);
+    sb('prefMASOnBtn',           !!pughSettings.showMAS);
+    sb('prefMTHUSOffBtn',        !pughSettings.showMTHUS);
+    sb('prefMTHUSOnBtn',         !!pughSettings.showMTHUS);
+  }
+
   function updatePughAccountToggles() {
-    const panel = document.getElementById('pughSettingsPanel');
-    const btn   = document.getElementById('pughSettingsBtn');
-    // Always show the settings button so free users can see what they're missing.
-    // Style it locked (muted + cursor:default) for free; normal for account+.
-    if (btn) {
-      btn.style.display = '';
-      if (userTier === 'free') {
-        btn.style.opacity = '0.5';
-        btn.style.cursor  = 'pointer'; // still clickable — triggers upgrade prompt
-      } else {
-        btn.style.opacity = '';
-        btn.style.cursor  = '';
-      }
-    }
-    // Keep panel hidden for free users even if they somehow trigger it
-    if (panel && userTier === 'free') panel.style.display = 'none';
-    // Sync all tier badges
+    // Matrix Settings panel removed — preferences now live in the sidebar.
+    // Still sync tier badges across the app.
     updateTierBadges();
   }
 

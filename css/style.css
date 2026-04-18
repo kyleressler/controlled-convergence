@@ -768,8 +768,9 @@
     .pkw-using { color: var(--kw-using); }
     .pkw-while { color: var(--kw-while); }
 
-    /* ── ADVISOR ZONE ── */
-    .advisor-zone {
+    /* ── ADVISOR ZONE — hidden until STU is ready ── */
+    .advisor-zone { display: none !important; }
+    .advisor-zone-hidden {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -1710,6 +1711,27 @@
 
     
 .action-btn-pro { color: var(--text-muted); }
+
+    /* ── SIDEBAR PREFERENCES ── */
+    .pref-section { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .pref-item { display: flex; flex-direction: column; gap: 4px; }
+    .pref-item-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+    .pref-toggle { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .pref-btn {
+      flex: 1;
+      padding: 5px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: var(--font);
+      transition: all 0.1s;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .pref-btn.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 5px; margin: 2px; }
 .pro-badge-inline {
   margin-left: auto;
   font-size: 8px;

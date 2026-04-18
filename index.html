@@ -110,6 +110,75 @@
       </button>
     </div>
 
+    <div class="sidebar-label" style="margin-top:20px">Preferences</div>
+    <div class="pref-section">
+
+      <div class="pref-item">
+        <div class="pref-item-label">Goal Statement Mode</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefGoalBasicBtn" onclick="prefSetGoalMode('basic')">Basic</button>
+          <button class="pref-btn" id="prefGoalToByBtn" onclick="prefSetGoalMode('structured')">To · By</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Requirement Format</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefReqAgileBtn" onclick="prefSetReqFormat('agile')">Agile</button>
+          <button class="pref-btn" id="prefReqSystemBtn" onclick="prefSetReqFormat('incose')">System</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Weighting Mode</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefPairNonWeightedBtn" onclick="prefSetPairMode('nonweighted')">Non-Weighted</button>
+          <button class="pref-btn" id="prefPairWeightedBtn" onclick="prefSetPairMode('weighted')">Weighted</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Weighting Compare</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefPairIlitiesBtn" onclick="prefSetPairSubject('ilities')">Ilities</button>
+          <button class="pref-btn" id="prefPairReqsBtn" onclick="prefSetPairSubject('requirements')">Reqs</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Weighting Method</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefPairPairwiseBtn" onclick="prefSetPairMethod('pairwise')">Pairwise</button>
+          <button class="pref-btn" id="prefPairForcedRankBtn" onclick="prefSetPairMethod('forcedrank')">Forced Rank</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Scoring Mode</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefScorModeBasicBtn" onclick="prefSetScoringMode('basic')">+ 0 −</button>
+          <button class="pref-btn" id="prefScorModeAdvBtn" onclick="prefSetScoringMode('advanced')">−3 to +3</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Pugh Min. Acceptable Score</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefMASOffBtn" onclick="prefSetMAS(false)">Off</button>
+          <button class="pref-btn" id="prefMASOnBtn" onclick="prefSetMAS(true)">On</button>
+        </div>
+      </div>
+
+      <div class="pref-item">
+        <div class="pref-item-label">Pugh MTHUS &amp; MTHUWS</div>
+        <div class="pref-toggle">
+          <button class="pref-btn active" id="prefMTHUSOffBtn" onclick="prefSetMTHUS(false)">Off</button>
+          <button class="pref-btn" id="prefMTHUSOnBtn" onclick="prefSetMTHUS(true)">On</button>
+        </div>
+      </div>
+
+    </div>
+
     <div class="sidebar-label" style="margin-top:20px">Actions</div>
     <button class="action-btn" onclick="exportProjectData()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -418,15 +487,6 @@
 
   </div>
 
-  <!-- Goal Mode Toggle -->
-  <div class="pair-mode-bar" style="margin-bottom:20px">
-    <span class="pair-mode-label">Statement Mode:</span>
-    <div class="pair-mode-toggle">
-      <button class="pair-mode-btn active" id="goalModeBasicBtn" onclick="switchGoalMode('basic')">Basic</button>
-      <button class="pair-mode-btn" id="goalModeStructuredBtn" onclick="switchGoalMode('structured')">To · By</button>
-    </div>
-  </div>
-
   <!-- Basic Goal Input -->
   <div id="goalBasicForm">
     <div class="statement-card">
@@ -553,7 +613,7 @@
   </div>
 
   <div class="ility-selection-bar">
-    <span class="ility-count"><strong id="ilityCount">0</strong> of 26 selected <button class="info-icon" onclick="openSidebarToSlide('ilities', 1)" title="How to select ilities">ⓘ</button></span>
+    <span class="ility-count"><strong id="ilityCount">0</strong> of 25 selected <button class="info-icon" onclick="openSidebarToSlide('ilities', 1)" title="How to select ilities">ⓘ</button></span>
     <div style="display:flex;gap:6px">
       <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllIlities()">Select All</button>
       <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllIlities()">Deselect All</button>
@@ -676,15 +736,6 @@
   <div class="page-header">
     <div class="page-title">Requirements</div>
     <div class="page-subtitle">Write requirements and classify them. The coverage charts can help you spot gaps in your requirements.</div>
-  </div>
-
-  <!-- Format toggle -->
-  <div class="pair-mode-bar" style="margin-bottom:16px">
-    <span class="pair-mode-label">Format:</span>
-    <div class="pair-mode-toggle">
-      <button class="pair-mode-btn active" id="reqFmtAgileBtn" onclick="switchReqFormat('agile')">AGILE / JIRA</button>
-      <button class="pair-mode-btn" id="reqFmtIncoseBtn" onclick="switchReqFormat('incose')">SYSTEM / INCOSE</button>
-    </div>
   </div>
 
   <div class="req-form-card" id="reqFormCard">
@@ -832,39 +883,13 @@
   </div>
 
   <div class="pair-mode-bar">
-    <!-- Row 1: Weighting -->
-    <div class="pair-toggle-row">
-      <span class="pair-mode-label">Weighting:</span>
-      <div class="pair-mode-toggle">
-        <button class="pair-mode-btn active" onclick="handlePairModeClick('nonweighted', this)" id="pairNonWeightedBtn">Non-Weighted</button>
-        <button class="pair-mode-btn" onclick="handlePairModeClick('weighted', this)" id="pairWeightedBtn">Weighted</button>
-      </div>
-      <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Account+</span>
-      <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
-        <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
-        <div class="pair-progress-track">
-          <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
-        </div>
-      </div>
-      <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
-    </div>
-    <!-- Row 2: Compare Subject (Account+) -->
-    <div class="pair-toggle-row">
-      <span class="pair-mode-label">Compare:</span>
-      <div class="pair-mode-toggle">
-        <button class="pair-mode-btn active" onclick="handlePairSubjectClick('ilities', this)" id="pairIlitiesBtn">Ilities</button>
-        <button class="pair-mode-btn" onclick="handlePairSubjectClick('requirements', this)" id="pairReqsBtn">Requirements</button>
-      </div>
-      <span id="pairSubjectGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Account+</span>
-    </div>
-    <!-- Row 3: Method (hidden in non-weighted mode) -->
-    <div class="pair-toggle-row" id="pairMethodRow">
-      <span class="pair-mode-label">Method:</span>
-      <div class="pair-mode-toggle">
-        <button class="pair-mode-btn active" onclick="handlePairMethodClick('pairwise', this)" id="pairPairwiseBtn">Pairwise</button>
-        <button class="pair-mode-btn" onclick="handlePairMethodClick('forcedrank', this)" id="pairForcedRankBtn">Forced Rank</button>
+    <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
+      <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
+      <div class="pair-progress-track">
+        <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
       </div>
     </div>
+    <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
   </div>
 
   <div id="pairWeightedSection">
@@ -964,13 +989,13 @@
     <button class="btn btn-primary" onclick="addPughConcept()">Add Concept</button>
     <button class="btn btn-ghost" id="scorSettingsBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="toggleScoringSettings()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      Concept Scoring Settings
+      Concept Settings
     </button>
   </div>
 
-  <!-- Concept Scoring Settings panel -->
+  <!-- Concept Settings panel -->
   <div id="scorSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:16px">Concept Scoring Settings</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:16px">Concept Settings</div>
 
     <!-- Section A: Custom concept fields -->
     <div style="margin-bottom:20px">
@@ -989,19 +1014,7 @@
 
     <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
 
-    <!-- Section B: Scoring mode (moved from PUGH) -->
-    <div style="margin-bottom:20px">
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Scoring Mode</div>
-      <div class="pair-mode-toggle" style="display:inline-flex">
-        <button class="pair-mode-btn active" id="scorModeBasicBtn" onclick="setScoringMode('basic',this)" style="border-radius:8px 0 0 8px;font-size:12px">Basic (+/0/−)</button>
-        <button class="pair-mode-btn" id="scorModeAdvancedBtn" onclick="setScoringMode('advanced',this)" style="border-radius:0 8px 8px 0;font-size:12px">Advanced (−3 to +3) <span class="account-badge-inline">ACCOUNT+</span></button>
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px" id="scorModeDesc">Score concepts as better (+), same (0), or worse (−) than the Datum.</div>
-    </div>
-
-    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
-
-    <!-- Section C: Scorer filter -->
+    <!-- Section B: Scorer filter -->
     <div>
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Responsible Scorer Filter</div>
       <select id="scorerFilterSelect" class="add-custom-input" onchange="setScorerFilter(this.value)" style="max-width:300px">
@@ -1011,7 +1024,7 @@
     </div>
 
     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;text-align:right">
-      <button class="btn btn-primary" onclick="toggleScoringSettings()" style="font-size:12px">Done</button>
+      <button class="btn btn-primary" onclick="closeScoringSettings()" style="font-size:12px">Done</button>
     </div>
   </div>
 
@@ -1159,32 +1172,6 @@
   <div class="pugh-toolbar">
     <button class="btn btn-ghost" style="font-size:12px" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">← Edit Concepts</button>
     <div style="flex:1"></div>
-    <!-- Settings button (Account+ only) -->
-    <button class="btn btn-ghost" id="pughSettingsBtn" style="font-size:12px;display:none;gap:6px;align-items:center" onclick="togglePughSettings()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      Matrix Settings
-      <span class="account-badge-inline">ACCOUNT+</span>
-    </button>
-  </div>
-
-  <!-- Settings panel (collapsible, Account+ only) -->
-  <div id="pughSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px">Matrix Settings</div>
-    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
-      <label class="pugh-toggle-label">
-        <input type="checkbox" id="toggleMTHUS" onchange="togglePughMTHUS(this)">
-        <div>
-          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MTHUS &amp; MTHUWS Ratios <span class="account-badge-inline">ACCOUNT+</span></div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Show hybrid utility scores relative to theoretical max</div>
-        </div>
-      </label>
-      <label class="pugh-toggle-label">
-        <input type="checkbox" id="toggleMAS" onchange="togglePughMAS(this)">
-        <div>
-          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MAS (Min. Acceptable Score) <span class="account-badge-inline">ACCOUNT+</span></div>
-        </div>
-      </label>
-    </div>
   </div>
 
   <!-- Empty state -->
