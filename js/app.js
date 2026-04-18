@@ -567,8 +567,7 @@
     populateReqForms();
     const ab = document.getElementById('advisorBody');
     if (ab) ab.innerHTML = '<p>Start writing your goal statement above — I\'ll help you sharpen each part as you go.</p><p>The most important thing to get right first is your <strong>TO</strong>. It must describe an outcome for a person, not a product or technology.</p>';
-    const cont = document.getElementById('btnContinue');
-    if (cont) cont.disabled = true;
+    // nav buttons always active — no disable
   }
 
   function exportReport() {
@@ -974,8 +973,8 @@ ${sections}
     'templates': { title: 'Templates is a Pro Feature', body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
     'pugh-settings': { title: 'Matrix Settings require an Account', body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
     'account-contact-name': { title: 'Contact Name is an Account Feature', body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
-    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
-    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during concept scoring in SCOR, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
+    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in Requirements.', cta: 'Upgrade to Pro' },
+    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during Concept Scoring, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
     'pair-subject-req': { title: 'Requirements Comparison is an Account Feature', body: 'Create a free Account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.', cta: 'Create Free Account' },
   };
 
@@ -1511,7 +1510,7 @@ ${sections}
     const val = document.getElementById('input-goal-basic')?.value || '';
     // Enable continue button if there's any content
     const btn = document.getElementById('btnContinue');
-    if (btn) btn.disabled = val.trim().length === 0;
+    // nav buttons always active — no disable
   }
 
   // ── SAVE / CLEAR / EXPORT ──
@@ -1539,7 +1538,7 @@ ${sections}
       document.getElementById('val-' + f).className = 'validation-msg';
     });
     document.getElementById('previewBanner').classList.remove('visible');
-    document.getElementById('btnContinue').disabled = true;
+    // nav buttons always active — no disable
     document.getElementById('advisorBody').innerHTML = `<p>AI Coaching Coming Soon...</p>`;
   }
 
@@ -2092,6 +2091,7 @@ ${sections}
     if (navBtn) navBtn.classList.add('active');
     updateNavCompletion();
 
+
     // Page-specific init
     if (pageId === 'basic') { syncGuidedToQS(); } // sync full-mode state → Basic Mode display when entering basic
     if (pageId === 'proj') { renderProjPage(); }
@@ -2148,6 +2148,28 @@ ${sections}
     }
   }
 
+
+
+  // ── NAV TOOLS DROPDOWN ──
+  function toggleNavDropdown() {
+    const menu    = document.getElementById('navToolsMenu');
+    const trigger = document.getElementById('navToolsTrigger');
+    if (!menu || !trigger) return;
+    const open = menu.classList.toggle('open');
+    trigger.classList.toggle('open', open);
+  }
+
+  function closeNavDropdown() {
+    const menu    = document.getElementById('navToolsMenu');
+    const trigger = document.getElementById('navToolsTrigger');
+    if (menu)    menu.classList.remove('open');
+    if (trigger) trigger.classList.remove('open');
+  }
+
+  // Close dropdown when clicking outside of it
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#navToolsDropdown')) closeNavDropdown();
+  });
 
 
   // ── THEME ──
@@ -2375,8 +2397,7 @@ ${sections}
     });
     const titleEl = document.getElementById('pairLiveChartTitle');
     if (titleEl) titleEl.textContent = 'Running Rankings';
-    const cont = document.getElementById('btnPairContinue');
-    if (cont) cont.disabled = true;
+    // nav buttons always active — no disable
     const card = document.getElementById('pairCompareCard');
     if (card) card.style.display = '';
     syncPairView();
@@ -2395,8 +2416,7 @@ ${sections}
     if (card) card.style.display = '';
     renderPairCard();
     updatePairAdvisor();
-    const cont = document.getElementById('btnPairContinue');
-    if (cont) cont.disabled = true;
+    // nav buttons always active — no disable
   }
 
   function getIlityNameById(id) {

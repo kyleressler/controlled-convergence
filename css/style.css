@@ -194,7 +194,52 @@
     }
     .nav-logo span { color: var(--accent); }
 
-    .nav-tools { display: flex; gap: 2px; flex: 1; }
+    /* ── TOOLS DROPDOWN ── */
+    .nav-tools-dropdown {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .nav-tools-trigger {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      white-space: nowrap;
+      transition: background 0.1s, color 0.1s;
+    }
+    .nav-tools-trigger:hover,
+    .nav-tools-trigger.open  { background: var(--bg); color: var(--text); }
+    .nav-tools-trigger.has-active { background: var(--accent-light); color: var(--accent); }
+    .nav-chevron { font-size: 10px; transition: transform 0.15s; pointer-events: none; }
+    .nav-tools-trigger.open .nav-chevron { transform: rotate(180deg); }
+    .nav-tools-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+      z-index: 300;
+      padding: 6px;
+      flex-direction: column;
+    }
+    .nav-tools-menu.open { display: flex; }
+    .nav-tools-menu .nav-tool {
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
 
     .nav-tool {
       padding: 5px 11px;
@@ -229,12 +274,8 @@
     }
     .nav-blog:hover { background: var(--bg); color: var(--text); }
 
-    /* ── FLOATING LOGIN BUTTON ── */
+    /* ── NAV LOGIN BUTTON ── */
     #floatingLoginBtn {
-      position: fixed;
-      top: 10px;
-      right: 14px;
-      z-index: 200;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -248,13 +289,13 @@
       font-weight: 600;
       cursor: pointer;
       letter-spacing: 0.02em;
+      flex-shrink: 0;
       box-shadow: 0 2px 8px rgba(var(--accent-rgb),0.25);
-      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+      transition: background 0.15s, box-shadow 0.15s;
     }
     #floatingLoginBtn:hover {
       background: var(--accent-hover, #0062d0);
       box-shadow: 0 4px 12px rgba(var(--accent-rgb),0.35);
-      transform: translateY(-1px);
     }
 
     
@@ -822,13 +863,20 @@
       background: var(--success);
       color: #fff;
       border-color: var(--success);
-      margin-left: auto;
     }
-    .btn-continue:not(:disabled):hover { background: var(--success-hover); }
+    .btn-continue:hover { background: var(--success-hover); }
+
+    .btn-back {
+      background: none;
+      color: var(--text-muted);
+      border-color: var(--border);
+    }
+    .btn-back:hover { background: var(--bg); color: var(--text); }
 
     .continue-btn-wrap {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       margin-top: 24px;
       margin-bottom: 12px;
     }
@@ -2363,7 +2411,7 @@ body.theme-engineering .sidebar-brand {
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     /* hide guided nav tools in quick mode */
-    body.mode-basic .nav-tools { display: none; }
+    body.mode-basic .nav-tools-dropdown { display: none; }
 
     /* ── QUICK START PAGE ── */
     .qs-header {

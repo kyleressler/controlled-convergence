@@ -259,7 +259,7 @@
     const toCheck = checkTo(to);
     const toOk = !toCheck || toCheck.type !== 'danger';
 
-    document.getElementById('btnContinue').disabled = !(allFilled && toOk);
+    // nav buttons always active — no disable
   }
 
 
@@ -293,7 +293,7 @@
         <div class="ility-chip-desc">${il.desc}</div>
       </div>`).join('');
     document.getElementById('ilityCount').textContent = selectedIlities.size;
-    document.getElementById('btnIlityContinue').disabled = selectedIlities.size < 3;
+    // nav buttons always active — no disable
     updateIlityAdvisor();
   }
 
@@ -346,7 +346,7 @@
     const count = document.getElementById('stakCount');
     if (count) count.textContent = selectedStakeholders.size;
     const cont = document.getElementById('btnStakContinue');
-    if (cont) cont.disabled = selectedStakeholders.size < 1;
+    // nav buttons always active — no disable
     updateStakAdvisor();
   }
 
@@ -475,7 +475,7 @@
 
     renderChart();
     updateReqAdvisor();
-    document.getElementById('btnReqContinue').disabled = requirements.length < 1;
+    // nav buttons always active — no disable
   }
 
   function renderChart() {
@@ -816,7 +816,7 @@
 
     if (n < 2) {
       listEl.innerHTML = `<div style="font-size:13px;color:var(--text-light)">Add at least 2 ${subj === 'requirements' ? 'requirements on the REQS page' : 'ilities on the ILTY page'} to use Forced Rank.</div>`;
-      document.getElementById('btnPairContinue').disabled = true;
+      // nav buttons always active — no disable
       return;
     }
 
@@ -1190,7 +1190,7 @@
 
   function updateScorContinue() {
     const btn = document.getElementById('btnScorContinue');
-    if (btn) btn.disabled = pughConcepts.length < 2;
+    // nav buttons always active — no disable
   }
 
 
@@ -1205,8 +1205,7 @@
     if (pughConcepts.length < 2) {
       if (tableWrap)  tableWrap.style.display  = 'none';
       if (emptyState) emptyState.style.display = '';
-      const btn = document.getElementById('btnPughContinue');
-      if (btn) btn.disabled = true;
+      // nav buttons always active — no disable
       return;
     }
 
@@ -1769,8 +1768,8 @@
     });
     html += '</tr>';
 
-    // Net Score
-    html += '<tr><td class="qs-td-sum-label">Score</td>';
+    // Utility Score
+    html += '<tr><td class="qs-td-sum-label">Utility Score</td>';
     html += `<td class="qs-td-datum" style="font-weight:700">0</td>`;
     nonDatum.forEach(c => {
       let net = 0;
@@ -1845,7 +1844,7 @@
         labels,
         datasets: [
           {
-            label: 'Net Score',
+            label: 'Utility Score',
             data: netScores,
             backgroundColor: textColor,
             borderWidth: 0,

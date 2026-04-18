@@ -20,37 +20,45 @@
 
 <!-- ── NAV ── -->
 <nav class="nav">
-  <div class="nav-logo"><span>CC</span></div>
+  <div class="nav-logo" onclick="switchPage('home', null)" title="Home" style="cursor:pointer"><span>CC</span></div>
   <!-- MODE TOGGLE: switches between Basic Mode and Full Mode -->
   <div class="mode-toggle" id="modeToggle">
     <button class="mode-btn" id="modeBtnBasic" onclick="setMode('basic')">⚡ Basic Mode</button>
     <button class="mode-btn active" id="modeBtnFull" onclick="setMode('full')">◈ Full Mode</button>
   </div>
-  <div class="nav-tools">
-    <button class="nav-tool active" data-page="home" onclick="switchPage('home', this)">HOME</button>
-    <button class="nav-tool" data-page="proj" onclick="switchPage('proj', this)">PROJ</button>
-    <button class="nav-tool" data-page="tbus" onclick="switchPage('tbus', this)">GOAL</button>
-    <button class="nav-tool" data-page="stak" onclick="switchPage('stak', this)">STAK</button>
-    <button class="nav-tool" data-page="ilities" onclick="switchPage('ilities', this)">ILTY</button>
-    <button class="nav-tool" data-page="requirements" onclick="switchPage('requirements', this)">REQS</button>
-    <button class="nav-tool" data-page="pair" onclick="switchPage('pair', this)">PAIR</button>
-    <button class="nav-tool" data-page="scor" onclick="switchPage('scor', this)">SCOR</button>
-    <button class="nav-tool" data-page="pugh" onclick="switchPage('pugh', this)">PUGH</button>
-    <button class="nav-tool">CONV</button>
-    <button class="nav-tool nav-blog">BLOG</button>
+
+  <!-- TOOLS DROPDOWN — hidden in Basic Mode via CSS -->
+  <div class="nav-tools-dropdown" id="navToolsDropdown">
+    <button class="nav-tools-trigger" id="navToolsTrigger" onclick="toggleNavDropdown()">Tools <span class="nav-chevron">▾</span></button>
+    <div class="nav-tools-menu" id="navToolsMenu">
+      <button class="nav-tool" data-page="proj"         onclick="switchPage('proj',this);closeNavDropdown()">Project Manager</button>
+      <button class="nav-tool" data-page="tbus"         onclick="switchPage('tbus',this);closeNavDropdown()">Goal Statement</button>
+      <button class="nav-tool" data-page="stak"         onclick="switchPage('stak',this);closeNavDropdown()">Stakeholders</button>
+      <button class="nav-tool" data-page="ilities"      onclick="switchPage('ilities',this);closeNavDropdown()">Lifecycle Properties (Ilities)</button>
+      <button class="nav-tool" data-page="requirements" onclick="switchPage('requirements',this);closeNavDropdown()">Requirements</button>
+      <button class="nav-tool" data-page="pair"         onclick="switchPage('pair',this);closeNavDropdown()">Weighting</button>
+      <button class="nav-tool" data-page="scor"         onclick="switchPage('scor',this);closeNavDropdown()">Concept Scoring</button>
+      <button class="nav-tool" data-page="pugh"         onclick="switchPage('pugh',this);closeNavDropdown()">Pugh Matrix</button>
+      <button class="nav-tool"                          onclick="closeNavDropdown()">Convergence Summary</button>
+    </div>
+  </div>
+
+  <button class="nav-blog">Blog</button>
+
+  <!-- Spacer pushes project name + login to the right -->
+  <div style="flex:1"></div>
 
   <div class="nav-project-name" id="navProjectName" style="display:none">
     <span class="nav-project-label">PROJECT:</span>
     <span id="navProjectNameText"></span>
   </div>
-</div>
-</nav>
 
-<!-- Floating login button — visible only when signed out -->
-<button id="floatingLoginBtn" onclick="openAuthModal('login')" style="display:none">
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-  Log In
-</button>
+  <!-- Login button — visible only when signed out -->
+  <button id="floatingLoginBtn" onclick="openAuthModal('login')" style="display:none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Log In
+  </button>
+</nav>
 
 
 <!-- ── LEFT SIDEBAR ── -->
@@ -172,7 +180,7 @@
 
   <div class="page-header">
     <div class="page-title">Project Manager</div>
-    <div class="page-subtitle">Name and create your project. Your project name will appear across all tools as you work through the Controlled Convergence process.</div>
+    <div class="page-subtitle">Name and create your project.</div>
   </div>
 
   <div id="projActiveBanner" style="display:none">
@@ -237,6 +245,14 @@
     <div class="advisor-body" id="projAdvisorBody">
       <p>AI Coaching Coming Soon...</p>
     </div>
+  </div>
+
+  <!-- Navigation buttons -->
+  <div class="continue-btn-wrap">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
+      Continue to Goal Statement →
+    </button>
   </div>
 
 </main>
@@ -399,6 +415,7 @@
   <div class="page-header">
     <div class="page-title">Goal Statement <button class="info-icon" onclick="openSidebarToSlide('tbus', 0)" title="What is a Goal Statement?">ⓘ</button></div>
     <div class="page-subtitle">Define what you are trying to accomplish before you decide how you are going to accomplish it.</div>
+
   </div>
 
   <!-- Goal Mode Toggle -->
@@ -484,10 +501,13 @@
   <!-- Live Preview Banner -->
   <div class="preview-banner" id="previewBanner"></div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnContinue" disabled onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
-      Continue to STAK →
+    <button class="btn btn-back" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      ← Return to Project Manager
+    </button>
+    <button class="btn btn-continue" id="btnContinue" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+      Continue to Stakeholders →
     </button>
   </div>
 
@@ -528,8 +548,8 @@
 <main class="main page" id="page-ilities" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Ilities <button class="info-icon" onclick="openSidebarToSlide('ilities', 0)" title="What are ilities?">ⓘ</button></div>
-    <div class="page-subtitle">Select the system lifecycle properties relevant to your design. These become the categories your requirements are written against and the axes of your pairwise comparison.</div>
+    <div class="page-title">Lifecycle Properties (Ilities) <button class="info-icon" onclick="openSidebarToSlide('ilities', 0)" title="What are lifecycle properties?">ⓘ</button></div>
+    <div class="page-subtitle">Select the lifecycle properties relevant to your project. You can categorize requirements against these properties to track coverage.</div>
   </div>
 
   <div class="ility-selection-bar">
@@ -553,10 +573,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnIlityContinue" disabled onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
-      Continue to REQS →
+    <button class="btn btn-back" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+      ← Return to Stakeholders
+    </button>
+    <button class="btn btn-continue" id="btnIlityContinue" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+      Continue to Requirements →
     </button>
   </div>
 
@@ -577,7 +600,7 @@
 
   <div class="page-header">
     <div class="page-title">Stakeholders <button class="info-icon" onclick="openSidebarToSlide('stak', 0)" title="What are stakeholders?">ⓘ</button></div>
-    <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to the who it serves or affects.</div>
+    <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to who it serves or affects.</div>
   </div>
 
   <div class="stak-selection-bar">
@@ -625,10 +648,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnStakContinue" disabled onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
-      Continue to ILTY →
+    <button class="btn btn-back" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
+      ← Return to Goal Statement
+    </button>
+    <button class="btn btn-continue" id="btnStakContinue" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+      Continue to Lifecycle Properties →
     </button>
   </div>
 
@@ -649,7 +675,7 @@
 
   <div class="page-header">
     <div class="page-title">Requirements</div>
-    <div class="page-subtitle">Write requirements and classify them by type, ility, and stakeholder. The coverage charts can help you spot gaps in your requirements.</div>
+    <div class="page-subtitle">Write requirements and classify them. The coverage charts can help you spot gaps in your requirements.</div>
   </div>
 
   <!-- Format toggle -->
@@ -775,10 +801,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnReqContinue" disabled onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
-      Continue to PAIR →
+    <button class="btn btn-back" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+      ← Return to Lifecycle Properties
+    </button>
+    <button class="btn btn-continue" id="btnReqContinue" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
+      Continue to Weighting →
     </button>
   </div>
 
@@ -798,8 +827,8 @@
 <main class="main page" id="page-pair" style="display:none">
 
   <div class="page-header">
-    <div class="page-title">Pairwise Comparison <button class="info-icon" onclick="openSidebarToSlide('pair', 0)" title="What is pairwise comparison?">ⓘ</button></div>
-    <div class="page-subtitle" id="pairSubtitle">Compare your ilities head-to-head to establish their relative weight in the Pugh Matrix.</div>
+    <div class="page-title">Weighting <button class="info-icon" onclick="openSidebarToSlide('pair', 0)" title="What is weighting?">ⓘ</button></div>
+    <div class="page-subtitle" id="pairSubtitle">If desired, you can apply weights to either Ilities or Requirements in your Pugh Matrix scoring.</div>
   </div>
 
   <div class="pair-mode-bar">
@@ -896,10 +925,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnPairContinue" disabled onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
-      Continue to SCOR →
+    <button class="btn btn-back" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+      ← Return to Requirements
+    </button>
+    <button class="btn btn-continue" id="btnPairContinue" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
+      Continue to Concept Scoring →
     </button>
   </div>
 
@@ -920,7 +952,7 @@
 
   <div class="page-header">
     <div class="page-title">Concept Scoring <button class="info-icon" onclick="openSidebarToSlide('scor', 0)" title="What is concept scoring?">ⓘ</button></div>
-    <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept becomes the Datum — your fixed baseline. Score each additional concept requirement by requirement, relative to the Datum.</div>
+    <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept added becomes the Datum — your fixed baseline. Score concepts requirement by requirement. The results will be shown in the Pugh Matrix.</div>
   </div>
 
   <!-- Add concept row + settings button -->
@@ -1094,10 +1126,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnScorContinue" disabled onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
-      Continue to PUGH →
+    <button class="btn btn-back" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
+      ← Return to Weighting
+    </button>
+    <button class="btn btn-continue" id="btnScorContinue" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      Continue to Pugh Matrix →
     </button>
   </div>
 
@@ -1118,7 +1153,7 @@
 
   <div class="page-header">
     <div class="page-title">Pugh Matrix <button class="info-icon" onclick="openSidebarToSlide('pugh', 0)" title="What is the Pugh Matrix?">ⓘ</button></div>
-    <div class="page-subtitle">Your requirements, ilities, and concept scores in one view. Concepts that outscore the Datum on high-weight requirements are your strongest candidates to converge on.</div>
+    <div class="page-subtitle">Your concepts scored against requirements in one view.</div>
   </div>
 
   <div class="pugh-toolbar">
@@ -1170,10 +1205,13 @@
     </div>
   </div>
 
-  <!-- Continue button — above the advisor zone -->
+  <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
-    <button class="btn btn-continue" id="btnPughContinue" disabled onclick="alert('Convergence coming in the next build.')">
-      Continue to CONV →
+    <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
+      ← Return to Concept Scoring
+    </button>
+    <button class="btn btn-continue" id="btnPughContinue" onclick="alert('Convergence coming in the next build.')">
+      Continue to Convergence Summary →
     </button>
   </div>
 
@@ -1272,7 +1310,7 @@
         <input type="checkbox" id="rptTBUW" checked> Goal Statement
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptILTY" checked> Ilities
+        <input type="checkbox" id="rptILTY" checked> Lifecycle Properties
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="rptSTAK" checked> Stakeholders
