@@ -372,8 +372,11 @@
       el.innerHTML = `<option value="">${label}</option>` + items.map(it => `<option value="${it.id}" ${cur === it.id ? 'selected' : ''}>${escHtml(it.name)}</option>`).join('');
     }
 
+    // Always include "Other" as a catch-all primary ility — independent of ility selections
+    const primaryIlities = [...allIlities, { id: 'other', name: 'Other' }];
+
     // INCOSE dropdowns
-    fillSelect('reqPrimaryIlity',         allIlities,       '— select —');
+    fillSelect('reqPrimaryIlity',         primaryIlities,   '— select —');
     fillSelect('reqSecondaryIlity',       allIlities,       '(none)');
     fillSelect('reqPrimaryStakeholder',   allStakeholders,  '— select —');
     fillSelect('reqSecondaryStakeholder', allStakeholders,  '(none)');
@@ -381,8 +384,8 @@
     syncReqSecondary('stak');
 
     // AGILE dropdowns
-    fillSelect('reqAgileStakeholder', allStakeholders, '— select stakeholder —');
-    fillSelect('reqAgileIlity',       allIlities,      '— select ility —');
+    fillSelect('reqAgileStakeholder', allStakeholders,  '— select stakeholder —');
+    fillSelect('reqAgileIlity',       primaryIlities,   '— select ility —');
 
     // Responsible Scorer — only stakeholders with a contact name entered
     const scorerEl = document.getElementById('reqScorer');
@@ -453,14 +456,15 @@
         const hasTags = ilityTag || secondaryTags || stakeholderTags;
         const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}</div>` : '';
 
+        const _rId = typeof r.id === 'number' ? r.id : `'${r.id}'`;
         return `
-        <div class="req-item" ondblclick="editRequirement(${r.id})" title="Double-click to edit" style="cursor:default">
+        <div class="req-item" ondblclick="editRequirement(${_rId})" title="Double-click to edit" style="cursor:default">
           <div class="req-item-header">
-            ${r.format !== 'agile' ? `<span class="req-type-badge badge-${r.type}">${typeLabel}</span>` : ''}
+            ${r.format !== 'agile' && r.type ? `<span class="req-type-badge badge-${r.type}">${typeLabel}</span>` : ''}
             <span class="req-item-text">${displayText}</span>
             <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
-              <button class="req-item-edit" onclick="event.stopPropagation();editRequirement(${r.id})" title="Edit">Edit</button>
-              <button class="req-item-delete" onclick="event.stopPropagation();deleteRequirement(${r.id})" title="Delete">×</button>
+              <button class="req-item-edit" onclick="event.stopPropagation();editRequirement(${_rId})" title="Edit">Edit</button>
+              <button class="req-item-delete" onclick="event.stopPropagation();deleteRequirement(${_rId})" title="Delete">×</button>
             </div>
           </div>
           ${tagsRow}
@@ -485,6 +489,9 @@
     const all = [...ILITIES, ...customIlities]
       .filter(il => selectedIlities.has(il.id))
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Append virtual 'Other' entry if any requirement uses it as primary
+    if (requirements.some(r => r.primary === 'other')) all.push({ id: 'other', name: 'Other' });
 
     if (all.length === 0) {
       chart.innerHTML = '<div style="font-size:12px;color:var(--text-light)">Select ilities first.</div>';
@@ -779,6 +786,10 @@
       }
     } else {
       items = [...selectedIlities].map(id => ({ id, name: getIlityNameById(id) })).sort((a, b) => a.name.localeCompare(b.name));
+      // Include virtual 'Other' ility if any requirement uses it as primary
+      if ((typeof requirements !== 'undefined') && requirements.some(r => r.primary === 'other') && !items.some(i => i.id === 'other')) {
+        items.push({ id: 'other', name: 'Other' });
+      }
       if (items.length === 0) {
         list.innerHTML = '<div style="font-size:13px;color:var(--text-light)">Select ilities on the ILTY page first.</div>';
         return;
@@ -1651,7 +1662,7 @@
   }
 
 
-// ── Quick Start renders ───────────────────────────────────────
+// ── Basic Mode renders ────────────────────────────────────────
 
   function renderQSLists() {
     // Always ensure datum exists before rendering

@@ -2363,7 +2363,7 @@ body.theme-engineering .sidebar-brand {
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     /* hide guided nav tools in quick mode */
-    body.mode-quick .nav-tools { display: none; }
+    body.mode-basic .nav-tools { display: none; }
 
     /* ── QUICK START PAGE ── */
     .qs-header {
@@ -2497,7 +2497,7 @@ body.theme-engineering .sidebar-brand {
     .qs-concepts-divider {
       height: 1px; background: var(--border); margin: 0 0 12px;
     }
-    /* Datum column in Quick Start matrix */
+    /* Datum column in Basic Mode matrix */
     .qs-th-datum {
       min-width: 90px; font-weight: 700; background: var(--accent-light);
       color: var(--accent); font-size: 12px; border-color: var(--accent-border);

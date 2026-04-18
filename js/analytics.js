@@ -20,10 +20,10 @@
  *   project_created      { tier }
  *   project_deleted      {}
  *   requirement_added    { type, ility }
- *   concept_added        { mode }           mode = 'quick' | 'guided'
+ *   concept_added        { mode }           mode = 'basic' | 'full'
  *   pugh_score_set       { score }
- *   quick_start_used     {}
- *   guided_mode_used     {}
+ *   basic_mode_used      {}
+ *   full_mode_used       {}
  *   export_triggered     { format }          format = 'json' | 'pdf'
  *   upgrade_prompt_shown { feature }
  *   theme_changed        { theme }

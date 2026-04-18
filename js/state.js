@@ -25,7 +25,7 @@ let stakOrder = []; // user-defined card display order (array of stakeholder IDs
 
 // ── Requirements ─────────────────────────────────────────────
 let requirements = [];
-let reqType = 'essential';
+let reqType = '';
 let reqIdCounter = 0;
 let _editingReqId = null;
 
@@ -67,14 +67,14 @@ let _scorePopupReq = null;
 let pughAdvBackup = {};
 
 // ── App mode ─────────────────────────────────────────────────
-let appMode = 'guided'; // 'guided' | 'quick'
-let _lastGuidedPage = 'home';
+let appMode = 'full'; // 'full' | 'basic'
+let _lastFullPage = 'home';
 
 // ── Central state object (Supabase-ready shape) ───────────────
 // currentUser: populated by auth.js on login
 // currentProject / projects: synced with api.js
 let appState = {
-  mode: 'guided',
+  mode: 'full',
   currentUser: null,    // { id, email, tier, name }
   currentProject: null, // mirrors activeProject
   projects: []          // mirrors savedProjects

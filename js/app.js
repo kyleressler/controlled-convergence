@@ -53,7 +53,7 @@
     renderSlides(content);
   }
 
-  // ── (legacy stub — setMode() for app mode switching is defined in the Quick Start section below) ──
+  // ── (legacy stub — setMode() for app mode switching is defined in the Basic Mode section below) ──
 
   // ── VALIDATION LOGIC ──
   // Words that name a specific artifact or technology — instant danger
@@ -417,9 +417,11 @@
   function exportProjectData() {
     const data = {
       exportedAt: new Date().toISOString(),
-      version: '1.1',
+      version: '1.2',
       project: activeProject,
+      goalMode: goalMode,
       goalStatement: {
+        basic: document.getElementById('input-goal-basic')?.value || '',
         to: document.getElementById('input-to')?.value || '',
         by: document.getElementById('input-by')?.value || '',
         using: document.getElementById('input-using')?.value || '',
@@ -428,6 +430,7 @@
       ilities: { selected: [...selectedIlities], custom: customIlities },
       stakeholders: { selected: [...selectedStakeholders], custom: customStakeholders },
       requirements: requirements,
+      reqIdCounter: reqIdCounter,
       pairComparisons: pairComparisons,
       pugh: {
         concepts: pughConcepts,
@@ -463,10 +466,20 @@
           const data = JSON.parse(ev.target.result);
           if (!confirm('This will replace your current session data. Continue?')) return;
           if (data.goalStatement) {
+            // Restore basic mode goal textarea
+            if (data.goalStatement.basic) {
+              const basicEl = document.getElementById('input-goal-basic');
+              if (basicEl) basicEl.value = data.goalStatement.basic;
+            }
             ['to','by','using','while'].forEach(f => {
               const el = document.getElementById('input-' + f);
               if (el && data.goalStatement[f]) { el.value = data.goalStatement[f]; onInput(f); }
             });
+          }
+          // Restore goal mode (basic textarea vs. structured TO/BY fields)
+          if (data.goalMode) {
+            goalMode = data.goalMode;
+            if (typeof switchGoalMode === 'function') switchGoalMode(goalMode);
           }
           if (data.ilities) {
             if (data.ilities.custom) customIlities = data.ilities.custom;
@@ -478,7 +491,22 @@
             if (data.stakeholders.selected) selectedStakeholders = new Set(data.stakeholders.selected);
             renderStakGrid();
           }
-          if (data.requirements) { requirements = data.requirements; renderRequirements(); }
+          if (data.requirements) {
+            requirements = data.requirements;
+            // Advance reqIdCounter past the highest existing req ID to prevent collisions.
+            // Use the exported counter if available; also scan IDs as a safety net for old exports.
+            const storedCounter = data.reqIdCounter || 0;
+            const scannedMax = requirements.reduce((max, r) => {
+              if (typeof r.id === 'number') return Math.max(max, r.id);
+              if (typeof r.id === 'string' && r.id.startsWith('r')) {
+                const n = parseInt(r.id.slice(1), 10);
+                return isNaN(n) ? max : Math.max(max, n);
+              }
+              return max;
+            }, 0);
+            reqIdCounter = Math.max(storedCounter, scannedMax);
+            renderRequirements();
+          }
           if (data.pairComparisons) pairComparisons = data.pairComparisons;
           if (data.pugh) {
             if (data.pugh.concepts)          pughConcepts       = data.pugh.concepts;
@@ -498,7 +526,10 @@
             renderPughMatrix();
           }
           if (data.project) { activeProject = data.project; updateNavProjectName(); }
+          if (typeof renderProjPage === 'function') renderProjPage();
           populateReqForms();
+          // Refresh Basic Mode display so imported data appears immediately without toggling modes
+          if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
           alert('Project data loaded successfully!');
         } catch(err) {
           alert('Could not parse project file. Make sure it is a valid Controlled Convergence JSON export.');
@@ -1844,7 +1875,7 @@ ${sections}
 
   // ── REQUIREMENTS ──
   requirements = [];
-  reqType = 'essential';
+  reqType = '';
   reqIdCounter = 0;
   _editingReqId = null;
   let reqFormat = 'agile'; // 'agile' | 'incose'
@@ -1863,6 +1894,7 @@ ${sections}
   forcedRankOrder = [];
 
   const reqTypePlaceholders = {
+    '':        'Write your requirement...',
     essential: 'The system shall...',
     desirable: 'The system should...',
     optional: 'The system may...',
@@ -1871,11 +1903,17 @@ ${sections}
   };
 
   function setReqType(type, btn) {
-    reqType = type;
-    document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    // Clicking the already-active chip deselects it (no type)
+    if (reqType === type) {
+      reqType = '';
+      document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
+    } else {
+      reqType = type;
+      document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
     const ta = document.getElementById('reqText');
-    if (ta) ta.placeholder = reqTypePlaceholders[type] || 'Write your requirement...';
+    if (ta) ta.placeholder = reqTypePlaceholders[reqType] || 'Write your requirement...';
   }
 
 
@@ -1891,6 +1929,13 @@ ${sections}
     if (agileBtn)  agileBtn.classList.toggle('active',  format === 'agile');
     if (incoseBtn) incoseBtn.classList.toggle('active', format === 'incose');
     if (typeSelector)  typeSelector.style.display  = format === 'agile' ? 'none' : '';
+    // INCOSE type defaults to none — clear any previously active chip
+    if (format === 'incose' && !_editingReqId) {
+      document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
+      reqType = '';
+      const ta = document.getElementById('reqText');
+      if (ta) ta.placeholder = 'Write your requirement...';
+    }
     populateReqForms();
   }
 
@@ -1999,6 +2044,7 @@ ${sections}
   }
 
   function getIlityName(id) {
+    if (id === 'other') return 'Other';
     return [...ILITIES, ...customIlities].find(il => il.id === id)?.name || id;
   }
 
@@ -2047,9 +2093,11 @@ ${sections}
     updateNavCompletion();
 
     // Page-specific init
-    if (pageId === 'quick') { syncGuidedToQS(); } // sync guided state → QS display when entering quick
+    if (pageId === 'basic') { syncGuidedToQS(); } // sync full-mode state → Basic Mode display when entering basic
+    if (pageId === 'proj') { renderProjPage(); }
     if (pageId === 'tbus') {
-      // Focus the active goal input so the user can type immediately
+      // Ensure the correct goal form (basic vs. structured) is visible, then focus it
+      if (typeof switchGoalMode === 'function') switchGoalMode(goalMode);
       setTimeout(() => {
         const el = goalMode === 'basic'
           ? document.getElementById('input-goal-basic')
@@ -2057,7 +2105,7 @@ ${sections}
         if (el) el.focus();
       }, 50);
     }
-    if (pageId === 'requirements') { populateReqForms(); switchReqFormat(reqFormat); }
+    if (pageId === 'requirements') { renderRequirements(); populateReqForms(); switchReqFormat(reqFormat); }
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
     if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
@@ -2271,10 +2319,9 @@ ${sections}
     // Clear Responsible Scorer
     const scorerEl = document.getElementById('reqScorer');
     if (scorerEl) scorerEl.value = '';
-    // Reset type to Essential
+    // Reset type to none (no chip selected)
     document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
-    const chip = document.querySelector('.req-type-chip[data-type="essential"]');
-    if (chip) { chip.classList.add('active'); reqType = 'essential'; }
+    reqType = '';
     populateReqForms();
   }
 
@@ -2288,9 +2335,16 @@ ${sections}
   }
 
   function initPairPairs() {
-    const ids = pairSubject === 'requirements'
-      ? requirements.map(r => r.id)
-      : [...selectedIlities].sort();
+    let ids;
+    if (pairSubject === 'requirements') {
+      ids = requirements.map(r => r.id);
+    } else {
+      ids = [...selectedIlities].sort();
+      // Include virtual 'other' ility if any requirement uses it as primary
+      if (requirements.some(r => r.primary === 'other') && !ids.includes('other')) {
+        ids.push('other');
+      }
+    }
     const newPairs = [];
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
@@ -2346,6 +2400,7 @@ ${sections}
   }
 
   function getIlityNameById(id) {
+    if (id === 'other') return 'Other';
     return [...ILITIES, ...customIlities].find(il => il.id === id)?.name || id;
   }
   function getIlityDescById(id) {
@@ -3237,21 +3292,21 @@ ${sections}
   }
 
   // ══════════════════════════════════════════════════════
-  //  QUICK START MODE
+  //  BASIC MODE
   //  Shared data: requirements[], pughConcepts[], pughScores, activeProject
   //  No separate state — both modes read/write the same arrays/objects.
   //  Future backend/auth integration point: replace sessionStorage with
-  //  an API call in qsSync() and syncGuidedToQS().
+  //  an API call in qsSync() and syncFullToBasic().
   // ══════════════════════════════════════════════════════
 
-  // Current app mode: 'guided' (default) | 'quick'
-  appMode = 'guided';
-  // Remember last guided page so switching back lands in the right spot
-  _lastGuidedPage = 'home';
+  // Current app mode: 'full' (default) | 'basic'
+  appMode = 'full';
+  // Remember last full-mode page so switching back lands in the right spot
+  _lastFullPage = 'home';
 
   // Simple HTML-escape helper (no external dependency needed)
 
-  // ── Ensure datum concept exists at index 0 (always present in Quick Start) ──
+  // ── Ensure datum concept exists at index 0 (always present in Basic Mode) ──
   function ensureQSDatum() {
     if (pughConcepts.length === 0 || pughConcepts[0].id !== 'datum-qs') {
       pughConcepts.unshift({ id: 'datum-qs', name: '' });
@@ -3265,12 +3320,12 @@ ${sections}
     renderQSMatrix(); // column header updates live
   }
 
-  // ── Add / Remove requirements from Quick Start ──
+  // ── Add / Remove requirements from Basic Mode ──
   function addQSRequirement() {
     reqIdCounter++;
     const id = 'r' + reqIdCounter;
-    // Minimal requirement: text only, no ility/stakeholder metadata required in QS
-    requirements.push({ id, text: '', type: 'essential', primary: '', secondaries: [], stakeholders: [] });
+    // Basic Mode requirements map to SYSTEM/INCOSE format with no type and Primary Ility = Other
+    requirements.push({ id, format: 'incose', text: '', type: '', primary: 'other', secondaries: [], stakeholders: [] });
     renderQSLists();
     renderQSMatrix();
     // Focus the new input
@@ -3292,7 +3347,7 @@ ${sections}
     if (r) { r.text = text; renderQSMatrix(); }
   }
 
-  // ── Add / Remove concepts from Quick Start ──
+  // ── Add / Remove concepts from Basic Mode ──
   function addQSConcept() {
     ensureQSDatum();
     const id = 'qsc-' + Date.now();
@@ -3333,8 +3388,8 @@ ${sections}
 
   // ── Render the simple Pugh Matrix ──
 
-  // ── Sync QS text fields → shared state (called on every input event) ──
-  // This means data entered in QS is immediately visible if user switches to Guided.
+  // ── Sync Basic Mode text fields → shared state (called on every input event) ──
+  // This means data entered in Basic Mode is immediately visible if user switches to Full Mode.
   function qsSync() {
     // Project name → activeProject
     const pname = (document.getElementById('qsProjectName')?.value || '').trim();
@@ -3342,13 +3397,11 @@ ${sections}
     activeProject.name = pname;
     updateNavProjectName();
 
-    // Goal → TO field in Guided (best-effort mapping)
+    // Goal → Basic Goal field in Full Mode (keeps Basic Mode → Full Mode mapping clean)
     const goal = document.getElementById('qsGoal')?.value || '';
-    const toField = document.getElementById('input-to');
-    if (toField) {
-      toField.value = goal;
-      if (typeof onInput === 'function') onInput('to');
-    }
+    const basicGoalField = document.getElementById('input-goal-basic');
+    if (basicGoalField) basicGoalField.value = goal;
+    goalMode = 'basic'; // ensure Full Mode shows the basic goal input when the user arrives
   }
 
   // ── DRAG HANDLE (right sidebar resize) ──
@@ -3424,12 +3477,16 @@ ${sections}
     const pnEl = document.getElementById('qsProjectName');
     if (pnEl) pnEl.value = activeProject?.name || '';
 
-    // Goal: read TO field (flatten structured goal into simple sentence)
-    const toVal   = document.getElementById('input-to')?.value || '';
-    const byVal   = document.getElementById('input-by')?.value || '';
-    const goalEl  = document.getElementById('qsGoal');
+    // Goal: read from Basic Goal field if in basic mode; otherwise flatten TO/BY structured fields
+    const goalEl = document.getElementById('qsGoal');
     if (goalEl) {
-      goalEl.value = byVal ? `${toVal} BY ${byVal}` : toVal;
+      if (goalMode === 'basic') {
+        goalEl.value = document.getElementById('input-goal-basic')?.value || '';
+      } else {
+        const toVal = document.getElementById('input-to')?.value || '';
+        const byVal = document.getElementById('input-by')?.value || '';
+        goalEl.value = byVal ? `${toVal} BY ${byVal}` : toVal;
+      }
     }
 
     renderQSLists(); // also populates qsBaselineName from pughConcepts[0]
@@ -3438,29 +3495,35 @@ ${sections}
 
   // ── Mode switching ──
   // setMode(mode) is the single point of truth for switching.
-  // Guided → Quick: syncs state into QS display fields.
-  // Quick → Guided: qsSync() was already called on each input, so state is current.
+  // Full → Basic: syncs state into Basic Mode display fields.
+  // Basic → Full: qsSync() was already called on each input, so state is current.
   function setMode(mode) {
-    if (mode === appMode && mode === 'quick' && _currentPage === 'quick') return;
+    if (mode === appMode && mode === 'basic' && _currentPage === 'basic') return;
     appMode = mode;
 
     // Update body class (controls nav-tools visibility via CSS)
-    document.body.classList.toggle('mode-quick',  mode === 'quick');
-    document.body.classList.toggle('mode-guided', mode === 'guided');
+    document.body.classList.toggle('mode-basic', mode === 'basic');
+    document.body.classList.toggle('mode-full',  mode === 'full');
 
     // Update toggle buttons
-    document.getElementById('modeBtnQuick') ?.classList.toggle('active', mode === 'quick');
-    document.getElementById('modeBtnGuided')?.classList.toggle('active', mode === 'guided');
+    document.getElementById('modeBtnBasic')?.classList.toggle('active', mode === 'basic');
+    document.getElementById('modeBtnFull') ?.classList.toggle('active', mode === 'full');
 
-    if (mode === 'quick') {
-      // Save last guided page so we can return to it
-      if (_currentPage !== 'quick') _lastGuidedPage = _currentPage;
-      // Sync guided data into QS display
+    if (mode === 'basic') {
+      // Save last full-mode page so we can return to it
+      if (_currentPage !== 'basic') _lastFullPage = _currentPage;
+      // Enforce Basic Mode defaults (non-weighted pair, basic scoring, no advanced pugh)
+      pairMode = 'nonweighted';
+      pughSettings = { ...pughSettings, advancedScoring: false, showMTHUS: false, showMAS: false };
+      // Sync full-mode data into Basic Mode display
       syncGuidedToQS();
-      switchPage('quick', null);
+      switchPage('basic', null);
     } else {
-      // Return to last guided page (or HOME if first time)
-      const returnPage = _lastGuidedPage || 'home';
+      // Entering Full Mode: set defaults for data that came from Basic Mode
+      reqFormat = 'incose'; // Basic Mode reqs are INCOSE; this takes effect on next REQS page visit
+      goalMode = 'basic';   // Basic Mode goal maps to the Basic goal field
+      // Return to last full-mode page (or HOME if first time)
+      const returnPage = _lastFullPage || 'home';
       const navBtn = document.querySelector(`.nav-tool[data-page="${returnPage}"]`);
       switchPage(returnPage, navBtn);
     }

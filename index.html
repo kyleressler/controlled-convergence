@@ -21,10 +21,10 @@
 <!-- ── NAV ── -->
 <nav class="nav">
   <div class="nav-logo"><span>CC</span></div>
-  <!-- MODE TOGGLE: switches between Quick Start and Guided Mode -->
+  <!-- MODE TOGGLE: switches between Basic Mode and Full Mode -->
   <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn" id="modeBtnQuick" onclick="setMode('quick')">⚡ Quick Start</button>
-    <button class="mode-btn active" id="modeBtnGuided" onclick="setMode('guided')">◈ Guided Mode</button>
+    <button class="mode-btn" id="modeBtnBasic" onclick="setMode('basic')">⚡ Basic Mode</button>
+    <button class="mode-btn active" id="modeBtnFull" onclick="setMode('full')">◈ Full Mode</button>
   </div>
   <div class="nav-tools">
     <button class="nav-tool active" data-page="home" onclick="switchPage('home', this)">HOME</button>
@@ -241,23 +241,23 @@
 
 </main>
 
-<!-- ── QUICK START PAGE ──
-     Shares the same data model as Guided Mode:
+<!-- ── BASIC MODE PAGE ──
+     Shares the same data model as Full Mode:
        requirements[]   — same array, displayed as simple list
        pughConcepts[]   — index 0 = datum (auto-created), 1+ = concepts shown here
        pughScores{}     — same object, keyed conceptId_reqId
        activeProject    — same object, name field used
-     On switch Quick→Guided: qsSync() writes QS field values into shared state.
-     On switch Guided→Quick: syncGuidedToQS() reads shared state into QS fields.
+     On switch Basic→Full: qsSync() writes Basic Mode field values into shared state.
+     On switch Full→Basic: syncGuidedToQS() reads shared state into Basic Mode fields.
 -->
-<main class="main page" id="page-quick" style="display:none">
+<main class="main page" id="page-basic" style="display:none">
 
   <div class="qs-header">
     <div>
-      <div class="qs-title">Quick Start</div>
+      <div class="qs-title">Basic Mode</div>
       <div class="qs-subtitle">Jump straight in — the matrix updates as you type.</div>
     </div>
-    <div class="qs-save-hint">Switch to Guided Mode for structured coaching, ility weighting, and PDF export.</div>
+    <div class="qs-save-hint">Switch to Full Mode for structured coaching, ility weighting, and PDF export.</div>
   </div>
 
   <!-- Project name + Goal -->
@@ -324,10 +324,10 @@
       <h1 class="home-headline">Make Better Design Decisions</h1>
       <p class="home-tagline">A structured methodology for evaluating design concepts against real engineering requirements — objectively, systematically, and collaboratively.</p>
       <div class="home-cta-row">
-        <button class="home-cta-quick" onclick="setMode('quick')">⚡ Quick Start →</button>
-        <button class="home-cta-guided" onclick="setMode('guided'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Guided Mode →</button>
+        <button class="home-cta-quick" onclick="setMode('basic')">⚡ Basic Mode →</button>
+        <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Mode →</button>
       </div>
-      <p class="home-cta-sub">Quick Start: jump straight to a matrix &nbsp;|&nbsp; Guided Mode: full structured workflow</p>
+      <p class="home-cta-sub">Basic Mode: jump straight to a matrix &nbsp;|&nbsp; Full Mode: structured workflow with coaching and exports</p>
     </div>
   </div>
 
