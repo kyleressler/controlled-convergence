@@ -140,7 +140,7 @@ async function _buildUserFromSession(supabaseUser) {
 function _onAuthStateUpdated() {
   if (typeof updateAccountStatus    === 'function') updateAccountStatus();
   if (typeof updateTierBadges       === 'function') updateTierBadges();
-  if (typeof updatePughMemberToggles=== 'function') updatePughMemberToggles();
+  if (typeof updatePughAccountToggles=== 'function') updatePughAccountToggles();
   if (typeof renderProjList         === 'function') renderProjList();
   if (typeof renderTemplateList     === 'function') renderTemplateList();
   _refreshLogoutButton();

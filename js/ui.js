@@ -87,13 +87,13 @@
 
     // Tier badge
     badge.className   = 'account-tier-badge tier-' + userTier;
-    badge.textContent = userTier === 'free' ? 'Free' : userTier === 'member' ? 'Member' : 'Pro';
+    badge.textContent = userTier === 'free' ? 'Free' : userTier === 'account' ? 'Account' : 'Pro';
 
     // CTA button — changes based on signed-in state and tier
     if (!isSignedIn) {
-      cta.textContent   = 'Create Free Member Account';
+      cta.textContent   = 'Create Free Account';
       cta.style.display = '';
-    } else if (userTier === 'member') {
+    } else if (userTier === 'account') {
       cta.textContent   = 'Upgrade to Pro';
       cta.style.display = '';
     } else {
@@ -185,8 +185,8 @@
     if (!note) return;
     if (userTier === 'free') {
       note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to save up to 3 projects.';
-    } else if (userTier === 'member') {
-      note.textContent = 'Member tier: ' + savedProjects.length + ' of 3 projects saved. Upgrade to Pro for up to 50 projects.';
+    } else if (userTier === 'account') {
+      note.textContent = 'Account tier: ' + savedProjects.length + ' of 3 projects saved. Upgrade to Pro for up to 50 projects.';
     } else {
       note.textContent = 'Pro tier: Up to 50 projects. Collaboration features coming soon.';
     }
@@ -198,7 +198,7 @@
     if (!list) return;
     if (userTier === 'free') {
       list.innerHTML = '';
-      if (note) note.innerHTML = '<button class="btn btn-primary" style="margin-top:4px" onclick="handleAccountCTA()">Create a Free Member Account</button>';
+      if (note) note.innerHTML = '<button class="btn btn-primary" style="margin-top:4px" onclick="handleAccountCTA()">Create a Free Account</button>';
       return;
     }
     if (note) note.innerHTML = '';
@@ -209,7 +209,7 @@
     list.innerHTML = savedProjects.map(p => {
       const isActive = activeProject && activeProject.id === p.id;
       const activeBorder = isActive
-        ? 'border-color:var(--accent);background:rgba(0,122,255,0.06);'
+        ? `border-color:var(--accent);background:rgba(${getThemeRgb('--accent-rgb')||'26,86,219'},0.06);`
         : '';
       const activeIndicator = isActive
         ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-right:6px">● Active</span>`
@@ -242,8 +242,8 @@
     if (!msg) return;
     if (userTier === 'free') {
       msg.innerHTML = '<strong>Free tier:</strong> Your work is not automatically saved. Use <em>Export Project Data</em> in the sidebar to download a JSON file you can re-upload in a future session. Creating a free account unlocks saving up to 3 projects — no credit card required.';
-    } else if (userTier === 'member') {
-      msg.innerHTML = '<strong>Member tier:</strong> You can save up to 3 projects. You\'re using ' + savedProjects.length + ' of 3. Upgrade to Pro for up to 50 projects and future collaboration features.';
+    } else if (userTier === 'account') {
+      msg.innerHTML = '<strong>Account tier:</strong> You can save up to 3 projects. You\'re using ' + savedProjects.length + ' of 3. Upgrade to Pro for up to 50 projects and future collaboration features.';
     } else {
       msg.innerHTML = '<strong>Pro tier:</strong> Up to 50 saved projects. Collaboration features — inviting team members to review and contribute — are on the roadmap.';
     }
@@ -1142,30 +1142,33 @@
         ? (total > 0 ? `Requirements Defined ${datumDefined} / ${total}` : 'Add requirements first')
         : total > 0 ? `${scored} / ${total} scored` : 'Add requirements first';
 
-      // Background tint based on completion state
+      // Background tint based on completion state — uses current-theme RGB variables
+      const _sRgb = getThemeRgb('--success-rgb') || '5,122,85';
+      const _wRgb = getThemeRgb('--warn-rgb')    || '194,120,3';
       let tintStyle = '';
-      if (isBaseline && total > 0 && datumDefined === total) tintStyle = 'background:rgba(52,199,89,0.08);border-color:rgba(52,199,89,0.3);';
-      else if (isBaseline && datumDefined > 0)               tintStyle = 'background:rgba(255,159,10,0.07);border-color:rgba(255,159,10,0.3);';
-      else if (complete && !isBaseline) tintStyle = 'background:rgba(52,199,89,0.08);border-color:rgba(52,199,89,0.3);';
-      else if (partial)                 tintStyle = 'background:rgba(255,159,10,0.07);border-color:rgba(255,159,10,0.3);';
+      if (isBaseline && total > 0 && datumDefined === total) tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
+      else if (isBaseline && datumDefined > 0)               tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
+      else if (complete && !isBaseline) tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
+      else if (partial)                 tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
 
       const badge = isBaseline
         ? `<span class="concept-datum-badge">Datum</span>`
         : `<span class="concept-num-badge">${i}</span>`;
 
+      const _cId = typeof c.id === 'number' ? c.id : `'${c.id}'`;
       const deleteBtn = isBaseline ? '' :
         `<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger)"
-           onclick="event.stopPropagation();deletePughConcept(${c.id})">Delete</button>`;
+           onclick="event.stopPropagation();deletePughConcept(${_cId})">Delete</button>`;
 
-      return `<div class="concept-card${isBaseline ? ' datum-card' : ''}" style="${tintStyle}" onclick="startScoringConcept(${c.id})">
+      return `<div class="concept-card${isBaseline ? ' datum-card' : ''}" style="${tintStyle}" onclick="startScoringConcept(${_cId})">
         ${badge}
         <div class="concept-card-name">${c.name}</div>
         <div class="concept-card-meta">${meta}</div>
         <div class="concept-card-actions" onclick="event.stopPropagation()">
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
-            onclick="showConceptSummary(${c.id})">Summary</button>
+            onclick="showConceptSummary(${_cId})">Summary</button>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
-            onclick="renamePughConcept(${c.id})">Rename</button>
+            onclick="renamePughConcept(${_cId})">Rename</button>
           ${deleteBtn}
         </div>
       </div>`;
@@ -1202,7 +1205,7 @@
     // Always recompute weights from saved pair state (handles load without visiting PAIR)
     recomputePairWeights();
 
-    // True only when the user has turned on weighted mode for ilities (Member/Pro only)
+    // True only when the user has turned on weighted mode for ilities (Account/Pro only)
     const isWeightedMode = (typeof pairMode    !== 'undefined' ? pairMode    : 'nonweighted') === 'weighted'
                         && (typeof pairSubject !== 'undefined' ? pairSubject : 'ilities')     === 'ilities'
                         && userTier !== 'free';
@@ -1295,8 +1298,10 @@
   }
 
   function pughScoreCell(conceptId, reqId, score, masVal) {
+    const _cId = typeof conceptId === 'number' ? conceptId : `'${conceptId}'`;
+    const _rId = typeof reqId     === 'number' ? reqId     : `'${reqId}'`;
     if (score === undefined || score === null) {
-      return `<td class="pugh-cell pugh-cell-empty" onclick="openScorePopup(event,${conceptId},${reqId})" title="Click to score">·</td>`;
+      return `<td class="pugh-cell pugh-cell-empty" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to score">·</td>`;
     }
     let cls, display;
     if (score === '+')          { cls = 'pugh-cell-plus';  display = '+'; }
@@ -1317,7 +1322,7 @@
       const mNum = scoreToNum(masVal);
       if (sNum !== null && mNum !== null && sNum >= mNum) boldCls = ' pugh-cell-bold';
     }
-    return `<td class="pugh-cell ${cls}${boldCls}" onclick="openScorePopup(event,${conceptId},${reqId})" title="Click to change score">${display}</td>`;
+    return `<td class="pugh-cell ${cls}${boldCls}" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to change score">${display}</td>`;
   }
 
   function calcConceptSummary(conceptId) {
@@ -1347,7 +1352,8 @@
     const showMASCol = pughSettings.showMAS && userTier !== 'free';
     // Summary rows: datum and MAS columns are blank — no content, just a tinted background
     // Column order: [label] [MAS blank] [Datum blank] [concepts...] — must match header order
-    const datumBlank = `<td style="background:rgba(0,122,255,0.07)"></td>`;
+    const _aRgb = getThemeRgb('--accent-rgb') || '26,86,219';
+    const datumBlank = `<td style="background:rgba(${_aRgb},0.07)"></td>`;
     const masBlank   = `<td style="background:var(--surface)"></td>`;
     const datumCell  = showMASCol ? masBlank + datumBlank : datumBlank;
     // Summary divider spans all cols including MAS col
@@ -1542,17 +1548,22 @@
 
     const utilityLabel = isWeightedMode ? 'Utility Score (Weighted)' : 'Utility Score';
 
+    // Read theme colors so chart bars match the Pugh Matrix cells exactly
+    const _sRgb   = getThemeRgb('--success-rgb') || '5,122,85';
+    const _dRgb   = getThemeRgb('--danger-rgb')  || '200,30,30';
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1a1a18';
+
     const ctx = canvas.getContext('2d');
     window._pughChart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
         datasets: [
-          // Order left→right within each group: Utility (black), + Count (green), − Count (red)
+          // Order left→right within each group: Utility (text color), + Count (success), − Count (danger)
           {
             label: utilityLabel,
             data: utilityScores,
-            backgroundColor: 'rgba(20,20,20,0.82)',
+            backgroundColor: textColor,
             borderWidth: 0,
             yAxisID: 'y',
             order: 1
@@ -1560,7 +1571,7 @@
           {
             label: '+ Count',
             data: plusCounts,
-            backgroundColor: 'rgba(34,197,94,0.8)',
+            backgroundColor: `rgba(${_sRgb},0.80)`,
             borderWidth: 0,
             yAxisID: 'y',
             order: 2
@@ -1568,7 +1579,7 @@
           {
             label: '− Count',
             data: minusCounts,
-            backgroundColor: 'rgba(239,68,68,0.8)',
+            backgroundColor: `rgba(${_dRgb},0.80)`,
             borderWidth: 0,
             yAxisID: 'y',
             order: 2
@@ -1582,7 +1593,7 @@
         plugins: {
           legend: {
             position: 'top',
-            labels: { font: { size: 12 }, padding: 12, usePointStyle: true }
+            labels: { font: { size: 12 }, color: textColor, padding: 12, usePointStyle: true }
           },
           tooltip: {
             backgroundColor: 'rgba(0,0,0,0.82)',
@@ -1602,11 +1613,12 @@
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: true, text: 'Utility / Count', font: { size: 12, weight: 600 } },
+            title: { display: true, text: 'Utility / Count', color: textColor, font: { size: 12, weight: 600 } },
             min: combinedMin,
             max: combinedMax,
-            grid: { color: 'rgba(0,0,0,0.05)' },
+            grid: { color: `rgba(${_sRgb},0.08)` },
             ticks: {
+              color: textColor,
               font: { size: 11 },
               stepSize: 1,
               callback: v => Number.isInteger(v) ? Math.abs(v) : null
@@ -1615,6 +1627,7 @@
           x: {
             grid: { display: false },
             ticks: {
+              color: textColor,
               font: { size: 11, weight: 600 },
               maxRotation: 90,
               minRotation: 45    // rotate labels vertically to handle long concept names
@@ -1627,6 +1640,11 @@
 
 
 // ── Utility ───────────────────────────────────────────────────
+
+  /** Read a CSS custom-property RGB triplet (e.g. "5,122,85") from the current theme. */
+  function getThemeRgb(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
 
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1804,6 +1822,11 @@
     const combinedMin = Math.min(Math.floor(Math.min(...allValues) * 1.2), -1);
     const combinedMax = Math.max(Math.ceil(Math.max(...allValues) * 1.2),  1);
 
+    // Read theme colors so chart bars match the Pugh Matrix cells exactly
+    const _sRgb    = getThemeRgb('--success-rgb') || '5,122,85';
+    const _dRgb    = getThemeRgb('--danger-rgb')  || '200,30,30';
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1a1a18';
+
     const ctx = canvas.getContext('2d');
     window._qsChart = new Chart(ctx, {
       type: 'bar',
@@ -1813,7 +1836,7 @@
           {
             label: 'Net Score',
             data: netScores,
-            backgroundColor: 'rgba(20,20,20,0.82)',
+            backgroundColor: textColor,
             borderWidth: 0,
             yAxisID: 'y',
             order: 1
@@ -1821,7 +1844,7 @@
           {
             label: '+ Count',
             data: plusCounts,
-            backgroundColor: 'rgba(34,197,94,0.8)',
+            backgroundColor: `rgba(${_sRgb},0.80)`,
             borderWidth: 0,
             yAxisID: 'y',
             order: 2
@@ -1829,7 +1852,7 @@
           {
             label: '− Count',
             data: minusCounts,
-            backgroundColor: 'rgba(239,68,68,0.8)',
+            backgroundColor: `rgba(${_dRgb},0.80)`,
             borderWidth: 0,
             yAxisID: 'y',
             order: 2
@@ -1843,7 +1866,7 @@
         plugins: {
           legend: {
             position: 'top',
-            labels: { font: { size: 12 }, padding: 12, usePointStyle: true }
+            labels: { font: { size: 12 }, color: textColor, padding: 12, usePointStyle: true }
           },
           tooltip: {
             backgroundColor: 'rgba(0,0,0,0.82)',
@@ -1861,11 +1884,12 @@
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: true, text: 'Score / Count', font: { size: 12, weight: 600 } },
+            title: { display: true, text: 'Score / Count', color: textColor, font: { size: 12, weight: 600 } },
             min: combinedMin,
             max: combinedMax,
-            grid: { color: 'rgba(0,0,0,0.05)' },
+            grid: { color: `rgba(${_sRgb},0.08)` },
             ticks: {
+              color: textColor,
               font: { size: 11 },
               stepSize: 1,
               callback: v => Number.isInteger(v) ? Math.abs(v) : null
@@ -1874,6 +1898,7 @@
           x: {
             grid: { display: false },
             ticks: {
+              color: textColor,
               font: { size: 11, weight: 600 },
               maxRotation: 90,
               minRotation: 45

@@ -77,7 +77,7 @@
       <div class="sidebar-label" style="color:var(--danger);opacity:0.7">Dev: Tier Toggle</div>
       <div class="dev-tier-toggle">
         <button class="dev-tier-btn active" id="devTierFree" onclick="setDevTier('free')">Free</button>
-        <button class="dev-tier-btn" id="devTierMember" onclick="setDevTier('member')">Member</button>
+        <button class="dev-tier-btn" id="devTierAccount" onclick="setDevTier('account')">Account</button>
         <button class="dev-tier-btn" id="devTierPro" onclick="setDevTier('pro')">Pro</button>
       </div>
     </div>
@@ -85,7 +85,7 @@
     <div class="sidebar-label" style="margin-top:16px">Current Account Type</div>
     <div class="account-status-wrap" id="accountStatusWrap">
       <div class="account-tier-badge tier-free" id="accountTierBadge">Free</div>
-      <button class="account-cta-btn" id="accountCtaBtn" onclick="handleAccountCTA()">Create Free Member Account</button>
+      <button class="account-cta-btn" id="accountCtaBtn" onclick="handleAccountCTA()">Create Free Account</button>
     </div>
 
 
@@ -549,7 +549,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <button class="btn btn-secondary" onclick="addCustomIlity()">Add</button>
-      <span class="member-badge-inline">MEMBER+</span>
+      <span class="account-badge-inline">ACCOUNT+</span>
     </div>
   </div>
 
@@ -604,14 +604,14 @@
         <input class="add-custom-input" id="customStakContactName"
           placeholder="Contact name (optional)"
           style="flex:1"
-          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('member-contact-name');}">
-        <span class="member-badge-inline" style="white-space:nowrap;flex-shrink:0">MEMBER+</span>
+          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
+        <span class="account-badge-inline" style="white-space:nowrap;flex-shrink:0">ACCOUNT+</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
         <input class="add-custom-input" id="customStakContactTitle"
           placeholder="Contact title (optional)"
           style="flex:1"
-          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
         <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
@@ -619,7 +619,7 @@
           type="email"
           placeholder="Contact email (optional)"
           style="flex:1"
-          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
         <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
       </div>
     </div>
@@ -810,7 +810,7 @@
         <button class="pair-mode-btn active" onclick="handlePairModeClick('nonweighted', this)" id="pairNonWeightedBtn">Non-Weighted</button>
         <button class="pair-mode-btn" onclick="handlePairModeClick('weighted', this)" id="pairWeightedBtn">Weighted</button>
       </div>
-      <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
+      <span id="pairWeightedGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Account+</span>
       <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
         <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
         <div class="pair-progress-track">
@@ -819,14 +819,14 @@
       </div>
       <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
     </div>
-    <!-- Row 2: Compare Subject (Member+) -->
+    <!-- Row 2: Compare Subject (Account+) -->
     <div class="pair-toggle-row">
       <span class="pair-mode-label">Compare:</span>
       <div class="pair-mode-toggle">
         <button class="pair-mode-btn active" onclick="handlePairSubjectClick('ilities', this)" id="pairIlitiesBtn">Ilities</button>
         <button class="pair-mode-btn" onclick="handlePairSubjectClick('requirements', this)" id="pairReqsBtn">Requirements</button>
       </div>
-      <span id="pairSubjectGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Member+</span>
+      <span id="pairSubjectGate" style="font-size:11px;color:var(--accent);font-weight:600;display:none">Account+</span>
     </div>
     <!-- Row 3: Method (hidden in non-weighted mode) -->
     <div class="pair-toggle-row" id="pairMethodRow">
@@ -962,7 +962,7 @@
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Scoring Mode</div>
       <div class="pair-mode-toggle" style="display:inline-flex">
         <button class="pair-mode-btn active" id="scorModeBasicBtn" onclick="setScoringMode('basic',this)" style="border-radius:8px 0 0 8px;font-size:12px">Basic (+/0/−)</button>
-        <button class="pair-mode-btn" id="scorModeAdvancedBtn" onclick="setScoringMode('advanced',this)" style="border-radius:0 8px 8px 0;font-size:12px">Advanced (−3 to +3) <span class="member-badge-inline">MEMBER+</span></button>
+        <button class="pair-mode-btn" id="scorModeAdvancedBtn" onclick="setScoringMode('advanced',this)" style="border-radius:0 8px 8px 0;font-size:12px">Advanced (−3 to +3) <span class="account-badge-inline">ACCOUNT+</span></button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px" id="scorModeDesc">Score concepts as better (+), same (0), or worse (−) than the Datum.</div>
     </div>
@@ -1035,7 +1035,7 @@
           </div>
         </div>
 
-        <!-- MAS selector (shown only when MAS enabled + Member+) -->
+        <!-- MAS selector (shown only when MAS enabled + Account+) -->
         <div id="datumMasSection" style="display:none" class="datum-mas-row">
           <div class="datum-mas-label">MAS</div>
           <div class="datum-mas-btns" id="datumMasBtns"></div>
@@ -1066,7 +1066,7 @@
           <button class="scor-btn" id="scorBtnNeu"   onclick="setScore('0')">0</button>
           <button class="scor-btn" id="scorBtnMinus" onclick="setScore('-')">−</button>
         </div>
-        <!-- Advanced scoring: +3 to −3 (Member+) -->
+        <!-- Advanced scoring: +3 to −3 (Account+) -->
         <div class="scor-num-row" id="scorAdvBtns" style="display:none"></div>
 
         <div class="scor-nav-row">
@@ -1124,29 +1124,29 @@
   <div class="pugh-toolbar">
     <button class="btn btn-ghost" style="font-size:12px" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">← Edit Concepts</button>
     <div style="flex:1"></div>
-    <!-- Settings button (Member+ only) -->
+    <!-- Settings button (Account+ only) -->
     <button class="btn btn-ghost" id="pughSettingsBtn" style="font-size:12px;display:none;gap:6px;align-items:center" onclick="togglePughSettings()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Matrix Settings
-      <span class="member-badge-inline">MEMBER+</span>
+      <span class="account-badge-inline">ACCOUNT+</span>
     </button>
   </div>
 
-  <!-- Settings panel (collapsible, Member+ only) -->
+  <!-- Settings panel (collapsible, Account+ only) -->
   <div id="pughSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px">Matrix Settings</div>
     <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
       <label class="pugh-toggle-label">
         <input type="checkbox" id="toggleMTHUS" onchange="togglePughMTHUS(this)">
         <div>
-          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MTHUS &amp; MTHUWS Ratios <span class="member-badge-inline">MEMBER+</span></div>
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MTHUS &amp; MTHUWS Ratios <span class="account-badge-inline">ACCOUNT+</span></div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Show hybrid utility scores relative to theoretical max</div>
         </div>
       </label>
       <label class="pugh-toggle-label">
         <input type="checkbox" id="toggleMAS" onchange="togglePughMAS(this)">
         <div>
-          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MAS (Min. Acceptable Score) <span class="member-badge-inline">MEMBER+</span></div>
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">MAS (Min. Acceptable Score) <span class="account-badge-inline">ACCOUNT+</span></div>
         </div>
       </label>
     </div>
@@ -1235,19 +1235,19 @@
     <div id="modalContactFields" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">Contact Info <span style="font-weight:400;text-transform:none;letter-spacing:0">(private — never shared)</span></div>
       <div class="modal-field">
-        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Contact Name <span class="member-badge-inline">MEMBER+</span></div>
+        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Contact Name <span class="account-badge-inline">ACCOUNT+</span></div>
         <input class="modal-input" id="modalContactName" type="text" placeholder="e.g. Jane Smith"
-          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('member-contact-name');}">
+          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
       </div>
       <div class="modal-field">
         <div class="modal-label" style="display:flex;align-items:center;gap:6px">Title <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
         <input class="modal-input" id="modalContactTitle" type="text" placeholder="e.g. Senior Tractor Operator"
-          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
       </div>
       <div class="modal-field">
         <div class="modal-label" style="display:flex;align-items:center;gap:6px">Email <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
         <input class="modal-input" id="modalContactEmail" type="email" placeholder="e.g. jane@company.com"
-          onfocus="if(userTier==='free'||userTier==='member'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
       </div>
     </div>
     <div class="modal-footer">

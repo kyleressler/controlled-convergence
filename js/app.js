@@ -243,7 +243,7 @@
       dotEl.className = 'status-dot';
 
       if (result && text.trim().length > 3) {
-        if (userTier === 'free' || userTier === 'member') {
+        if (userTier === 'free' || userTier === 'account') {
           // Only show danger warnings; replace coaching with upgrade prompt
           if (result.type === 'danger') {
             valEl.classList.add('visible', 'danger');
@@ -252,7 +252,7 @@
           } else {
             valEl.classList.add('visible', 'warn');
             dotEl.classList.add('warn');
-            valTextEl.textContent = '✨ Pro Members get AI coaching on each section. Upgrade for personalized feedback.';
+            valTextEl.textContent = '✨ Pro users get AI coaching on each section. Upgrade for personalized feedback.';
           }
         } else {
           valEl.classList.add('visible');
@@ -276,7 +276,7 @@
   // DEV ONLY: switch tier for testing
   function setDevTier(tier) {
     userTier = tier;
-    ['free','member','pro'].forEach(t => {
+    ['free','account','pro'].forEach(t => {
       const btn = document.getElementById('devTier' + t.charAt(0).toUpperCase() + t.slice(1));
       if (btn) btn.classList.toggle('active', t === tier);
     });
@@ -285,7 +285,7 @@
     updatePairGate();
     renderIlityGrid();
     renderStakGrid();
-    updatePughMemberToggles();
+    updatePughAccountToggles();
     renderPughMatrix();
   }
 
@@ -299,7 +299,7 @@
   function handleAccountCTA() {
     if (!appState.currentUser) {
       openAuthModal('signup');
-    } else if (userTier === 'member') {
+    } else if (userTier === 'account') {
       alert('Pro upgrade coming soon! Export your project data to share or back up your work.');
     }
   }
@@ -373,7 +373,7 @@
     await loadProjects(result.user.id);
     updateAccountStatus();
     updateTierBadges();
-    updatePughMemberToggles();
+    updatePughAccountToggles();
     renderProjList();
     closeAuthModal();
   }
@@ -934,18 +934,18 @@ ${sections}
   const upgradeMessages = {
     'free-custom-ility': { title: 'Sign Up to Add Custom Ilities', body: 'Creating a free account lets you add up to 10 custom ilities and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
     'free-custom-stak': { title: 'Sign Up to Add Custom Stakeholders', body: 'Creating a free account lets you add up to 10 custom stakeholders and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
-    'member-ility-limit': { title: 'Ility Limit Reached', body: 'Free Members can add up to 10 custom ilities. Delete one to make room, or upgrade to Pro for unlimited ilities.', cta: 'Upgrade to Pro' },
-    'member-stak-limit': { title: 'Stakeholder Limit Reached', body: 'Free Members can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.', cta: 'Upgrade to Pro' },
-    'coaching': { title: 'AI Coaching is a Pro Feature', body: 'Pro Members get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.', cta: 'Upgrade to Pro' },
-    'weighted-pair': { title: 'Weighted Pairwise is a Member Feature', body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.', cta: 'Create Free Account' },
-    'export-report': { title: 'Report Export is a Pro Feature', body: 'Pro Members can export their full Controlled Convergence analysis as a formatted PDF report.', cta: 'Upgrade to Pro' },
-    'member-project-limit': { title: 'Project Limit Reached', body: 'Free Members can save up to 3 projects. Delete a project to make room, or upgrade to Pro for up to 50 projects.', cta: 'Upgrade to Pro' },
-    'templates': { title: 'Templates is a Pro Feature', body: 'Pro Members can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
-    'pugh-settings': { title: 'Matrix Settings require a Member Account', body: 'Free Members can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
-    'member-contact-name': { title: 'Contact Name is a Member Feature', body: 'Create a free Member account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
-    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro Members can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
-    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro Members can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during concept scoring in SCOR, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
-    'pair-subject-req': { title: 'Requirements Comparison is a Member Feature', body: 'Create a free Member account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.', cta: 'Create Free Account' },
+    'account-ility-limit': { title: 'Ility Limit Reached', body: 'Account users can add up to 10 custom ilities. Delete one to make room, or upgrade to Pro for unlimited ilities.', cta: 'Upgrade to Pro' },
+    'account-stak-limit': { title: 'Stakeholder Limit Reached', body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.', cta: 'Upgrade to Pro' },
+    'coaching': { title: 'AI Coaching is a Pro Feature', body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.', cta: 'Upgrade to Pro' },
+    'weighted-pair': { title: 'Weighted Pairwise is an Account Feature', body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.', cta: 'Create Free Account' },
+    'export-report': { title: 'Report Export is a Pro Feature', body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.', cta: 'Upgrade to Pro' },
+    'account-project-limit': { title: 'Project Limit Reached', body: 'Account users can save up to 3 projects. Delete a project to make room, or upgrade to Pro for up to 50 projects.', cta: 'Upgrade to Pro' },
+    'templates': { title: 'Templates is a Pro Feature', body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
+    'pugh-settings': { title: 'Matrix Settings require an Account', body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
+    'account-contact-name': { title: 'Contact Name is an Account Feature', body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
+    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in REQS.', cta: 'Upgrade to Pro' },
+    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during concept scoring in SCOR, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
+    'pair-subject-req': { title: 'Requirements Comparison is an Account Feature', body: 'Create a free Account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.', cta: 'Create Free Account' },
   };
 
   function showUpgradePrompt(type) {
@@ -1005,8 +1005,8 @@ ${sections}
       input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
-    if (userTier === 'member' && savedProjects.length >= 3) {
-      showUpgradePrompt('member-project-limit');
+    if (userTier === 'account' && savedProjects.length >= 3) {
+      showUpgradePrompt('account-project-limit');
       return;
     }
     const description = descInput ? descInput.value.trim() : '';
@@ -1619,8 +1619,8 @@ ${sections}
       showUpgradePrompt('free-custom-ility');
       return;
     }
-    if (userTier === 'member' && customIlities.length >= 10) {
-      showUpgradePrompt('member-ility-limit');
+    if (userTier === 'account' && customIlities.length >= 10) {
+      showUpgradePrompt('account-ility-limit');
       return;
     }
     const nameInput = document.getElementById('customIlityName');
@@ -1676,8 +1676,8 @@ ${sections}
       showUpgradePrompt('free-custom-stak');
       return;
     }
-    if (userTier === 'member' && customStakeholders.length >= 10) {
-      showUpgradePrompt('member-stak-limit');
+    if (userTier === 'account' && customStakeholders.length >= 10) {
+      showUpgradePrompt('account-stak-limit');
       return;
     }
     const nameInput         = document.getElementById('customStakName');
@@ -1697,7 +1697,7 @@ ${sections}
     const id = 'custom-sk-' + name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
 
     // Contact fields — only stored if tier allows; never exposed in shared/community data
-    const contactName  = (userTier === 'member' || userTier === 'pro') ? (contactNameInput?.value.trim()  || '') : '';
+    const contactName  = (userTier === 'account' || userTier === 'pro') ? (contactNameInput?.value.trim()  || '') : '';
     const contactTitle = (userTier === 'pro')                          ? (contactTitleInput?.value.trim() || '') : '';
     const contactEmail = (userTier === 'pro')                          ? (contactEmailInput?.value.trim() || '') : '';
 
@@ -1764,7 +1764,7 @@ ${sections}
     ordered.splice(targetIdx, 0, _dragCardId);
     if (type === 'ility') { ilityOrder = ordered; renderIlityGrid(); }
     else                   { stakOrder  = ordered; renderStakGrid(); }
-    if (activeProject && (userTier === 'member' || userTier === 'pro')) {
+    if (activeProject && (userTier === 'account' || userTier === 'pro')) {
       const snap = snapshotCurrentState(activeProject);
       saveProject(snap).catch(err => console.warn('order save failed', err));
     }
@@ -2063,7 +2063,7 @@ ${sections}
     if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
     if (pageId === 'pugh') {
       renderPughMatrix();
-      updatePughMemberToggles();
+      updatePughAccountToggles();
       // Sync settings panel checkboxes to loaded state
       const mCb   = document.getElementById('toggleMTHUS');
       const masCb = document.getElementById('toggleMAS');
@@ -2173,7 +2173,7 @@ ${sections}
       renderIlityGrid(); populateReqForms();
     } else if (_modalType === 'stak') {
       // Contact fields — enforce tier before saving
-      const contactName  = (userTier === 'member' || userTier === 'pro')
+      const contactName  = (userTier === 'account' || userTier === 'pro')
         ? (document.getElementById('modalContactName')?.value.trim()  || '') : '';
       const contactTitle = (userTier === 'pro')
         ? (document.getElementById('modalContactTitle')?.value.trim() || '') : '';
@@ -3203,11 +3203,11 @@ ${sections}
     if (btn)   btn.classList.remove('active');
   }
 
-  function updatePughMemberToggles() {
+  function updatePughAccountToggles() {
     const panel = document.getElementById('pughSettingsPanel');
     const btn   = document.getElementById('pughSettingsBtn');
     // Always show the settings button so free users can see what they're missing.
-    // Style it locked (muted + cursor:default) for free; normal for member+.
+    // Style it locked (muted + cursor:default) for free; normal for account+.
     if (btn) {
       btn.style.display = '';
       if (userTier === 'free') {
@@ -3225,13 +3225,13 @@ ${sections}
   }
 
   function updateTierBadges() {
-    // Coaching button: show PRO badge for free/member; hide when already pro+
+    // Coaching button: show PRO badge for free/account; hide when already pro+
     const coachBadge = document.getElementById('coachProBadge');
     if (coachBadge) coachBadge.style.display = userTier === 'pro' ? 'none' : '';
 
-    // Pugh settings panel member+ badges: hide when already member or above
-    const isAboveFree = userTier === 'member' || userTier === 'pro';
-    document.querySelectorAll('.member-badge-inline').forEach(el => {
+    // Pugh settings panel account+ badges: hide when already account or above
+    const isAboveFree = userTier === 'account' || userTier === 'pro';
+    document.querySelectorAll('.account-badge-inline').forEach(el => {
       el.style.display = isAboveFree ? 'none' : '';
     });
   }
@@ -3325,7 +3325,7 @@ ${sections}
   function setQSScore(conceptId, reqId, score) {
     const key = conceptId + '_' + reqId;
     // Toggle: clicking the active score again clears it
-    pughScores[key] = (pughScores[key] === score) ? '' : score;
+    if (pughScores[key] === score) { delete pughScores[key]; } else { pughScores[key] = score; }
     renderQSMatrix();
   }
 

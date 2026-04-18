@@ -5,7 +5,7 @@
 // ── Tier limits ───────────────────────────────────────────────
 const PROJECT_LIMITS = {
   free:   1,   // free users: 1 saved project
-  member: 5,   // member tier: 5 projects
+  account: 5,  // account tier: 5 projects
   pro:    Infinity  // pro: unlimited
 };
 
@@ -70,8 +70,8 @@ function canCreateProject(user, currentCount) {
   }
 
   const messages = {
-    free:   'Free accounts can save 1 project. Create a free Member account to save up to 5.',
-    member: 'Member accounts can save up to 5 projects. Upgrade to Pro for unlimited projects.',
+    free:   'Free accounts can save 1 project. Create a free Account to save up to 5.',
+    account: 'Account users can save up to 5 projects. Upgrade to Pro for unlimited projects.',
     pro:    null // unlimited — should never hit this branch
   };
 
