@@ -1205,7 +1205,14 @@
 
   <!-- Concept Score Chart -->
   <div class="pugh-chart-container" id="pughChartContainer" style="display:none">
-    <div class="pugh-chart-title">Concept Score Summary</div>
+    <div class="pugh-chart-header-row">
+      <div class="pugh-chart-title">Concept Score Summary</div>
+      <div class="pugh-chart-sort-bar">
+        <button class="pugh-sort-btn active" id="pughSortOrder"   onclick="setPughChartSort('order')">Concept Order</button>
+        <button class="pugh-sort-btn"         id="pughSortUtility" onclick="setPughChartSort('utility')">Utility Rank</button>
+        <button class="pugh-sort-btn"         id="pughSortMinus"   onclick="setPughChartSort('minus')">Fewest −</button>
+      </div>
+    </div>
     <div style="position:relative;height:33vh;width:100%">
       <canvas id="pughConceptChart"></canvas>
     </div>

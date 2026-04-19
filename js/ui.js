@@ -1424,7 +1424,7 @@
       rows += `<tr class="pugh-summary-section">
         <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUS Ratio <span style="font-weight:400;opacity:0.75">(${mthus})</span></td>${datumCell}
         ${summaries.map(s => {
-          const ratio = mthus !== 0 ? (s.net / mthus * 100).toFixed(1) + '%' : '—';
+          const ratio = mthus !== 0 ? Math.round(s.net / mthus * 100) + '%' : '—';
           return `<td class="pugh-sum-mthus">${ratio}</td>`;
         }).join('')}
       </tr>`;
@@ -1432,7 +1432,7 @@
         rows += `<tr class="pugh-summary-section">
           <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUWS Ratio <span style="font-weight:400;opacity:0.75">(${mthuws})</span></td>${datumCell}
           ${summaries.map(s => {
-            const ratio = mthuws !== 0 ? (s.weightedNet / mthuws * 100).toFixed(1) + '%' : '—';
+            const ratio = mthuws !== 0 ? Math.round(s.weightedNet / mthuws * 100) + '%' : '—';
             return `<td class="pugh-sum-mthus">${ratio}</td>`;
           }).join('')}
         </tr>`;
@@ -1561,10 +1561,43 @@
       return { label: concept.name, plusCount, minusCount, utilityScore: finalUtility };
     });
 
-    const labels        = chartData.map(d => d.label);
-    const plusCounts    = chartData.map(d => d.plusCount);
-    const minusCounts   = chartData.map(d => d.minusCount);
-    const utilityScores = chartData.map(d => d.utilityScore);
+    // Sort chart data according to the active sort mode
+    // minusCount is stored as a negative number (e.g. -3 = 3 minuses), so ascending sort
+    // puts most-negatives on the left and fewest-negatives on the right.
+    const _sort = (typeof pughChartSort !== 'undefined') ? pughChartSort : 'order';
+    const sortedData = [...chartData];
+    if (_sort === 'utility') {
+      // Ascending utility (lowest left, best right)
+      // Tiebreak 1: ascending minusCount → most negatives left, fewest right
+      // Tiebreak 2: ascending plusCount  → fewest positives left, most right
+      sortedData.sort((a, b) =>
+        a.utilityScore - b.utilityScore ||
+        a.minusCount   - b.minusCount   ||
+        a.plusCount    - b.plusCount
+      );
+    } else if (_sort === 'minus') {
+      // Ascending minusCount (most negatives left, fewest right)
+      // Tiebreak 1: ascending utilityScore → lowest utility left, best right
+      // Tiebreak 2: ascending plusCount    → fewest positives left, most right
+      sortedData.sort((a, b) =>
+        a.minusCount   - b.minusCount   ||
+        a.utilityScore - b.utilityScore ||
+        a.plusCount    - b.plusCount
+      );
+    }
+    // 'order' keeps original entry order (no sort)
+
+    // Sync active state on sort buttons
+    ['order', 'utility', 'minus'].forEach(mode => {
+      const id  = 'pughSort' + mode.charAt(0).toUpperCase() + mode.slice(1);
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', _sort === mode);
+    });
+
+    const labels        = sortedData.map(d => d.label);
+    const plusCounts    = sortedData.map(d => d.plusCount);
+    const minusCounts   = sortedData.map(d => d.minusCount);
+    const utilityScores = sortedData.map(d => d.utilityScore);
 
     // Single Y-axis range: covers counts and utility scores together
     const allValues  = [...plusCounts, ...minusCounts, ...utilityScores, 0];

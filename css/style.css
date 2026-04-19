@@ -2333,14 +2333,51 @@ body.theme-engineering .sidebar-brand {
       border: 1px solid var(--border);
       border-radius: 8px;
     }
+    .pugh-chart-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
     .pugh-chart-title {
       font-size: 0.85rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted, #888);
-      margin-bottom: 12px;
+      margin-bottom: 0;
     }
+    .pugh-chart-sort-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .pugh-sort-btn {
+      background: none;
+      border: none;
+      padding: 2px 0;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--success, #05a66b);
+      opacity: 0.45;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      position: relative;
+    }
+    .pugh-sort-btn + .pugh-sort-btn::before {
+      content: '·';
+      position: absolute;
+      left: -5px;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+    .pugh-sort-btn:hover  { opacity: 0.75; }
+    .pugh-sort-btn.active { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
     #pughConceptChart,
     #qsConceptChart {
       height: 33vh;

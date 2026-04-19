@@ -440,6 +440,7 @@
         counter: pughConceptCounter,
         datumPerformance: datumPerformance,
         conceptPerformance: conceptPerformance,
+        conceptNotes: conceptNotes,
       },
       convergence: {
         selectedConceptId: convSelectedConceptId,
@@ -691,6 +692,7 @@
             if (data.pugh.counter)           pughConceptCounter = data.pugh.counter;
             if (data.pugh.datumPerformance)  datumPerformance   = data.pugh.datumPerformance;
             if (data.pugh.conceptPerformance) conceptPerformance = data.pugh.conceptPerformance;
+            if (data.pugh.conceptNotes)       conceptNotes       = data.pugh.conceptNotes;
             // Sync UI to restored settings
             if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
             const mCb    = document.getElementById('toggleMTHUS');
@@ -790,6 +792,7 @@
       if (data.pugh.counter)            pughConceptCounter  = data.pugh.counter;
       if (data.pugh.datumPerformance)   datumPerformance    = data.pugh.datumPerformance;
       if (data.pugh.conceptPerformance) conceptPerformance  = data.pugh.conceptPerformance;
+      if (data.pugh.conceptNotes)       conceptNotes        = data.pugh.conceptNotes;
       if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
       const mCb   = document.getElementById('toggleMTHUS');
       const masCb = document.getElementById('toggleMAS');
@@ -865,7 +868,7 @@
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
-    pughCollapsedIlities = new Set();
+    pughCollapsedIlities = new Set(); pughChartSort = 'order';
     const mCb = document.getElementById('toggleMTHUS');
     const masCb = document.getElementById('toggleMAS');
     if (mCb)   mCb.checked   = false;
@@ -1668,7 +1671,7 @@ ${sections}
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
-    pughCollapsedIlities = new Set();
+    pughCollapsedIlities = new Set(); pughChartSort = 'order';
     goalMode = 'basic';
 
     // Clear goal fields
@@ -3483,7 +3486,7 @@ ${sections}
   pughConcepts = [];   // [{id, name, customFieldValues}] — index 0 is always the Datum
   pughScores   = {};   // key: `${conceptId}_${reqId}` → '+' | '0' | '-' | number
   pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
-  pughCollapsedIlities = new Set();
+  pughCollapsedIlities = new Set(); pughChartSort = 'order';
   pughConceptCounter = 0;
   scoringConceptId   = null;
   scoringReqIndex    = 0;
@@ -4035,6 +4038,12 @@ ${sections}
   function togglePughMAS(cb) {
     if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }
     pughSettings.showMAS = cb.checked; renderPughMatrix();
+  }
+
+  // ── PUGH: CHART SORT ──
+  function setPughChartSort(mode) {
+    pughChartSort = mode;
+    renderPughConceptChart();
   }
 
   // ── PUGH: FREEZE TOP ROW ──
