@@ -1136,7 +1136,10 @@
         <div class="scor-nav-row">
           <button class="btn btn-ghost" id="scorPrevBtn" onclick="scoringNav(-1)" style="font-size:13px">← Prev</button>
           <div class="scor-req-counter" id="scorReqCounter"></div>
-          <button class="btn btn-primary" id="scorNextBtn" onclick="scoringNav(1)" style="font-size:13px">Next →</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn btn-secondary" id="scorNextConceptBtn" onclick="scoringNavConcept()" style="font-size:13px">Next Concept →</button>
+            <button class="btn btn-primary" id="scorNextReqBtn" onclick="scoringNav(1)" style="font-size:13px">Next Requirement →</button>
+          </div>
         </div>
 
         <!-- Concept performance input -->

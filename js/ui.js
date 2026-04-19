@@ -1115,25 +1115,54 @@
     // Nav buttons
     document.getElementById('scorPrevBtn').disabled = scoringReqIndex === 0;
     const isLast = scoringReqIndex >= reqs.length - 1;
-    const nextBtn = document.getElementById('scorNextBtn');
-    nextBtn.textContent = isLast ? 'Done ✓' : 'Next →';
-    nextBtn.onclick     = isLast ? exitScoringView : () => scoringNav(1);
+
+    // "Next Requirement" — advances within the current concept
+    const nextReqBtn = document.getElementById('scorNextReqBtn');
+    if (nextReqBtn) {
+      nextReqBtn.textContent = isLast ? 'Done ✓' : 'Next Requirement →';
+      nextReqBtn.onclick     = isLast ? exitScoringView : () => scoringNav(1);
+    }
+
+    // "Next Concept" — stays on same requirement, jumps to next concept (wraps around)
+    // Works with scorerFilter: filtered reqs are the same set regardless of concept
+    const nextConceptBtn = document.getElementById('scorNextConceptBtn');
+    if (nextConceptBtn) {
+      const nonDatumCount = pughConcepts.slice(1).length;
+      nextConceptBtn.disabled = nonDatumCount < 2;
+      nextConceptBtn.title    = nonDatumCount < 2
+        ? 'Add more concepts to use this button'
+        : 'Stay on this requirement, move to the next concept (wraps around)';
+    }
 
     updateScorContinue();
   }
 
   function renderConceptCards() {
-    const wrap  = document.getElementById('scorConceptCards');
-    const empty = document.getElementById('scorEmptyState');
+    const wrap     = document.getElementById('scorConceptCards');
+    const empty    = document.getElementById('scorEmptyState');
+    const scorView = document.getElementById('scorScoringView');
     if (!wrap) return;
+
+    // Detach the scoring view before replacing innerHTML so we don't destroy the element
+    if (scorView && scorView.parentNode) {
+      scorView.parentNode.removeChild(scorView);
+    }
 
     if (pughConcepts.length === 0) {
       wrap.innerHTML = '';
       if (empty) empty.style.display = '';
+      // Park the scoring view after the wrap (hidden)
+      if (scorView) {
+        wrap.insertAdjacentElement('afterend', scorView);
+        scorView.style.display = 'none';
+      }
       updateScorContinue();
       return;
     }
     if (empty) empty.style.display = 'none';
+
+    // Which concept ID should have the inline scoring view open beneath it?
+    const inlineId = scoringConceptId || (datumDefActive ? (pughConcepts[0]?.id ?? null) : null);
 
     wrap.innerHTML = pughConcepts.map((c, i) => {
       const isBaseline = i === 0;
@@ -1154,10 +1183,18 @@
       const _sRgb = getThemeRgb('--success-rgb') || '5,122,85';
       const _wRgb = getThemeRgb('--warn-rgb')    || '194,120,3';
       let tintStyle = '';
-      if (isBaseline && total > 0 && datumDefined === total) tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
-      else if (isBaseline && datumDefined > 0)               tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
-      else if (complete && !isBaseline) tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
-      else if (partial)                 tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
+      // Active card gets an accent highlight so it's clear which concept is open
+      if (inlineId === c.id) {
+        tintStyle = `border-color:var(--accent);box-shadow:0 0 0 2px rgba(59,130,246,0.15);`;
+      } else if (isBaseline && total > 0 && datumDefined === total) {
+        tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
+      } else if (isBaseline && datumDefined > 0) {
+        tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
+      } else if (complete && !isBaseline) {
+        tintStyle = `background:rgba(${_sRgb},0.08);border-color:rgba(${_sRgb},0.30);`;
+      } else if (partial) {
+        tintStyle = `background:rgba(${_wRgb},0.07);border-color:rgba(${_wRgb},0.30);`;
+      }
 
       const badge = isBaseline
         ? `<span class="concept-datum-badge">Datum</span>`
@@ -1181,6 +1218,27 @@
         </div>
       </div>`;
     }).join('');
+
+    // Re-attach the scoring view: inline after the active card, or parked after the wrap
+    if (inlineId && scorView) {
+      const activeIdx  = pughConcepts.findIndex(c => c.id === inlineId);
+      const cards      = wrap.children; // direct children = concept cards in order
+      const targetCard = (activeIdx >= 0) ? cards[activeIdx] : null;
+      if (targetCard) {
+        if (targetCard.nextSibling) {
+          wrap.insertBefore(scorView, targetCard.nextSibling);
+        } else {
+          wrap.appendChild(scorView);
+        }
+        scorView.style.display = '';
+      } else {
+        wrap.insertAdjacentElement('afterend', scorView);
+        scorView.style.display = 'none';
+      }
+    } else if (scorView) {
+      wrap.insertAdjacentElement('afterend', scorView);
+      scorView.style.display = 'none';
+    }
 
     updateScorContinue();
   }

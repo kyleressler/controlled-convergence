@@ -2042,6 +2042,9 @@ body.theme-engineering .sidebar-brand {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
       overflow: hidden; margin-bottom: 24px;
     }
+    /* When the scoring view is embedded inline in the concept cards flex list,
+       suppress its own bottom margin — the flex gap handles spacing instead. */
+    .concept-cards-wrap #scorScoringView .scor-view { margin-bottom: 0; }
     .scor-view-header {
       padding: 14px 20px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; gap: 14px;

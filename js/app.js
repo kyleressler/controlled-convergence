@@ -866,7 +866,7 @@
     // ── Pugh Matrix / Concept Scoring ──
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
-    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
+    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     const mCb = document.getElementById('toggleMTHUS');
@@ -1669,7 +1669,7 @@ ${sections}
     pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
-    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
+    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     goalMode = 'basic';
@@ -3491,6 +3491,7 @@ ${sections}
   scoringConceptId   = null;
   scoringReqIndex    = 0;
   datumDefIndex      = 0;
+  datumDefActive     = false;
   datumPerformance   = {};
   conceptPerformance = {};
   conceptNotes       = {};
@@ -3711,37 +3712,50 @@ ${sections}
     }
     scoringConceptId = id;
     scoringReqIndex  = 0;
-    document.getElementById('scorEmptyState').style.display   = 'none';
-    document.getElementById('scorScoringView').style.display  = '';
+    document.getElementById('scorEmptyState').style.display = 'none';
+    // renderConceptCards positions the scoring view inline after the clicked card
+    renderConceptCards();
     renderScoringView();
+    setTimeout(() => {
+      const sv = document.getElementById('scorScoringView');
+      if (sv) sv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   }
 
   function exitScoringView() {
     scoringConceptId = null;
-    document.getElementById('scorScoringView').style.display = 'none';
     const datumDefView = document.getElementById('scorDatumDefView');
     const reqView      = document.getElementById('scorReqView');
     if (datumDefView) datumDefView.style.display = 'none';
     if (reqView)      reqView.style.display      = 'none';
+    // renderConceptCards moves the scoring view back to its parked (hidden) position
     renderConceptCards();
   }
 
   // ── DATUM DEFINITION MODE ──
 
   function startDatumDef() {
-    datumDefIndex = 0;
-    document.getElementById('scorEmptyState').style.display   = 'none';
-    document.getElementById('scorScoringView').style.display  = '';
+    datumDefActive   = true;
+    scoringConceptId = null; // clear any previously open concept so the datum card gets the inline view
+    datumDefIndex    = 0;
+    document.getElementById('scorEmptyState').style.display = 'none';
+    // renderConceptCards positions the scoring view inline after the datum card
+    renderConceptCards();
     renderDatumDefView();
+    setTimeout(() => {
+      const sv = document.getElementById('scorScoringView');
+      if (sv) sv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   }
 
   function exitDatumDef() {
     saveDatumField(); // persist any unsaved input before leaving
-    document.getElementById('scorScoringView').style.display = 'none';
+    datumDefActive = false;
     const datumDefView = document.getElementById('scorDatumDefView');
     const reqView      = document.getElementById('scorReqView');
     if (datumDefView) datumDefView.style.display = 'none';
     if (reqView)      reqView.style.display      = 'none';
+    // renderConceptCards moves the scoring view back to its parked (hidden) position
     renderConceptCards();
     renderPughMatrix();
   }
@@ -3795,6 +3809,32 @@ ${sections}
     if (newIdx >= reqs.length) { saveConceptPerf(); saveConceptNote(); exitScoringView(); return; }
     scoringReqIndex = newIdx;
     renderScoringView();
+  }
+
+  // Jump to the next concept while staying on the same requirement index.
+  // Respects scorerFilter — the filtered req list is the same set across all concepts.
+  function scoringNavConcept() {
+    if (!scoringConceptId) return;
+    saveConceptPerf();
+    saveConceptNote();
+    const nonDatumConcepts = pughConcepts.slice(1);
+    if (nonDatumConcepts.length < 2) return;
+    const currentIdx  = nonDatumConcepts.findIndex(c => c.id === scoringConceptId);
+    const nextIdx     = (currentIdx + 1) % nonDatumConcepts.length; // wraps around
+    const nextConcept = nonDatumConcepts[nextIdx];
+    if (!nextConcept) return;
+    scoringConceptId = nextConcept.id;
+    // Keep scoringReqIndex but clamp if filtered list is shorter for this concept
+    const filteredReqs = getFilteredReqs();
+    if (scoringReqIndex >= filteredReqs.length) {
+      scoringReqIndex = Math.max(0, filteredReqs.length - 1);
+    }
+    renderConceptCards(); // repositions the inline scoring view to the new concept's card
+    renderScoringView();
+    setTimeout(() => {
+      const sv = document.getElementById('scorScoringView');
+      if (sv) sv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   }
 
   function setScore(score) {

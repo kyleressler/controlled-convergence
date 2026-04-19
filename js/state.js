@@ -64,6 +64,7 @@ let conceptNotes = {};          // { 'conceptId_reqId': 'text' }
 let conceptCustomFields = [];   // [{ id, name, type }] — project-level custom fields
 let _cfIdCounter = 0;           // auto-increment for custom field IDs
 let scorerFilter = '';          // '' = all; otherwise stakeholder ID to filter by
+let datumDefActive = false;     // true while datum definition panel is open inline
 let _scorePopupConcept = null;
 let _scorePopupReq = null;
 let pughAdvBackup = {};
