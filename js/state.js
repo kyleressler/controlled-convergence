@@ -51,7 +51,8 @@ const _completedPages = new Set();
 // ── Pugh / Scoring ───────────────────────────────────────────
 let pughConcepts = [];
 let pughScores = {};
-let pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+let pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+let pughCollapsedIlities = new Set(); // tracks which ility IDs (and '__ungrouped__') are collapsed in the Pugh Matrix
 let pughConceptCounter = 0;
 let scoringConceptId = null;
 let scoringReqIndex = 0;

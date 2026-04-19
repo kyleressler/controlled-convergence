@@ -2186,7 +2186,64 @@ body.theme-engineering .sidebar-brand {
     .pugh-ility-header-row td {
       background: var(--accent-light);
       color: var(--accent); font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 12px;
+      text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 8px;
+    }
+
+    /* ── Collapsible ility categories ── */
+    .pugh-tri-btn {
+      background: none; border: none; padding: 0 4px 0 0; margin: 0;
+      cursor: pointer; line-height: 1; display: inline-flex; align-items: center;
+      vertical-align: middle;
+    }
+    .pugh-tri-btn:focus { outline: none; }
+    .pugh-tri {
+      display: inline-block;
+      font-size: 9px;
+      color: inherit;
+      transform: rotate(90deg);       /* ▶ rotated 90° = pointing down (expanded) */
+      transition: transform 0.18s ease;
+      line-height: 1;
+    }
+    .pugh-tri.tri-collapsed {
+      transform: rotate(0deg);         /* ▶ pointing right = collapsed */
+    }
+
+    /* ── Requirement header cell (A1) with controls ── */
+    .pugh-req-header-cell {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted);
+      padding-bottom: 26px !important; position: relative;
+    }
+    .pugh-req-header-text { display: block; }
+    .pugh-header-controls {
+      position: absolute; bottom: 4px; left: 6px; right: 6px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .pugh-collapse-all-btn {
+      color: var(--text-muted); opacity: 0.75;
+    }
+    .pugh-collapse-all-btn:hover { opacity: 1; }
+
+    /* ── Freeze top row toggle ── */
+    .pugh-freeze-label {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted);
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    .pugh-freeze-label input[type="checkbox"] { margin: 0; cursor: pointer; accent-color: var(--accent); }
+
+    /* ── Freeze active: table wrapper becomes a scrolling viewport ── */
+    .pugh-matrix-wrap.pugh-freeze-active {
+      max-height: calc(100vh - 220px);
+      overflow-y: auto;
+    }
+    .pugh-matrix-wrap.pugh-freeze-active thead th {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: var(--surface);
+      box-shadow: 0 1px 0 var(--border);
     }
 
     .pugh-concept-th {
@@ -2286,7 +2343,12 @@ body.theme-engineering .sidebar-brand {
     }
     #pughConceptChart,
     #qsConceptChart {
-      height: 300px;
+      height: 33vh;
+      width: 100%;
+    }
+    .pugh-chart-wrap {
+      position: relative;
+      height: 33vh;
       width: 100%;
     }
 

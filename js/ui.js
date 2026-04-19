@@ -1242,25 +1242,44 @@
       const isDatum = i === 0;
       return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</th>`;
     }).join('');
+    // Determine collapse-all triangle state for cell A1
+    const totalCols = pughConcepts.length + 1 + (showMASCol ? 1 : 0);
+    const activeIlityIds = ilityOrder.filter(il => reqsByIlity[il.id] && reqsByIlity[il.id].length > 0).map(il => il.id);
+    if (ungroupedReqs.length > 0) activeIlityIds.push('__ungrouped__');
+    const hasGroups = activeIlityIds.length > 0;
+    const allGroupsCollapsed = hasGroups && activeIlityIds.every(id => pughCollapsedIlities.has(id));
+    const collapseAllHtml = hasGroups
+      ? `<button class="pugh-tri-btn pugh-collapse-all-btn" onclick="togglePughAllCategories()" title="${allGroupsCollapsed ? 'Expand all' : 'Collapse all'}"><span class="pugh-tri${allGroupsCollapsed ? ' tri-collapsed' : ''}">▶</span></button>`
+      : '';
+    const freezeHtml = `<label class="pugh-freeze-label"><input type="checkbox" ${pughSettings.freezeTopRow ? 'checked' : ''} onchange="togglePughFreezeRow(this)"> Freeze top row</label>`;
+
     let html = colGroup + `<thead><tr>
-      <th class="pugh-req-col" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Requirement</th>
+      <th class="pugh-req-col pugh-req-header-cell">
+        <span class="pugh-req-header-text">Requirement</span>
+        <div class="pugh-header-controls">${collapseAllHtml}${freezeHtml}</div>
+      </th>
       ${masHeader}${thCols}
     </tr></thead><tbody>`;
 
+    // Apply / remove freeze class on the wrapper
+    const _tw = document.getElementById('pughTableWrap');
+    if (_tw) _tw.classList.toggle('pugh-freeze-active', !!pughSettings.freezeTopRow);
+
     // Rows by ility
-    const totalCols = pughConcepts.length + 1 + (showMASCol ? 1 : 0);
     ilityOrder.forEach(il => {
       const reqs = reqsByIlity[il.id];
       if (!reqs || reqs.length === 0) return;
       const w = window._pairWeights?.[il.id];
       const wStr = isWeightedMode ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
-      html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}">${il.name}${wStr}</td></tr>`;
-      reqs.forEach(req => html += pughReqRow(req, showMASCol));
+      const isCollapsed = pughCollapsedIlities.has(il.id);
+      html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('${il.id}')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>${il.name}${wStr}</td></tr>`;
+      if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol));
     });
 
     if (ungroupedReqs.length > 0) {
-      html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}">Other</td></tr>`;
-      ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol));
+      const isCollapsed = pughCollapsedIlities.has('__ungrouped__');
+      html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('__ungrouped__')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>Other</td></tr>`;
+      if (!isCollapsed) ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol));
     }
 
     // Summary rows

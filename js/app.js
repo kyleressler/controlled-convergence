@@ -864,7 +864,8 @@
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
-    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+    pughCollapsedIlities = new Set();
     const mCb = document.getElementById('toggleMTHUS');
     const masCb = document.getElementById('toggleMAS');
     if (mCb)   mCb.checked   = false;
@@ -1666,7 +1667,8 @@ ${sections}
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
-    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+    pughCollapsedIlities = new Set();
     goalMode = 'basic';
 
     // Clear goal fields
@@ -3480,7 +3482,8 @@ ${sections}
   // ── PUGH / SCOR STATE ──
   pughConcepts = [];   // [{id, name, customFieldValues}] — index 0 is always the Datum
   pughScores   = {};   // key: `${conceptId}_${reqId}` → '+' | '0' | '-' | number
-  pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+  pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+  pughCollapsedIlities = new Set();
   pughConceptCounter = 0;
   scoringConceptId   = null;
   scoringReqIndex    = 0;
@@ -4032,6 +4035,41 @@ ${sections}
   function togglePughMAS(cb) {
     if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }
     pughSettings.showMAS = cb.checked; renderPughMatrix();
+  }
+
+  // ── PUGH: FREEZE TOP ROW ──
+  function togglePughFreezeRow(cb) {
+    pughSettings.freezeTopRow = cb.checked;
+    renderPughMatrix();
+  }
+
+  // ── PUGH: COLLAPSIBLE ILITY CATEGORIES ──
+  function togglePughIlityCollapse(ilityId) {
+    if (pughCollapsedIlities.has(ilityId)) {
+      pughCollapsedIlities.delete(ilityId);
+    } else {
+      pughCollapsedIlities.add(ilityId);
+    }
+    renderPughMatrix();
+  }
+
+  function togglePughAllCategories() {
+    const ilityOrder = [...ILITIES, ...(typeof customIlities !== 'undefined' ? customIlities : [])]
+      .filter(il => selectedIlities.has(il.id));
+    const reqsByIlity = {};
+    requirements.forEach(r => {
+      if (!reqsByIlity[r.primary]) reqsByIlity[r.primary] = [];
+      reqsByIlity[r.primary].push(r);
+    });
+    const activeIlities = ilityOrder.filter(il => reqsByIlity[il.id] && reqsByIlity[il.id].length > 0);
+    const hasUngrouped = requirements.some(r => !selectedIlities.has(r.primary));
+    const allIds = activeIlities.map(il => il.id);
+    if (hasUngrouped) allIds.push('__ungrouped__');
+    if (allIds.length === 0) return;
+    const allCollapsed = allIds.every(id => pughCollapsedIlities.has(id));
+    pughCollapsedIlities.clear();
+    if (!allCollapsed) allIds.forEach(id => pughCollapsedIlities.add(id));
+    renderPughMatrix();
   }
 
   // ── PUGH: MTHUS / MTHUWS CALCULATION ──
