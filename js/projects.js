@@ -128,6 +128,14 @@ function snapshotCurrentState(existingProject) {
     conceptCustomFields: (typeof conceptCustomFields !== 'undefined' ? conceptCustomFields : []).slice(),
     scorerFilter:     (typeof scorerFilter !== 'undefined') ? scorerFilter : '',
     pairMode:         (typeof pairMode     !== 'undefined') ? pairMode     : 'nonweighted',
+    convergence: {
+      selectedConceptId: convSelectedConceptId,
+      rationale:         convRationale,
+      lessons:           Object.assign({}, convLessons),
+      risks:             convRisks,
+      nextSteps:         convNextSteps.slice(),
+      closedAt:          convClosedAt
+    },
     updated_at:       new Date().toISOString()
   };
 }
@@ -193,4 +201,17 @@ function restoreProjectState(project) {
   }, 0);
   scorerFilter        = project.scorerFilter || '';
   if (typeof pairMode !== 'undefined') pairMode = project.pairMode || 'nonweighted';
+
+  // Convergence Summary
+  const cv              = project.convergence || {};
+  convSelectedConceptId = cv.selectedConceptId || '';
+  convRationale         = cv.rationale         || '';
+  convLessons           = Object.assign({ req: '', concepts: '', assumption: '', different: '' }, cv.lessons || {});
+  convRisks             = cv.risks             || '';
+  convNextSteps         = (cv.nextSteps        || []).slice();
+  convClosedAt          = cv.closedAt          || null;
+  _convNSCounter        = convNextSteps.reduce((max, s) => {
+    const n = parseInt(String(s.id).replace('ns', ''), 10) || 0;
+    return Math.max(max, n);
+  }, 0);
 }

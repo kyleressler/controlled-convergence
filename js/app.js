@@ -1508,6 +1508,10 @@ ${sections}
       // Auto-focus the TO field
       setTimeout(() => { if (toEl) toEl.focus(); }, 50);
     }
+
+    // If the user is currently on the Convergence Summary page, re-render it
+    // so the goal section switches live without requiring a page re-visit.
+    if (_currentPage === 'conv') renderConvPage();
   }
 
   function onGoalBasicInput() {
@@ -2112,6 +2116,7 @@ ${sections}
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
     if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
+    if (pageId === 'conv') { renderConvPage(); }
     if (pageId === 'pugh') {
       renderPughMatrix();
       updatePughAccountToggles();
@@ -3573,6 +3578,206 @@ ${sections}
 
     renderQSLists(); // also populates qsBaselineName from pughConcepts[0]
     renderQSMatrix();
+  }
+
+  // ── CONVERGENCE SUMMARY ──────────────────────────────────────
+
+  function renderConvPage() {
+    const isStructured = goalMode === 'structured';
+    const basicSection  = document.getElementById('convGoalBasicSection');
+    const structSection = document.getElementById('convGoalStructuredSection');
+    if (basicSection)  basicSection.style.display  = isStructured ? 'none' : '';
+    if (structSection) structSection.style.display = isStructured ? ''     : 'none';
+
+    if (isStructured) {
+      // Populate read-only TO / BY / WHILE displays
+      const toVal    = document.getElementById('input-to')?.value    || '';
+      const byVal    = document.getElementById('input-by')?.value    || '';
+      const whileVal = document.getElementById('input-while')?.value || '';
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setText('convToDisplay',    toVal);
+      setText('convByDisplay',    byVal);
+      setText('convWhileDisplay', whileVal);
+
+      // Populate concept dropdown and restore saved values
+      populateConvDropdown('convConceptDropdownStructured');
+      const ratEl = document.getElementById('convRationaleStructured');
+      if (ratEl) ratEl.value = convRationale;
+
+    } else {
+      // Populate basic goal display
+      const basicVal  = document.getElementById('input-goal-basic')?.value || '';
+      const displayEl = document.getElementById('convGoalBasicDisplay');
+      if (displayEl) displayEl.textContent = basicVal;
+
+      // Populate concept dropdown and restore saved values
+      populateConvDropdown('convConceptDropdownBasic');
+      const ratEl = document.getElementById('convRationaleBasic');
+      if (ratEl) ratEl.value = convRationale;
+    }
+
+    // Lessons Learned
+    const lf = (id, key) => { const el = document.getElementById(id); if (el) el.value = convLessons[key] || ''; };
+    lf('convLessonReq',        'req');
+    lf('convLessonConcepts',   'concepts');
+    lf('convLessonAssumption', 'assumption');
+    lf('convLessonDifferent',  'different');
+
+    // Open Risks
+    const risksEl = document.getElementById('convRisksField');
+    if (risksEl) risksEl.value = convRisks;
+
+    // Next Steps
+    renderConvNextSteps();
+
+    // Closed status
+    updateConvClosedStatus();
+  }
+
+  function populateConvDropdown(dropdownId) {
+    const sel = document.getElementById(dropdownId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Select chosen concept —</option>';
+    if (!pughConcepts.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.disabled = true;
+      opt.textContent = 'No concepts scored yet';
+      sel.appendChild(opt);
+      return;
+    }
+    pughConcepts.forEach((c, i) => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + (i === 0 ? ' (Datum / Baseline)' : '');
+      sel.appendChild(opt);
+    });
+    if (convSelectedConceptId) sel.value = convSelectedConceptId;
+  }
+
+  function onConvConceptChange() {
+    const isStructured = goalMode === 'structured';
+    const dropId  = isStructured ? 'convConceptDropdownStructured' : 'convConceptDropdownBasic';
+    const otherId = isStructured ? 'convConceptDropdownBasic'      : 'convConceptDropdownStructured';
+    const sel = document.getElementById(dropId);
+    convSelectedConceptId = sel ? sel.value : '';
+    // Keep both dropdowns in sync
+    const other = document.getElementById(otherId);
+    if (other) other.value = convSelectedConceptId;
+    convAutoSave();
+  }
+
+  function onConvRationaleInput() {
+    const isStructured = goalMode === 'structured';
+    const ratId = isStructured ? 'convRationaleStructured' : 'convRationaleBasic';
+    const el = document.getElementById(ratId);
+    convRationale = el ? el.value : '';
+    convAutoSave();
+  }
+
+  function onConvSave() {
+    const lv = (id) => document.getElementById(id)?.value || '';
+    convLessons.req        = lv('convLessonReq');
+    convLessons.concepts   = lv('convLessonConcepts');
+    convLessons.assumption = lv('convLessonAssumption');
+    convLessons.different  = lv('convLessonDifferent');
+    convRisks = lv('convRisksField');
+    convAutoSave();
+  }
+
+  function convAutoSave() {
+    if (!activeProject) return;
+    const snap = snapshotCurrentState(activeProject);
+    saveProject(snap).catch(err => console.warn('[conv-save] failed', err));
+  }
+
+  function renderConvNextSteps() {
+    const container = document.getElementById('convNextStepsList');
+    if (!container) return;
+
+    if (!convNextSteps.length) {
+      container.innerHTML = '<div style="font-size:13px;color:var(--text-light);padding:0 0 12px;font-style:italic">No next steps added yet.</div>';
+      return;
+    }
+
+    const esc = (s) => escHtml(s || '');
+    let html = `
+      <div class="conv-ns-header">
+        <div class="conv-ns-col-what">What</div>
+        <div class="conv-ns-col-who">Who</div>
+        <div class="conv-ns-col-when">By When</div>
+        <div class="conv-ns-col-del"></div>
+      </div>`;
+
+    convNextSteps.forEach(step => {
+      html += `
+        <div class="conv-ns-row" id="conv-ns-row-${step.id}">
+          <div class="conv-ns-col-what">
+            <input type="text" class="modal-input" placeholder="Action item"
+              value="${esc(step.what)}"
+              oninput="updateConvNextStep('${step.id}','what',this.value)">
+          </div>
+          <div class="conv-ns-col-who">
+            <input type="text" class="modal-input" placeholder="Owner"
+              value="${esc(step.who)}"
+              oninput="updateConvNextStep('${step.id}','who',this.value)">
+          </div>
+          <div class="conv-ns-col-when">
+            <input type="text" class="modal-input" placeholder="Date or milestone"
+              value="${esc(step.when)}"
+              oninput="updateConvNextStep('${step.id}','when',this.value)">
+          </div>
+          <div class="conv-ns-col-del">
+            <button class="btn btn-ghost" onclick="removeConvNextStep('${step.id}')"
+              title="Remove" style="padding:4px 8px;color:var(--text-light)">✕</button>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function addConvNextStep() {
+    _convNSCounter++;
+    convNextSteps.push({ id: 'ns' + _convNSCounter, what: '', who: '', when: '' });
+    renderConvNextSteps();
+    // Focus the What field in the new row
+    const rows = document.querySelectorAll('.conv-ns-row');
+    const lastRow = rows[rows.length - 1];
+    if (lastRow) { const inp = lastRow.querySelector('input'); if (inp) inp.focus(); }
+  }
+
+  function removeConvNextStep(id) {
+    convNextSteps = convNextSteps.filter(s => s.id !== id);
+    renderConvNextSteps();
+    convAutoSave();
+  }
+
+  function updateConvNextStep(id, field, value) {
+    const step = convNextSteps.find(s => s.id === id);
+    if (step) { step[field] = value; convAutoSave(); }
+  }
+
+  function closeConvProject() {
+    convClosedAt = new Date().toISOString();
+    updateConvClosedStatus();
+    convAutoSave();
+  }
+
+  function updateConvClosedStatus() {
+    const statusEl = document.getElementById('convClosedStatus');
+    const btn      = document.getElementById('convCloseBtn');
+    if (!statusEl) return;
+    if (convClosedAt) {
+      const d = new Date(convClosedAt);
+      const fmt = d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+                + ' ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      statusEl.innerHTML = `<div class="conv-closed-badge">✓ Convergence logged: ${fmt}</div>`;
+      if (btn) btn.textContent = '✎ Update Convergence Date';
+    } else {
+      statusEl.innerHTML = '';
+      if (btn) btn.textContent = '✓ Log Convergence Date';
+    }
   }
 
   // ── Mode switching ──

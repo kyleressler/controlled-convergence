@@ -250,4 +250,31 @@ const SIDEBAR_CONTENT = {
     },
   ],
 
+  conv: [
+    {
+      title: "What Is Convergence?",
+      body: ""
+    },
+    {
+      title: "Why the Highest Score Doesn't Always Win",
+      body: ""
+    },
+    {
+      title: "Completing the USING Statement",
+      body: ""
+    },
+    {
+      title: "Writing Good Lessons Learned",
+      body: ""
+    },
+    {
+      title: "Worked Example: Vantex One",
+      body: ""
+    },
+    {
+      title: "What Comes Next After Convergence",
+      body: ""
+    },
+  ],
+
 };

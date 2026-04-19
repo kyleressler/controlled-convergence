@@ -39,7 +39,7 @@
       <button class="nav-tool" data-page="pair"         onclick="switchPage('pair',this);closeNavDropdown()">Weighting</button>
       <button class="nav-tool" data-page="scor"         onclick="switchPage('scor',this);closeNavDropdown()">Concept Scoring</button>
       <button class="nav-tool" data-page="pugh"         onclick="switchPage('pugh',this);closeNavDropdown()">Pugh Matrix</button>
-      <button class="nav-tool"                          onclick="closeNavDropdown()">Convergence Summary</button>
+      <button class="nav-tool" data-page="conv"          onclick="switchPage('conv',this);closeNavDropdown()">Convergence Summary</button>
     </div>
   </div>
 
@@ -1197,7 +1197,7 @@
     <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
       ← Return to Concept Scoring
     </button>
-    <button class="btn btn-continue" id="btnPughContinue" onclick="alert('Convergence coming in the next build.')">
+    <button class="btn btn-continue" id="btnPughContinue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
       Continue to Convergence Summary →
     </button>
   </div>
@@ -1210,6 +1210,159 @@
     <div class="advisor-body" id="pughAdvisorBody">
       <p>AI Coaching Coming Soon...</p>
     </div>
+  </div>
+
+</main>
+
+
+<!-- ── CONVERGENCE SUMMARY PAGE ── -->
+<main class="main page" id="page-conv" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Convergence Summary <button class="info-icon" onclick="openSidebarToSlide('conv', 0)" title="What is Convergence?">ⓘ</button></div>
+    <div class="page-subtitle">Record your chosen concept, complete your lessons learned, identify any open risks or assumptions, assign next steps, and log your convergence date.</div>
+  </div>
+
+  <!-- ── BASIC GOAL MODE ────────────────────────────────────── -->
+  <div id="convGoalBasicSection">
+    <div class="conv-section-label" style="margin-top:0">Goal Statement</div>
+    <div class="statement-card">
+      <div class="conv-goal-display" id="convGoalBasicDisplay"></div>
+    </div>
+
+    <div class="conv-section-label">Chosen Solution</div>
+    <div class="statement-card">
+      <div style="padding:20px">
+        <div class="req-form-label" style="margin-bottom:8px">Which concept did you choose?</div>
+        <select class="req-select" id="convConceptDropdownBasic" onchange="onConvConceptChange()" style="margin-bottom:16px">
+          <option value="">— Select chosen concept —</option>
+        </select>
+        <div class="req-form-label" style="margin-bottom:8px">Why did you choose this concept?</div>
+        <textarea class="req-text-input" id="convRationaleBasic" rows="3" style="margin-bottom:0"
+          placeholder="Explain your decision. Consider factors beyond the matrix score — cost, feasibility, team capability, stakeholder preference, or constraints that weren't fully captured in requirements."
+          oninput="onConvRationaleInput()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STRUCTURED (To · By · Using · While) MODE ─────────── -->
+  <div id="convGoalStructuredSection" style="display:none">
+    <div class="conv-section-label" style="margin-top:0">Goal Statement</div>
+    <div class="statement-card">
+
+      <!-- TO (read-only) -->
+      <div class="statement-part" id="convPartTo">
+        <div class="part-label-wrap">
+          <span class="part-keyword to-kw">TO</span>
+          <span class="part-hint">Solution-neutral intent</span>
+        </div>
+        <div class="conv-readonly-text" id="convToDisplay"></div>
+      </div>
+
+      <!-- BY (read-only) -->
+      <div class="statement-part" id="convPartBy">
+        <div class="part-label-wrap">
+          <span class="part-keyword by-kw">BY</span>
+          <span class="part-hint">Method or approach</span>
+        </div>
+        <div class="conv-readonly-text" id="convByDisplay"></div>
+      </div>
+
+      <!-- USING (active — the convergence moment) -->
+      <div class="statement-part conv-using-active" id="convPartUsing">
+        <div class="part-label-wrap">
+          <span class="part-keyword using-kw">USING</span>
+          <span class="part-hint">Converged solution — complete here</span>
+        </div>
+        <div style="flex:1;padding:14px 20px 16px 12px;display:flex;flex-direction:column;gap:10px">
+          <select class="req-select" id="convConceptDropdownStructured" onchange="onConvConceptChange()">
+            <option value="">— Select chosen concept —</option>
+          </select>
+          <textarea class="req-text-input" id="convRationaleStructured" rows="3" style="margin-bottom:0"
+            placeholder="Describe the chosen solution — the specific form, technology, or approach. This completes your USING statement. Explain why this concept was selected over the alternatives."
+            oninput="onConvRationaleInput()"></textarea>
+        </div>
+      </div>
+
+      <!-- WHILE (read-only) -->
+      <div class="statement-part" id="convPartWhile" style="border-bottom:none">
+        <div class="part-label-wrap">
+          <span class="part-keyword while-kw">WHILE</span>
+          <span class="part-hint">Constraint or condition</span>
+        </div>
+        <div class="conv-readonly-text" id="convWhileDisplay"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── LESSONS LEARNED ───────────────────────────────────── -->
+  <div class="conv-section-label">Lessons Learned</div>
+  <div class="statement-card">
+
+    <div class="conv-lesson-part">
+      <div class="conv-lesson-prompt">What did you discover about your requirements that you didn't expect?</div>
+      <textarea class="req-text-input" id="convLessonReq" rows="2" style="margin-bottom:0"
+        placeholder="Consider: gaps in coverage, ility imbalances, requirements that proved hard to score, or stakeholders whose needs were underrepresented."
+        oninput="onConvSave()"></textarea>
+    </div>
+
+    <div class="conv-lesson-part">
+      <div class="conv-lesson-prompt">What concepts did you not explore that you wish you had?</div>
+      <textarea class="req-text-input" id="convLessonConcepts" rows="2" style="margin-bottom:0"
+        placeholder="What alternatives were never generated or scored? What ideas were dismissed too early?"
+        oninput="onConvSave()"></textarea>
+    </div>
+
+    <div class="conv-lesson-part">
+      <div class="conv-lesson-prompt">What assumption going in turned out to be wrong?</div>
+      <textarea class="req-text-input" id="convLessonAssumption" rows="2" style="margin-bottom:0"
+        placeholder="What did you believe at the start of this project that the process revealed to be incorrect or incomplete?"
+        oninput="onConvSave()"></textarea>
+    </div>
+
+    <div class="conv-lesson-part" style="border-bottom:none">
+      <div class="conv-lesson-prompt">What would you do differently next time?</div>
+      <textarea class="req-text-input" id="convLessonDifferent" rows="2" style="margin-bottom:0"
+        placeholder="If you ran this process again with the same team and brief, what would you change?"
+        oninput="onConvSave()"></textarea>
+    </div>
+
+  </div>
+
+  <!-- ── OPEN RISKS & ASSUMPTIONS ──────────────────────────── -->
+  <div class="conv-section-label">Open Risks &amp; Assumptions</div>
+  <div class="statement-card">
+    <div style="padding:20px">
+      <div class="req-form-label" style="margin-bottom:8px">What open risks or unvalidated assumptions remain with the chosen concept?</div>
+      <textarea class="req-text-input" id="convRisksField" rows="3" style="margin-bottom:0"
+        placeholder="What is still uncertain? What would need to be true for this concept to succeed? What could eliminate it at the next stage of development?"
+        oninput="onConvSave()"></textarea>
+    </div>
+  </div>
+
+  <!-- ── NEXT STEPS ─────────────────────────────────────────── -->
+  <div class="conv-section-label">Next Steps</div>
+  <div class="statement-card">
+    <div style="padding:20px">
+      <div id="convNextStepsList"></div>
+      <button class="btn btn-secondary" onclick="addConvNextStep()" style="font-size:12px;margin-top:4px">+ Add Next Step</button>
+    </div>
+  </div>
+
+  <!-- ── LOG CONVERGENCE DATE ───────────────────────────────── -->
+  <div class="conv-close-zone">
+    <div id="convClosedStatus"></div>
+    <button class="btn conv-close-btn" id="convCloseBtn" onclick="closeConvProject()">
+      ✓ Log Convergence Date
+    </button>
+  </div>
+
+  <!-- Navigation -->
+  <div class="continue-btn-wrap" style="margin-top:16px">
+    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      ← Return to Pugh Matrix
+    </button>
   </div>
 
 </main>

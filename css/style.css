@@ -218,11 +218,17 @@
     .nav-tools-trigger.open  { background: var(--bg); color: var(--text); }
     .nav-tools-trigger.has-active { background: var(--accent-light); color: var(--accent); }
     .nav-chevron { font-size: 10px; transition: transform 0.15s; pointer-events: none; }
-    .nav-tools-trigger.open .nav-chevron { transform: rotate(180deg); }
+    .nav-tools-trigger.open .nav-chevron,
+    .nav-tools-dropdown:hover .nav-chevron { transform: rotate(180deg); }
     .nav-tools-menu {
-      display: none;
+      /* Use visibility/opacity instead of display so we can delay the close */
+      display: flex;
+      flex-direction: column;
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
       position: absolute;
-      top: calc(100% + 6px);
+      top: 100%;          /* flush to trigger — no dead-zone gap */
       left: 0;
       min-width: 240px;
       background: var(--surface);
@@ -230,10 +236,19 @@
       border-radius: 10px;
       box-shadow: 0 6px 24px rgba(0,0,0,0.15);
       z-index: 300;
-      padding: 6px;
-      flex-direction: column;
+      padding: 10px 6px 6px; /* top padding replaces the old 6px gap */
+      /* Open instantly, close after a 220ms pause so stray mouse movements forgiven */
+      transition: opacity 0.12s ease, visibility 0.12s ease;
+      transition-delay: 0.22s;
     }
-    .nav-tools-menu.open { display: flex; }
+    .nav-tools-menu.open,
+    .nav-tools-dropdown:hover .nav-tools-menu {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: all;
+      transition-delay: 0s; /* snap open immediately */
+    }
+    .nav-tools-dropdown:hover .nav-tools-trigger { background: var(--bg); color: var(--text); }
     .nav-tools-menu .nav-tool {
       width: 100%;
       text-align: left;
@@ -402,13 +417,18 @@
     .sidebar-tab:hover { color: var(--text); }
 
     .sidebar-content {
-      padding: 56px 16px 16px;
+      padding: 56px 16px 24px;
       width: var(--sidebar-w);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.15s ease;
     }
-    .sidebar-left.open .sidebar-content { opacity: 1; pointer-events: all; }
+    .sidebar-left.open .sidebar-content {
+      opacity: 1;
+      pointer-events: all;
+      overflow-y: auto;
+      height: 100%;
+    }
 
     .sidebar-label {
       font-size: 10px;
@@ -514,7 +534,12 @@
       overflow: hidden;
     }
     .sidebar-right.open { width: var(--right-sidebar-w); }
-    .sidebar-right.open .sidebar-content { opacity: 1; pointer-events: all; }
+    .sidebar-right.open .sidebar-content {
+      opacity: 1;
+      pointer-events: all;
+      overflow-y: auto;
+      height: 100%;
+    }
 
     .sidebar-right .sidebar-tab {
       left: 0; right: auto;
@@ -2584,4 +2609,118 @@ body.theme-engineering .sidebar-brand {
     @media (max-width: 700px) {
       .qs-top-grid  { grid-template-columns: 1fr; }
       .qs-lists-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── CONVERGENCE SUMMARY ─────────────────────────────────── */
+    .conv-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      margin-top: 28px;
+    }
+    .conv-section-label:first-child { margin-top: 0; }
+
+    /* Read-only goal display — basic mode */
+    .conv-goal-display {
+      padding: 20px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+      min-height: 48px;
+    }
+
+    /* Read-only text inside statement-part rows — structured mode */
+    .conv-readonly-text {
+      display: block;
+      flex: 1;
+      padding: 18px 20px 18px 12px;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      min-height: 52px;
+    }
+    .conv-readonly-text:empty::after {
+      content: 'Not provided';
+      color: var(--text-light);
+      font-style: italic;
+    }
+
+    /* USING row highlight — this is the active convergence moment */
+    .conv-using-active { background: rgba(16, 185, 129, 0.05); }
+
+    /* Lessons Learned rows */
+    .conv-lesson-part {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .conv-lesson-part:last-child { border-bottom: none; }
+
+    .conv-lesson-prompt {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* Next Steps grid */
+    .conv-ns-header {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      padding: 0 2px;
+    }
+    .conv-ns-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .conv-ns-col-what { flex: 3; min-width: 0; }
+    .conv-ns-col-who  { flex: 2; min-width: 0; }
+    .conv-ns-col-when { flex: 2; min-width: 0; }
+    .conv-ns-col-del  { flex-shrink: 0; width: 36px; }
+    @media (max-width: 600px) {
+      .conv-ns-header { display: none; }
+      .conv-ns-row { flex-wrap: wrap; }
+      .conv-ns-col-what, .conv-ns-col-who, .conv-ns-col-when { flex: 1 1 100%; }
+    }
+
+    /* Close / Log Date zone */
+    .conv-close-zone {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 16px;
+      margin-top: 32px;
+      padding: 24px 0 8px;
+      border-top: 2px solid var(--border);
+    }
+    .conv-close-btn {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .conv-close-btn:hover { background: var(--accent-hover); }
+
+    .conv-closed-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+      background: var(--success-light);
+      border: 1px solid var(--success-border);
+      padding: 6px 14px;
+      border-radius: 6px;
     }

@@ -70,6 +70,15 @@ let pughAdvBackup = {};
 let appMode = 'full'; // 'full' | 'basic'
 let _lastFullPage = 'home';
 
+// ── Convergence Summary ───────────────────────────────────────
+let convSelectedConceptId = '';
+let convRationale         = '';
+let convLessons           = { req: '', concepts: '', assumption: '', different: '' };
+let convRisks             = '';
+let convNextSteps         = [];   // [{ id, what, who, when }]
+let convClosedAt          = null;
+let _convNSCounter        = 0;
+
 // ── Central state object (Supabase-ready shape) ───────────────
 // currentUser: populated by auth.js on login
 // currentProject / projects: synced with api.js
