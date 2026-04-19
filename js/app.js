@@ -441,6 +441,14 @@
         datumPerformance: datumPerformance,
         conceptPerformance: conceptPerformance,
       },
+      convergence: {
+        selectedConceptId: convSelectedConceptId,
+        rationale:         convRationale,
+        lessons:           Object.assign({}, convLessons),
+        risks:             convRisks,
+        nextSteps:         convNextSteps.slice(),
+        closedAt:          convClosedAt
+      },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -451,6 +459,173 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  function exportToXlsx() {
+    if (typeof XLSX === 'undefined') {
+      alert('Excel export library not loaded. Please refresh and try again.');
+      return;
+    }
+
+    const wb       = XLSX.utils.book_new();
+    const projName = activeProject?.name || 'Untitled Project';
+    const setCols  = (ws, widths) => { ws['!cols'] = widths.map(w => ({ wch: w })); };
+
+    // ── Goal text ──────────────────────────────────────────────
+    let goalText = '';
+    if (goalMode === 'basic') {
+      goalText = document.getElementById('input-goal-basic')?.value || '';
+    } else {
+      const to    = document.getElementById('input-to')?.value    || '';
+      const by    = document.getElementById('input-by')?.value    || '';
+      const using = document.getElementById('input-using')?.value || '';
+      const while_ = document.getElementById('input-while')?.value || '';
+      goalText = [to && `TO: ${to}`, by && `BY: ${by}`, using && `USING: ${using}`, while_ && `WHILE: ${while_}`].filter(Boolean).join('\n');
+    }
+
+    const selectedConcept = pughConcepts.find(c => String(c.id) === String(convSelectedConceptId));
+    const nonDatum        = pughConcepts.slice(1);
+
+    // ── 1. SUMMARY ────────────────────────────────────────────
+    const wsSummary = XLSX.utils.aoa_to_sheet([
+      ['Controlled Convergence — Project Summary'],
+      [],
+      ['Project',                    projName],
+      ['Goal Statement',             goalText],
+      ['Goal Mode',                  goalMode === 'basic' ? 'Basic' : 'Structured (TO · BY · WHILE)'],
+      [],
+      ['Lifecycle Properties',       selectedIlities.size],
+      ['Stakeholders',               selectedStakeholders.size],
+      ['Requirements',               requirements.length],
+      ['Concepts Evaluated',         Math.max(0, pughConcepts.length - 1)],
+      [],
+      ['Selected Concept',           selectedConcept ? selectedConcept.name : '—'],
+      ['Convergence Date',           convClosedAt ? new Date(convClosedAt).toLocaleDateString() : '—'],
+      ['Export Date',                new Date().toLocaleDateString()],
+    ]);
+    setCols(wsSummary, [26, 80]);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+    // ── 2. LIFECYCLE PROPERTIES ───────────────────────────────
+    const ilityRows = [['Lifecycle Property', 'Type']];
+    [...selectedIlities].forEach(id => {
+      const isCustom = customIlities.some(i => (i.id || i.label) === id);
+      ilityRows.push([id, isCustom ? 'Custom' : 'Standard']);
+    });
+    const wsIlities = XLSX.utils.aoa_to_sheet(ilityRows);
+    setCols(wsIlities, [35, 12]);
+    XLSX.utils.book_append_sheet(wb, wsIlities, 'Lifecycle Properties');
+
+    // ── 3. STAKEHOLDERS ───────────────────────────────────────
+    const stakRows = [['Stakeholder', 'Type']];
+    [...selectedStakeholders].forEach(id => {
+      const isCustom = customStakeholders.some(s => (s.id || s.label) === id);
+      stakRows.push([id, isCustom ? 'Custom' : 'Standard']);
+    });
+    const wsStaks = XLSX.utils.aoa_to_sheet(stakRows);
+    setCols(wsStaks, [35, 12]);
+    XLSX.utils.book_append_sheet(wb, wsStaks, 'Stakeholders');
+
+    // ── 4. REQUIREMENTS ───────────────────────────────────────
+    const weights = window._pairWeights || {};
+    const reqRows = [['ID', 'Type', 'Requirement', 'Lifecycle Property', 'Stakeholder(s)', 'Scorer', 'LC Weight']];
+    requirements.forEach(r => {
+      const w = weights[r.primary];
+      reqRows.push([
+        r.id,
+        r.type || '—',
+        r.text || '',
+        r.primary || '—',
+        (r.stakeholders || []).join(', '),
+        r.scorer || r.stakeholders?.[0] || '—',
+        typeof w === 'number' ? +w.toFixed(3) : 'Equal',
+      ]);
+    });
+    const wsReqs = XLSX.utils.aoa_to_sheet(reqRows);
+    setCols(wsReqs, [6, 8, 60, 22, 25, 18, 10]);
+    XLSX.utils.book_append_sheet(wb, wsReqs, 'Requirements');
+
+    // ── 5. PAIRWISE WEIGHTS ───────────────────────────────────
+    const totalW    = Object.values(weights).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0) || 1;
+    const pairRows  = [['Lifecycle Property', 'Weight', 'Relative Weight (%)']];
+    if (Object.keys(weights).length === 0) {
+      pairRows.push(['(Equal weighting applied — no pairwise comparisons recorded)', '', '']);
+    } else {
+      Object.entries(weights).forEach(([ility, w]) => {
+        pairRows.push([ility, typeof w === 'number' ? +w.toFixed(3) : w, typeof w === 'number' ? +((w / totalW) * 100).toFixed(1) : '—']);
+      });
+    }
+    const wsPair = XLSX.utils.aoa_to_sheet(pairRows);
+    setCols(wsPair, [35, 10, 20]);
+    XLSX.utils.book_append_sheet(wb, wsPair, 'Pairwise Weights');
+
+    // ── 6. CONCEPT SCORING ────────────────────────────────────
+    const scoringHeader = ['Req ID', 'Requirement', 'Lifecycle Property', ...nonDatum.map(c => c.name)];
+    const scoringRows   = [scoringHeader];
+    requirements.forEach(r => {
+      const row = [r.id, r.text, r.primary];
+      nonDatum.forEach(c => {
+        const s = pughScores[c.id + '_' + r.id];
+        row.push(s === '+' ? '+' : s === '-' ? '-' : 'S');
+      });
+      scoringRows.push(row);
+    });
+    // Totals
+    const plusRow  = ['', '+ (Better than datum)', ''];
+    const minusRow = ['', '- (Worse than datum)',  ''];
+    const netRow   = ['', 'Utility Score',          ''];
+    nonDatum.forEach(c => {
+      let plus = 0, minus = 0;
+      requirements.forEach(r => {
+        const s = pughScores[c.id + '_' + r.id];
+        if (s === '+') plus++;
+        else if (s === '-') minus++;
+      });
+      plusRow.push(plus);
+      minusRow.push(minus);
+      netRow.push(plus - minus);
+    });
+    scoringRows.push([], plusRow, minusRow, netRow);
+    const wsScoring = XLSX.utils.aoa_to_sheet(scoringRows);
+    setCols(wsScoring, [6, 50, 22, ...nonDatum.map(() => 14)]);
+    XLSX.utils.book_append_sheet(wb, wsScoring, 'Concept Scoring');
+
+    // ── 7. CONVERGENCE ────────────────────────────────────────
+    const convData = [
+      ['Convergence Summary'],
+      [],
+      ['Selected Concept',  selectedConcept ? selectedConcept.name : '—'],
+      ['Convergence Date',  convClosedAt ? new Date(convClosedAt).toLocaleDateString() : '—'],
+      [],
+      ['Rationale'],
+      [convRationale || '—'],
+      [],
+      ['Lessons Learned — What requirements surprised you?'],
+      [convLessons.req || '—'],
+      [],
+      ['Lessons Learned — What did you learn about your concepts?'],
+      [convLessons.concepts || '—'],
+      [],
+      ['Lessons Learned — What assumption turned out to be wrong?'],
+      [convLessons.assumption || '—'],
+      [],
+      ['Lessons Learned — What would you do differently?'],
+      [convLessons.different || '—'],
+      [],
+      ['Open Risks & Mitigations'],
+      [convRisks || '—'],
+      [],
+      ['Next Steps', 'Owner', 'Due Date'],
+      ...convNextSteps.map(s => [s.what || '', s.who || '', s.when || '']),
+    ];
+    const wsConv = XLSX.utils.aoa_to_sheet(convData);
+    setCols(wsConv, [55, 20, 15]);
+    XLSX.utils.book_append_sheet(wb, wsConv, 'Convergence');
+
+    // ── DOWNLOAD ─────────────────────────────────────────────
+    const safeName = projName.replace(/[^a-z0-9]/gi, '_');
+    const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(wb, `${safeName}_${dateTag}.xlsx`);
   }
 
   function uploadProjectData() {
@@ -525,6 +700,19 @@
             renderConceptCards();
             renderPughMatrix();
           }
+          if (data.convergence) {
+            const cv = data.convergence;
+            convSelectedConceptId = cv.selectedConceptId || '';
+            convRationale         = cv.rationale         || '';
+            convLessons           = Object.assign({ req: '', concepts: '', assumption: '', different: '' }, cv.lessons || {});
+            convRisks             = cv.risks             || '';
+            convNextSteps         = (cv.nextSteps        || []).slice();
+            convClosedAt          = cv.closedAt          || null;
+            _convNSCounter        = convNextSteps.reduce((max, s) => {
+              const n = parseInt(String(s.id).replace('ns', ''), 10) || 0;
+              return Math.max(max, n);
+            }, 0);
+          }
           if (data.project) { activeProject = data.project; updateNavProjectName(); }
           if (typeof renderProjPage === 'function') renderProjPage();
           populateReqForms();
@@ -542,33 +730,171 @@
     document.body.removeChild(input);
   }
 
+  function loadExampleProject() {
+    // Detect if the current session has any meaningful data
+    const hasData = requirements.length > 0 ||
+                    pughConcepts.length > 0 ||
+                    selectedIlities.size > 0 ||
+                    selectedStakeholders.size > 0;
+    if (hasData) {
+      if (!confirm('Loading the example project will replace your current session data. Continue?')) return;
+    }
+
+    const data = CC_EXAMPLE_PROJECT;
+
+    // Restore goal statement
+    if (data.goalStatement) {
+      if (data.goalStatement.basic) {
+        const basicEl = document.getElementById('input-goal-basic');
+        if (basicEl) basicEl.value = data.goalStatement.basic;
+      }
+      ['to','by','using','while'].forEach(f => {
+        const el = document.getElementById('input-' + f);
+        if (el && data.goalStatement[f]) { el.value = data.goalStatement[f]; onInput(f); }
+      });
+    }
+    if (data.goalMode) {
+      goalMode = data.goalMode;
+      if (typeof switchGoalMode === 'function') switchGoalMode(goalMode);
+    }
+    if (data.ilities) {
+      if (data.ilities.custom)   customIlities    = data.ilities.custom;
+      if (data.ilities.selected) selectedIlities  = new Set(data.ilities.selected);
+      renderIlityGrid();
+    }
+    if (data.stakeholders) {
+      if (data.stakeholders.custom)    customStakeholders    = data.stakeholders.custom;
+      if (data.stakeholders.selected)  selectedStakeholders  = new Set(data.stakeholders.selected);
+      renderStakGrid();
+    }
+    if (data.requirements) {
+      requirements = data.requirements;
+      const storedCounter = data.reqIdCounter || 0;
+      const scannedMax = requirements.reduce((max, r) => {
+        if (typeof r.id === 'number') return Math.max(max, r.id);
+        if (typeof r.id === 'string' && r.id.startsWith('r')) {
+          const n = parseInt(r.id.slice(1), 10);
+          return isNaN(n) ? max : Math.max(max, n);
+        }
+        return max;
+      }, 0);
+      reqIdCounter = Math.max(storedCounter, scannedMax);
+      renderRequirements();
+    }
+    if (data.pairComparisons) pairComparisons = data.pairComparisons;
+    if (data.pugh) {
+      if (data.pugh.concepts)           pughConcepts        = data.pugh.concepts;
+      if (data.pugh.scores)             pughScores          = data.pugh.scores;
+      if (data.pugh.advBackup)          pughAdvBackup       = data.pugh.advBackup;
+      if (data.pugh.settings)           Object.assign(pughSettings, data.pugh.settings);
+      if (data.pugh.counter)            pughConceptCounter  = data.pugh.counter;
+      if (data.pugh.datumPerformance)   datumPerformance    = data.pugh.datumPerformance;
+      if (data.pugh.conceptPerformance) conceptPerformance  = data.pugh.conceptPerformance;
+      if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
+      const mCb   = document.getElementById('toggleMTHUS');
+      const masCb = document.getElementById('toggleMAS');
+      if (mCb)   mCb.checked   = pughSettings.showMTHUS;
+      if (masCb) masCb.checked = pughSettings.showMAS;
+      renderConceptCards();
+      renderPughMatrix();
+    }
+    if (data.convergence) {
+      const cv = data.convergence;
+      convSelectedConceptId = cv.selectedConceptId || '';
+      convRationale         = cv.rationale         || '';
+      convLessons           = Object.assign({ req: '', concepts: '', assumption: '', different: '' }, cv.lessons || {});
+      convRisks             = cv.risks             || '';
+      convNextSteps         = (cv.nextSteps        || []).slice();
+      convClosedAt          = cv.closedAt          || null;
+      _convNSCounter        = convNextSteps.reduce((max, s) => {
+        const n = parseInt(String(s.id).replace('ns', ''), 10) || 0;
+        return Math.max(max, n);
+      }, 0);
+    }
+    if (data.project) { activeProject = data.project; updateNavProjectName(); }
+    if (typeof renderProjPage === 'function') renderProjPage();
+    populateReqForms();
+    if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
+
+    // Navigate to Full Mode so the user lands somewhere useful
+    setMode('full');
+    switchPage('proj', document.querySelector('[data-page=proj]'));
+  }
+
   function clearAllWithWarning() {
-    if (!confirm('Clear ALL project data? This will reset your goal statement, ilities, stakeholders, requirements, and pairwise comparisons. This cannot be undone.')) return;
+    if (!confirm('Clear ALL project data? This will reset your goal statement, ilities, stakeholders, requirements, concepts, scores, and convergence. This cannot be undone.')) return;
+
+    // ── Goal Statement ──
+    ['input-to','input-by','input-using','input-while','input-goal-basic'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
     ['to','by','using','while'].forEach(f => {
-      const el = document.getElementById('input-' + f);
-      if (el) el.value = '';
       const dotEl = document.getElementById('dot-' + f);
       if (dotEl) dotEl.className = 'status-dot';
       const valEl = document.getElementById('val-' + f);
       if (valEl) valEl.className = 'validation-msg';
     });
+    goalMode = 'basic';
+    if (typeof switchGoalMode === 'function') switchGoalMode('basic');
     const pb = document.getElementById('previewBanner');
     if (pb) pb.classList.remove('visible');
-    selectedIlities.clear(); customIlities = []; renderIlityGrid();
-    selectedStakeholders.clear(); customStakeholders = []; renderStakGrid();
-    requirements = []; reqIdCounter = 0; renderRequirements();
-    pairComparisons = {}; pairIndex = 0;
+
+    // ── Ilities / Stakeholders / Requirements ──
+    selectedIlities.clear(); customIlities = []; ilityOrder = []; renderIlityGrid();
+    selectedStakeholders.clear(); customStakeholders = []; stakOrder = []; renderStakGrid();
+    requirements = []; reqIdCounter = 0; _editingReqId = null; renderRequirements();
+
+    // ── Pairwise ──
+    pairMode    = 'nonweighted';
+    pairSubject = 'ilities';
+    pairMethod  = 'pairwise';
+    pairComparisons = {}; pairPairs = []; pairIndex = 0; forcedRankOrder = [];
+    window._pairWeights = {};
+    const syncBtn = (id, active) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', active); };
+    syncBtn('pairNonWeightedBtn', true);
+    syncBtn('pairWeightedBtn',    false);
+    syncBtn('pairIlitiesBtn',     true);
+    syncBtn('pairReqsBtn',        false);
+    syncBtn('pairPairwiseBtn',    true);
+    syncBtn('pairForcedRankBtn',  false);
+    renderNonWeighted();
+    updatePairProgress();
+
+    // ── Pugh Matrix / Concept Scoring ──
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = '';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+    const mCb = document.getElementById('toggleMTHUS');
+    const masCb = document.getElementById('toggleMAS');
+    if (mCb)   mCb.checked   = false;
+    if (masCb) masCb.checked = false;
     exitScoringView();
+    renderConceptCards();
+    renderPughMatrix();
+    if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
+
+    // ── Convergence ──
+    convSelectedConceptId = '';
+    convRationale         = '';
+    convLessons           = { req: '', concepts: '', assumption: '', different: '' };
+    convRisks             = '';
+    convNextSteps         = [];
+    convClosedAt          = null;
+    _convNSCounter        = 0;
+    if (typeof renderConvPage === 'function') renderConvPage();
+
+    // ── Nav completion indicators ──
+    _completedPages.clear();
+    if (typeof updateNavCompletion === 'function') updateNavCompletion();
+
+    // ── Project / Nav ──
     activeProject = null; updateNavProjectName();
     populateReqForms();
+    if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
     if (typeof syncSidebarPrefs === 'function') syncSidebarPrefs();
     const ab = document.getElementById('advisorBody');
     if (ab) ab.innerHTML = '<p>Start writing your goal statement above — I\'ll help you sharpen each part as you go.</p><p>The most important thing to get right first is your <strong>TO</strong>. It must describe an outcome for a person, not a product or technology.</p>';
-    // nav buttons always active — no disable
   }
 
   function exportReport() {
@@ -597,28 +923,107 @@
       pair: document.getElementById('rptPAIR').checked,
       scor: document.getElementById('rptSCOR').checked,
       pugh: document.getElementById('rptPUGH').checked,
+      conv: document.getElementById('rptCONV') ? document.getElementById('rptCONV').checked : false,
     };
 
-    // Use the user-supplied filename, falling back to project name + date
     const rawFileName  = (document.getElementById('rptFileName')?.value || '').trim();
     const projName     = activeProject?.name        || 'Untitled Project';
     const projOwner    = activeProject?.owner       || '';
     const projDesc     = activeProject?.description || '';
+    const projStart    = activeProject?.created_at  || null;
     const dateStr      = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
     const exportFileName = rawFileName
       ? rawFileName.replace(/\.pdf$/i, '')
       : (projName.replace(/[^a-zA-Z0-9\s_-]/g, '').trim().replace(/\s+/g, '_') + '_Report');
 
+    const allIlities      = [...ILITIES, ...customIlities];
+    const allStakeholders = [...STAKEHOLDERS, ...customStakeholders];
+    const selIlities      = allIlities.filter(i => selectedIlities.has(i.id));
+    const selStakeholders = allStakeholders.filter(s => selectedStakeholders.has(s.id));
+
+    // Score helpers (scores are strings: '+', '-', '0')
+    const isPlus  = v => v === '+';
+    const isMinus = v => v === '-';
+    const toNum   = v => isPlus(v) ? 1 : isMinus(v) ? -1 : 0;
+
+    // Pre-compute concept stats once (used in exec summary, concept scoring, bar chart)
+    const conceptStats = pughConcepts.map((c, idx) => {
+      const plus  = requirements.filter(r => isPlus(pughScores[c.id + '_' + r.id])).length;
+      const minus = requirements.filter(r => isMinus(pughScores[c.id + '_' + r.id])).length;
+      const zero  = requirements.filter(r => pughScores[c.id + '_' + r.id] === '0').length;
+      const net   = plus - minus;
+      return { c, plus, minus, zero, net, isDatum: idx === 0 };
+    });
+    const rankedConcepts = conceptStats.filter(s => !s.isDatum).slice().sort((a, b) => b.net - a.net);
+    const rankMap = {};
+    rankedConcepts.forEach((s, i) => { rankMap[s.c.id] = i + 1; });
+
+    const selConcept = convSelectedConceptId
+      ? pughConcepts.find(c => String(c.id) === String(convSelectedConceptId))
+      : null;
+
+    let sn = 1;
     let sections = '';
+
+    // ── §1 EXECUTIVE SUMMARY (always included) ──
+    {
+      const startFmt = projStart
+        ? new Date(projStart).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+        : '—';
+      const convFmt = convClosedAt
+        ? new Date(convClosedAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
+        : null;
+
+      const basicGoal = goalMode === 'basic'
+        ? (document.getElementById('input-goal-basic')?.value || '')
+        : (() => {
+            const to = document.getElementById('input-to')?.value || '';
+            const by = document.getElementById('input-by')?.value || '';
+            const us = document.getElementById('input-using')?.value || '';
+            const wh = document.getElementById('input-while')?.value || '';
+            return [to && 'To ' + to, by && 'by ' + by, us && 'using ' + us, wh && 'while ' + wh].filter(Boolean).join(' ');
+          })();
+
+      const statsRow = [
+        ['Stakeholders',         selStakeholders.length || '—'],
+        ['Lifecycle Properties', selIlities.length || '—'],
+        ['Requirements',         requirements.length || '—'],
+        ['Concepts Evaluated',   pughConcepts.length ? pughConcepts.length - 1 + ' + 1 datum' : '—'],
+      ].map(([label, val]) => `
+        <div class="exec-stat">
+          <div class="exec-stat-val">${val}</div>
+          <div class="exec-stat-label">${label}</div>
+        </div>`).join('');
+
+      sections += `<div class="section">
+        <div class="section-header">
+          <span class="section-num">SECTION ${sn}</span>
+          <span class="section-title">Executive Summary</span>
+        </div>
+        ${basicGoal ? `<div class="rpt-callout" style="margin-bottom:24px"><strong>Goal:</strong> ${escHtml(basicGoal)}</div>` : ''}
+        <div class="exec-stats">${statsRow}</div>
+        ${selConcept ? `<div class="exec-winner">
+          <div class="exec-winner-label">Selected Concept</div>
+          <div class="exec-winner-name">${escHtml(selConcept.name)}</div>
+          ${rankedConcepts.length ? `<div class="exec-winner-sub">Ranked #1 of ${rankedConcepts.length} concepts evaluated against the datum</div>` : ''}
+        </div>` : ''}
+        <div class="exec-dates">
+          <div><span class="label">Project Started</span>${startFmt}</div>
+          <div><span class="label">Convergence</span>${convFmt || '<em>In progress</em>'}</div>
+          ${projOwner ? `<div><span class="label">Owner</span>${escHtml(projOwner)}</div>` : ''}
+        </div>
+      </div>`;
+    }
 
     // ── GOAL STATEMENT ──
     if (inc.tbuw) {
       if (goalMode === 'basic') {
         const basicGoal = document.getElementById('input-goal-basic')?.value || '';
-        sections += rptSection('2', 'Goal Statement',
+        sections += rptSection(++sn, 'Goal Statement',
           basicGoal
             ? `<div class="rpt-callout">${escHtml(basicGoal)}</div>`
-            : '<p><em>No goal statement entered.</em></p>');
+            : '<p><em>No goal statement entered.</em></p>',
+          true);
       } else {
         const to    = document.getElementById('input-to')?.value    || '';
         const by    = document.getElementById('input-by')?.value    || '';
@@ -630,112 +1035,252 @@
           ['USING', using],
           ['WHILE', wh],
         ].map(([label, val]) => `<tr><td class="rpt-label-cell">${label}</td><td>${escHtml(val) || '<em>—</em>'}</td></tr>`).join('');
-        const preview = [to, by, using, wh].filter(Boolean).join(' ');
-        sections += rptSection('2', 'Goal Statement (To · By · Using · While)',
-          `<table class="rpt-table">${rows}</table>` +
-          (preview ? `<div class="rpt-callout" style="margin-top:12px"><strong>Full Statement:</strong> To ${escHtml(to)} by ${escHtml(by)} using ${escHtml(using)}${wh ? ' while ' + escHtml(wh) : ''}.</div>` : ''));
+        const preview = [to && 'To ' + to, by && 'by ' + by, using && 'using ' + using, wh && 'while ' + wh].filter(Boolean).join(' ');
+        sections += rptSection(++sn, 'Goal Statement',
+          `<table class="rpt-table" style="margin-bottom:14px">${rows}</table>` +
+          (preview ? `<div class="rpt-callout"><strong>Full Statement:</strong> ${escHtml(preview)}.</div>` : ''),
+          true);
       }
     }
 
-    // ── ILITIES ──
+    // ── LIFECYCLE PROPERTIES ──
     if (inc.ilty) {
-      const all = [...ILITIES, ...customIlities];
-      const sel = all.filter(i => selectedIlities.has(i.id));
-      const rows = sel.map(i => `<tr><td>${escHtml(i.name)}</td><td>${escHtml(i.desc || '')}</td></tr>`).join('');
-      sections += rptSection('3', `Selected Ilities (${sel.length})`,
-        sel.length ? `<table class="rpt-table"><thead><tr><th>Ility</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table>` : '<p><em>No ilities selected.</em></p>');
+      const chips = selIlities.map(i =>
+        `<div class="chip"><div class="chip-name">${escHtml(i.name)}</div><div class="chip-desc">${escHtml((i.desc || '').substring(0, 60))}${(i.desc||'').length > 60 ? '…' : ''}</div></div>`
+      ).join('');
+      sections += rptSection(++sn, `Lifecycle Properties (${selIlities.length})`,
+        selIlities.length
+          ? `<div class="chip-grid">${chips}</div>`
+          : '<p><em>No lifecycle properties selected.</em></p>',
+        true);
     }
 
     // ── STAKEHOLDERS ──
     if (inc.stak) {
-      const all = [...STAKEHOLDERS, ...customStakeholders];
-      const sel = all.filter(s => selectedStakeholders.has(s.id));
-      const rows = sel.map(s => `<tr><td>${escHtml(s.name)}</td><td>${escHtml(s.desc || '')}</td></tr>`).join('');
-      sections += rptSection('4', `Stakeholders (${sel.length})`,
-        sel.length ? `<table class="rpt-table"><thead><tr><th>Stakeholder</th><th>Description</th></tr></thead><tbody>${rows}</tbody></table>` : '<p><em>No stakeholders selected.</em></p>');
+      const chips = selStakeholders.map(s =>
+        `<div class="chip"><div class="chip-name">${escHtml(s.name)}</div><div class="chip-desc">${escHtml((s.desc || '').substring(0, 60))}${(s.desc||'').length > 60 ? '…' : ''}</div></div>`
+      ).join('');
+      sections += rptSection(++sn, `Stakeholders (${selStakeholders.length})`,
+        selStakeholders.length
+          ? `<div class="chip-grid">${chips}</div>`
+          : '<p><em>No stakeholders selected.</em></p>',
+        true);
     }
 
     // ── REQUIREMENTS ──
     if (inc.reqs) {
       const rows = requirements.map((r, idx) => {
-        const ilName = [...ILITIES,...customIlities].find(i => i.id === r.primary)?.name || r.primary || '—';
-        const sk2    = r.secondary ? ([...STAKEHOLDERS,...customStakeholders].find(s => s.id === r.secondary)?.name || r.secondary) : '—';
-        const typeLabel = r.type === 'objective' ? 'Objective' : r.type === 'constraint' ? 'Constraint' : r.type || '—';
-        return `<tr><td>${idx+1}</td><td>${escHtml(r.text || '')}</td><td>${typeLabel}</td><td>${escHtml(ilName)}</td><td>${escHtml(sk2)}</td></tr>`;
+        const ilName = allIlities.find(i => i.id === r.primary)?.name || r.primary || '—';
+        const scorer = r.scorer
+          ? (allStakeholders.find(s => s.id === r.scorer)?.name || r.scorer)
+          : (r.stakeholders && r.stakeholders.length
+              ? (allStakeholders.find(s => s.id === r.stakeholders[0])?.name || r.stakeholders[0])
+              : '—');
+        return `<tr>
+          <td style="white-space:nowrap;color:#888;font-size:11px">${idx + 1}</td>
+          <td>${escHtml(r.text || '')}</td>
+          <td style="white-space:nowrap;font-size:11px">${escHtml(ilName)}</td>
+          <td style="white-space:nowrap;font-size:11px">${escHtml(scorer)}</td>
+        </tr>`;
       }).join('');
-      sections += rptSection('5', `Requirements (${requirements.length})`,
+      sections += rptSection(++sn, `Requirements (${requirements.length})`,
         requirements.length
-          ? `<table class="rpt-table"><thead><tr><th>#</th><th>Requirement</th><th>Type</th><th>Primary Ility</th><th>Stakeholder</th></tr></thead><tbody>${rows}</tbody></table>`
-          : '<p><em>No requirements defined.</em></p>');
+          ? `<table class="rpt-table"><thead><tr><th>#</th><th>Requirement</th><th>Lifecycle Property</th><th>Scorer</th></tr></thead><tbody>${rows}</tbody></table>`
+          : '<p><em>No requirements defined.</em></p>',
+        true);
     }
 
     // ── PAIRWISE RANKINGS ──
     if (inc.pair) {
-      // Recompute rankings from pairComparisons
-      const allIl = [...ILITIES,...customIlities].filter(i => selectedIlities.has(i.id));
-      const wins  = {};
-      allIl.forEach(i => { wins[i.id] = 0; });
-      Object.entries(pairComparisons).forEach(([key, winner]) => {
+      const wins = {};
+      selIlities.forEach(i => { wins[i.id] = 0; });
+      Object.entries(pairComparisons).forEach(([, winner]) => {
         if (wins[winner] !== undefined) wins[winner]++;
       });
-      const ranked = allIl.map(i => ({ name:i.name, wins:wins[i.id]||0 })).sort((a,b)=>b.wins-a.wins);
-      const rows = ranked.map((r,i) => `<tr><td>${i+1}</td><td>${escHtml(r.name)}</td><td>${r.wins}</td></tr>`).join('');
-      sections += rptSection('6', 'Pairwise Ility Rankings',
-        ranked.length
-          ? `<table class="rpt-table"><thead><tr><th>Rank</th><th>Ility</th><th>Win Count</th></tr></thead><tbody>${rows}</tbody></table>`
-          : '<p><em>No pairwise comparisons completed.</em></p>');
+      const totalComparisons = Object.keys(pairComparisons).length;
+      const allEqual = totalComparisons === 0;
+
+      let pairContent;
+      if (allEqual) {
+        pairContent = `<div class="rpt-callout" style="border-left-color:#718096">
+          <strong>Equal Weighting Applied</strong> — No pairwise comparisons were recorded for this project.
+          All ${selIlities.length} lifecycle properties carry equal weight in the Pugh matrix scoring.
+        </div>`;
+      } else {
+        const ranked = selIlities.map(i => ({ name: i.name, wins: wins[i.id] || 0 })).sort((a, b) => b.wins - a.wins);
+        const rows = ranked.map((r, i) => `<tr><td>${i + 1}</td><td>${escHtml(r.name)}</td><td>${r.wins}</td></tr>`).join('');
+        pairContent = `<table class="rpt-table"><thead><tr><th>Rank</th><th>Lifecycle Property</th><th>Win Count</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+      sections += rptSection(++sn, 'Lifecycle Property Weighting', pairContent, true);
     }
 
-    // ── CONCEPT SCORING (SCOR) ──
+    // ── CONCEPT SCORING SUMMARY ──
     if (inc.scor) {
       if (!pughConcepts.length) {
-        sections += rptSection('7', 'Concept Scoring', '<p><em>No concepts defined.</em></p>');
+        sections += rptSection(++sn, 'Concept Scoring Summary', '<p><em>No concepts defined.</em></p>', true);
       } else {
-        const totalReqs = requirements.length;
-        const rows = pughConcepts.map((c, idx) => {
-          const scored = requirements.filter(r => pughScores[c.id + '_' + r.id] !== undefined).length;
-          const isBaseline = idx === 0;
-          const badge = isBaseline ? ' <span style="font-size:11px;background:#e2e8f0;padding:1px 6px;border-radius:4px">Datum</span>' : '';
-          return `<tr><td>${escHtml(c.name)}${badge}</td><td>${scored} / ${totalReqs}</td></tr>`;
+        // Full ranked table
+        const rows = conceptStats.map(({ c, plus, minus, zero, net, isDatum }) => {
+          const badge    = isDatum ? ' <span class="rpt-badge">Datum</span>' : '';
+          const rank     = isDatum ? '—' : rankMap[c.id];
+          const netColor = !isDatum ? (net > 0 ? 'color:#276749' : net < 0 ? 'color:#c53030' : 'color:#888') : '';
+          return `<tr>
+            <td>${escHtml(c.name)}${badge}</td>
+            <td style="text-align:center;color:#276749;font-weight:600">${isDatum ? 'D' : plus}</td>
+            <td style="text-align:center;color:#c53030;font-weight:600">${isDatum ? 'D' : minus}</td>
+            <td style="text-align:center;color:#888">${isDatum ? 'D' : zero}</td>
+            <td style="text-align:center;font-weight:700;${netColor}">${isDatum ? 'D' : (net >= 0 ? '+' : '') + net}</td>
+            <td style="text-align:center;font-weight:700">${rank}</td>
+          </tr>`;
         }).join('');
-        sections += rptSection('7', `Concept Scoring (${pughConcepts.length} concepts)`,
-          `<table class="rpt-table"><thead><tr><th>Concept</th><th>Requirements Scored</th></tr></thead><tbody>${rows}</tbody></table>`);
+
+        // Top-5 highlight strip
+        const top5 = rankedConcepts.slice(0, 5);
+        const maxNet = Math.max(...top5.map(s => Math.abs(s.net)), 1);
+        const top5Rows = top5.map((s, i) => {
+          const pct = Math.round((s.net / maxNet) * 100);
+          const medal = ['🥇','🥈','🥉','④','⑤'][i] || (i + 1);
+          return `<div class="top5-row">
+            <div class="top5-rank">${medal}</div>
+            <div class="top5-name">${escHtml(s.c.name)}</div>
+            <div class="top5-bar-wrap"><div class="top5-bar" style="width:${pct}%"></div></div>
+            <div class="top5-score">${s.net >= 0 ? '+' : ''}${s.net}</div>
+          </div>`;
+        }).join('');
+
+        sections += rptSection(++sn, `Concept Scoring (${pughConcepts.length} concepts)`,
+          `<table class="rpt-table" style="margin-bottom:28px">
+            <thead><tr>
+              <th>Concept</th>
+              <th style="text-align:center">+</th>
+              <th style="text-align:center">−</th>
+              <th style="text-align:center">0</th>
+              <th style="text-align:center">Utility Score</th>
+              <th style="text-align:center">Rank</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="rpt-subhead sub-page-break">Top ${top5.length} Concepts by Utility Score</div>
+          <div class="top5-chart" style="margin-top:12px">${top5Rows}</div>`,
+          true);
       }
     }
 
-    // ── PUGH MATRIX ──
+    // ── CONCEPT RANKINGS CHART (replaces raw Pugh matrix) ──
     if (inc.pugh) {
       if (!pughConcepts.length || !requirements.length) {
-        sections += rptSection('8', 'Pugh Matrix', '<p><em>No concepts or requirements to display.</em></p>');
+        sections += rptSection(++sn, 'Concept Rankings', '<p><em>No concepts or requirements to display.</em></p>', true);
       } else {
-        const datum = pughConcepts[0];
-        const others = pughConcepts.slice(1);
-        const hdr = `<tr><th style="text-align:left">Requirement</th><th>Ility</th>${pughConcepts.map((c,i) => `<th>${escHtml(c.name)}${i===0?' (D)':''}</th>`).join('')}</tr>`;
-        const dataRows = requirements.map(r => {
-          const ilName = [...ILITIES,...customIlities].find(i => i.id === r.primary)?.name || '—';
-          const cells = pughConcepts.map((c,i) => {
-            if (i === 0) return '<td style="text-align:center;font-weight:600">D</td>';
-            const score = pughScores[c.id + '_' + r.id];
-            const disp = score === undefined ? '—' : (score > 0 ? '+' : score < 0 ? '−' : '0');
-            return `<td style="text-align:center">${disp}</td>`;
-          }).join('');
-          return `<tr><td>${escHtml(r.text || '').substring(0,80)}${(r.text||'').length>80?'…':''}</td><td style="font-size:11px;color:#666">${escHtml(ilName)}</td>${cells}</tr>`;
+        // Full horizontal bar chart for ALL non-datum concepts, sorted by net score
+        const allSorted = rankedConcepts.slice(); // already sorted descending
+        const maxAbsNet = Math.max(...allSorted.map(s => Math.abs(s.net)), 1);
+        const DATUM     = conceptStats[0];
+
+        const bars = allSorted.map((s, i) => {
+          const pctPos = s.net >= 0 ? Math.round((s.net  / maxAbsNet) * 50) : 0;
+          const pctNeg = s.net < 0  ? Math.round((-s.net / maxAbsNet) * 50) : 0;
+          const isWinner = selConcept && String(s.c.id) === String(convSelectedConceptId);
+          return `<div class="bar-row${isWinner ? ' bar-row-winner' : ''}">
+            <div class="bar-rank">${i + 1}</div>
+            <div class="bar-label">${escHtml(s.c.name)}${isWinner ? ' <span class="rpt-badge" style="background:#276749;color:#fff">Selected</span>' : ''}</div>
+            <div class="bar-track">
+              <div class="bar-neg-fill" style="width:${pctNeg}%"></div>
+              <div class="bar-pos-fill" style="width:${pctPos}%"></div>
+            </div>
+            <div class="bar-score" style="${s.net > 0 ? 'color:#276749' : s.net < 0 ? 'color:#c53030' : 'color:#888'}">${s.net >= 0 ? '+' : ''}${s.net}</div>
+          </div>`;
         }).join('');
 
-        // Summary rows
-        const plusCounts  = pughConcepts.map((c,i) => i===0 ? 'D' : requirements.filter(r => (pughScores[c.id+'_'+r.id]||0) > 0).length);
-        const minusCounts = pughConcepts.map((c,i) => i===0 ? '' : requirements.filter(r => (pughScores[c.id+'_'+r.id]||0) < 0).length);
-        const netScores   = pughConcepts.map((c,i) => i===0 ? '' : requirements.reduce((s,r) => s + (pughScores[c.id+'_'+r.id]||0), 0));
+        // Datum reference row
+        const datumRow = `<div class="bar-row bar-row-datum">
+          <div class="bar-rank">D</div>
+          <div class="bar-label">${escHtml(DATUM.c.name)} <span class="rpt-badge">Datum</span></div>
+          <div class="bar-track"><div style="width:50%;border-right:2px dashed #999"></div></div>
+          <div class="bar-score" style="color:#999">Baseline</div>
+        </div>`;
 
-        const sumRows = [
-          `<tr style="background:#f7f8fa"><td><strong>+ Count</strong></td><td></td>${plusCounts.map(v=>`<td style="text-align:center;font-weight:600;color:#38a169">${v}</td>`).join('')}</tr>`,
-          `<tr style="background:#f7f8fa"><td><strong>− Count</strong></td><td></td>${minusCounts.map(v=>`<td style="text-align:center;font-weight:600;color:#e53e3e">${v}</td>`).join('')}</tr>`,
-          `<tr style="background:#f7f8fa"><td><strong>Utility Score</strong></td><td></td>${netScores.map((v,i)=>`<td style="text-align:center;font-weight:700">${i===0?'':''+v}</td>`).join('')}</tr>`,
-        ].join('');
+        // Top-5 breakdown table
+        const top5 = rankedConcepts.slice(0, 5);
+        const top5Rows = top5.map(s => {
+          const isWinner = selConcept && String(s.c.id) === String(convSelectedConceptId);
+          return `<tr${isWinner ? ' style="background:#f0fff4"' : ''}>
+            <td style="font-weight:700">${rankMap[s.c.id]}</td>
+            <td>${escHtml(s.c.name)}${isWinner ? ' <span class="rpt-badge" style="background:#276749;color:#fff">Selected</span>' : ''}</td>
+            <td style="text-align:center;color:#276749;font-weight:600">${s.plus}</td>
+            <td style="text-align:center;color:#c53030;font-weight:600">${s.minus}</td>
+            <td style="text-align:center;color:#888">${s.zero}</td>
+            <td style="text-align:center;font-weight:700;${s.net > 0 ? 'color:#276749' : s.net < 0 ? 'color:#c53030' : ''}">${s.net >= 0 ? '+' : ''}${s.net}</td>
+          </tr>`;
+        }).join('');
 
-        sections += rptSection('8', 'Pugh Matrix',
-          `<div style="overflow-x:auto"><table class="rpt-table"><thead>${hdr}</thead><tbody>${dataRows}${sumRows}</tbody></table></div>`);
+        sections += rptSection(++sn, `Concept Rankings — All ${rankedConcepts.length} Concepts vs. Datum`,
+          `<div class="bar-chart" style="margin-bottom:32px">
+            ${datumRow}
+            ${bars}
+          </div>
+          <div class="rpt-subhead sub-page-break">Top 5 Breakdown</div>
+          <table class="rpt-table" style="margin-top:10px">
+            <thead><tr><th>Rank</th><th>Concept</th><th style="text-align:center">+</th><th style="text-align:center">−</th><th style="text-align:center">0</th><th style="text-align:center">Utility Score</th></tr></thead>
+            <tbody>${top5Rows}</tbody>
+          </table>`,
+          true);
       }
+    }
+
+    // ── CONVERGENCE SUMMARY ──
+    if (inc.conv) {
+      let cHtml = '';
+
+      if (convClosedAt) {
+        const fmt = new Date(convClosedAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+        cHtml += `<div class="rpt-conv-status">✓ Convergence logged: ${fmt}</div>`;
+      }
+
+      if (selConcept) {
+        cHtml += `<div class="rpt-callout" style="margin-bottom:20px"><strong>Selected Concept:</strong> ${escHtml(selConcept.name)}</div>`;
+      }
+
+      if (convRationale) {
+        cHtml += `<h4 class="rpt-subhead">Decision Rationale</h4><p>${escHtml(convRationale)}</p>`;
+      }
+
+      const lessonDefs = [
+        ['req',        'Requirements — What did you learn?'],
+        ['concepts',   'Concepts — What was surprising?'],
+        ['assumption', 'Critical Assumptions'],
+        ['different',  'What would you do differently?'],
+      ];
+      const hasLessons = lessonDefs.some(([key]) => convLessons[key]);
+      if (hasLessons) {
+        cHtml += `<h4 class="rpt-subhead">Lessons Learned</h4>`;
+        lessonDefs.forEach(([key, label]) => {
+          if (convLessons[key]) {
+            cHtml += `<div style="margin-bottom:16px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:4px">${label}</div>
+              <p style="margin:0">${escHtml(convLessons[key])}</p>
+            </div>`;
+          }
+        });
+      }
+
+      if (convRisks) {
+        cHtml += `<h4 class="rpt-subhead">Open Risks</h4><p style="white-space:pre-line">${escHtml(convRisks)}</p>`;
+      }
+
+      if (convNextSteps && convNextSteps.length) {
+        const nsRows = convNextSteps.map(s =>
+          `<tr><td>${escHtml(s.what || '')}</td><td style="white-space:nowrap">${escHtml(s.who || '')}</td><td style="white-space:nowrap">${escHtml(s.when || '')}</td></tr>`
+        ).join('');
+        cHtml += `<h4 class="rpt-subhead sub-page-break">Next Steps</h4>
+          <table class="rpt-table">
+            <thead><tr><th>Action</th><th>Owner</th><th>Due</th></tr></thead>
+            <tbody>${nsRows}</tbody>
+          </table>`;
+      }
+
+      if (!cHtml) cHtml = '<p><em>Convergence section not yet completed.</em></p>';
+
+      sections += rptSection(++sn, 'Convergence Summary', cHtml, true);
     }
 
     // ── BUILD DOCUMENT ──
@@ -747,49 +1292,111 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Georgia, 'Times New Roman', serif; color: #1a202c; background: #fff; font-size: 13px; line-height: 1.65; }
-  .cover { padding: 72px 64px; border-bottom: 3px solid #1a202c; margin-bottom: 0; page-break-after: always; }
-  .cover-label { font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #666; margin-bottom: 24px; }
-  .cover-title { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 16px; }
-  .cover-meta { font-size: 13px; color: #555; line-height: 2; }
-  .cover-meta span { display: block; }
-  .section { padding: 40px 64px; border-bottom: 1px solid #e2e8f0; page-break-inside: avoid; }
-  .section:last-child { border-bottom: none; }
-  .section-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #1a202c; }
-  .section-num { font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #666; }
-  .section-title { font-size: 17px; font-weight: 700; color: #1a202c; }
+
+  /* ── Cover ── */
+  .cover { padding: 80px 64px 60px; border-bottom: 3px solid #1a202c; page-break-after: always; }
+  .cover-eyebrow { font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #aaa; margin-bottom: 40px; }
+  .cover-title { font-size: 36px; font-weight: 700; line-height: 1.12; margin-bottom: 24px; max-width: 540px; }
+  .cover-divider { width: 40px; height: 3px; background: #1a202c; margin-bottom: 24px; }
+  .cover-meta { font-size: 13px; color: #555; }
+  .cover-meta .row { display: flex; gap: 0; margin-bottom: 7px; }
+  .cover-meta .label { font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; width: 110px; flex-shrink: 0; padding-top: 2px; }
+  .cover-meta .val { max-width: 420px; }
+  .cover-url { font-family: 'Courier New', monospace; font-size: 11px; color: #aaa; margin-top: 48px; letter-spacing: 0.05em; }
+
+  /* ── Sections ── */
+  .section { padding: 40px 64px; border-bottom: 1px solid #e2e8f0; }
+  .section.page-break { page-break-before: always; break-before: page; }
+  .section:last-of-type { border-bottom: none; }
+  .sub-page-break { page-break-before: always; break-before: page; padding-top: 40px; margin-top: 0; }
+  .section-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 24px; padding-bottom: 10px; border-bottom: 2px solid #1a202c; }
+  .section-num { font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; }
+  .section-title { font-size: 18px; font-weight: 700; color: #1a202c; }
+
+  /* ── Executive Summary ── */
+  .exec-stats { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+  .exec-stat { flex: 1; padding: 16px 14px; text-align: center; border-right: 1px solid #e2e8f0; }
+  .exec-stat:last-child { border-right: none; }
+  .exec-stat-val { font-size: 26px; font-weight: 700; color: #1a202c; line-height: 1; margin-bottom: 4px; }
+  .exec-stat-label { font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #999; }
+  .exec-winner { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; }
+  .exec-winner-label { font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #276749; margin-bottom: 4px; }
+  .exec-winner-name { font-size: 20px; font-weight: 700; color: #276749; margin-bottom: 3px; }
+  .exec-winner-sub { font-size: 11px; color: #48bb78; }
+  .exec-dates { font-size: 12px; color: #555; }
+  .exec-dates div { margin-bottom: 5px; display: flex; gap: 0; }
+  .exec-dates .label { font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; width: 120px; flex-shrink: 0; padding-top: 1px; }
+
+  /* ── Tables ── */
   .rpt-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
-  .rpt-table th { background: #1a202c; color: #fff; padding: 7px 10px; text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .rpt-table th { background: #1a202c; color: #fff; padding: 7px 10px; text-align: left; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
   .rpt-table td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   .rpt-table tr:last-child td { border-bottom: none; }
-  .rpt-table tr:nth-child(even) td { background: #f7f8fa; }
-  .rpt-label-cell { font-weight: 700; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.08em; color: #666; white-space: nowrap; width: 70px; }
+
+  /* ── Chip Grid (ilities / stakeholders) ── */
+  .chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .chip { background: #f7f8fa; border: 1px solid #e2e8f0; border-radius: 5px; padding: 9px 12px; }
+  .chip-name { font-weight: 700; font-size: 12px; color: #1a202c; margin-bottom: 2px; }
+  .chip-desc { font-size: 10px; color: #888; line-height: 1.4; }
+
+  /* ── Top-5 Chart (concept scoring) ── */
+  .top5-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .top5-rank { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
+  .top5-name { width: 200px; flex-shrink: 0; font-weight: 600; font-size: 11px; }
+  .top5-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 3px; height: 14px; overflow: hidden; }
+  .top5-bar { height: 100%; background: #276749; border-radius: 3px; }
+  .top5-score { width: 40px; text-align: right; font-weight: 700; color: #276749; font-size: 12px; }
+
+  /* ── Full Bar Chart (concept rankings) ── */
+  .bar-chart { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid #f0f0f0; font-size: 11px; }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-row-winner { background: #f0fff4; }
+  .bar-row-datum { background: #f7f8fa; color: #999; }
+  .bar-rank { width: 22px; text-align: center; font-weight: 700; color: #aaa; font-size: 10px; flex-shrink: 0; }
+  .bar-label { width: 200px; flex-shrink: 0; font-weight: 600; }
+  .bar-track { flex: 1; display: flex; height: 12px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+  .bar-neg-fill { background: #fed7d7; border-radius: 3px 0 0 3px; }
+  .bar-pos-fill { background: #c6f6d5; border-radius: 0 3px 3px 0; }
+  .bar-score { width: 40px; text-align: right; font-weight: 700; font-size: 11px; flex-shrink: 0; }
+
+  /* ── Callouts & Subheads ── */
   .rpt-callout { background: #f7f8fa; border-left: 3px solid #4a5568; padding: 12px 16px; font-size: 13px; border-radius: 0 4px 4px 0; }
+  .rpt-label-cell { font-weight: 700; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.08em; color: #666; white-space: nowrap; width: 70px; }
+  .rpt-subhead { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+  .rpt-conv-status { display: inline-block; background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 4px; padding: 8px 14px; font-size: 11px; font-weight: 700; color: #276749; margin-bottom: 18px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; }
+  .rpt-badge { font-size: 10px; background: #e2e8f0; color: #4a5568; padding: 1px 5px; border-radius: 3px; margin-left: 5px; font-weight: 500; font-family: 'Courier New', monospace; vertical-align: middle; }
   p { margin-bottom: 10px; }
-  .footer { padding: 24px 64px; font-size: 11px; color: #999; font-family: 'Courier New', monospace; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; }
+
+  /* ── Footer ── */
+  .rpt-footer { padding: 20px 64px; font-size: 10px; color: #ccc; font-family: 'Courier New', monospace; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; letter-spacing: 0.05em; }
+
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .section { page-break-inside: avoid; }
-    .cover { page-break-after: always; }
+    .cover { page-break-after: always; break-after: page; }
+    .section.page-break { page-break-before: always; break-before: page; }
+    .sub-page-break { page-break-before: always; break-before: page; }
   }
 </style>
 </head>
 <body>
 
 <div class="cover">
-  <div class="cover-label">Controlled Convergence · Design Analysis Report</div>
+  <div class="cover-eyebrow">Design Analysis Report</div>
   <div class="cover-title">${escHtml(projName)}</div>
+  <div class="cover-divider"></div>
   <div class="cover-meta">
-    ${projOwner ? `<span>Owner: ${escHtml(projOwner)}</span>` : ''}
-    ${projDesc ? `<span>Description: ${escHtml(projDesc)}</span>` : ''}
-    <span>Generated: ${dateStr}</span>
-    <span>Method: Stuart Pugh's Controlled Convergence</span>
+    ${projOwner ? `<div class="row"><span class="label">Owner</span><span class="val">${escHtml(projOwner)}</span></div>` : ''}
+    ${projDesc  ? `<div class="row"><span class="label">Description</span><span class="val">${escHtml(projDesc)}</span></div>` : ''}
+    <div class="row"><span class="label">Generated</span><span class="val">${dateStr}</span></div>
   </div>
+  <div class="cover-url">controlledconvergence.com</div>
 </div>
 
 ${sections}
 
-<div class="footer">
-  <span>Controlled Convergence · ${escHtml(projName)}</span>
+<div class="rpt-footer">
+  <span>controlledconvergence.com · ${escHtml(projName)}</span>
   <span>${dateStr}</span>
 </div>
 

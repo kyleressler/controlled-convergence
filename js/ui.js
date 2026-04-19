@@ -127,8 +127,8 @@
 
 // ── Report helpers / Nav project name ────────────────────────
 
-  function rptSection(num, title, content) {
-    return `<div class="section">
+  function rptSection(num, title, content, pageBreak) {
+    return `<div class="section${pageBreak ? ' page-break' : ''}">
       <div class="section-header">
         <span class="section-num">SECTION ${num}</span>
         <span class="section-title">${title}</span>
