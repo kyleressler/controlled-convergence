@@ -1210,7 +1210,10 @@ ${sections}
 
   // ── TEMPLATES ──
   // Stored in localStorage as CC_TEMPLATES (array of template objects)
-  // Schema: { id, name, createdAt, isPublic, data: { ilities?, stakeholders?, requirements?, pairwiseState? } }
+  // Schema: { id, name, filename, keywords, createdAt, isPublic,
+  //           data: { ilities?, stakeholders?, requirements?, pairwiseState?, preferences? } }
+  // preferences: { goalMode, reqFormat, pairMode, pairSubject, pairMethod, pughSettings }
+  // TODO: migrate to Supabase user_templates table for cross-device Pro sync
   const TMPL_KEY = 'cc_templates';
 
   function loadTemplates() {
@@ -1222,9 +1225,40 @@ ${sections}
     localStorage.setItem(TMPL_KEY, JSON.stringify(templates));
   }
 
+  // Sanitize a raw name into a safe filename segment
+  // Strips forbidden chars, collapses whitespace/underscores
+  function sanitizeTmplName(raw) {
+    return raw
+      .trim()
+      .replace(/[^a-zA-Z0-9\s_-]/g, '_')  // forbidden chars → _
+      .replace(/[\s]+/g, '_')              // whitespace → _
+      .replace(/_+/g, '_')                 // collapse consecutive _
+      .replace(/^_|_$/g, '');              // trim leading/trailing _
+  }
+
+  function getTmplFilename(rawName) {
+    const sanitized = sanitizeTmplName(rawName);
+    if (!sanitized) return '';
+    const now  = new Date();
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    return `${sanitized}_CC_TEMPLATE_${dd}${mm}${yyyy}.json`;
+  }
+
+  function updateTmplFilenamePreview() {
+    const name    = document.getElementById('tmplNameInput').value;
+    const preview = document.getElementById('tmplFilenamePreview');
+    if (!preview) return;
+    const filename = getTmplFilename(name);
+    preview.textContent = filename ? `File: ${filename}` : '';
+  }
+
   function openSaveTemplateModal() {
     if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
-    document.getElementById('tmplNameInput').value = '';
+    document.getElementById('tmplNameInput').value    = '';
+    document.getElementById('tmplKeywordsInput').value = '';
+    document.getElementById('tmplFilenamePreview').textContent = '';
     document.getElementById('tmplSaveError').style.display = 'none';
     document.getElementById('saveTemplateModal').classList.add('open');
   }
@@ -1234,29 +1268,45 @@ ${sections}
   }
 
   function saveTemplate() {
-    const name = document.getElementById('tmplNameInput').value.trim();
-    if (!name) {
+    const rawName = document.getElementById('tmplNameInput').value.trim();
+    if (!rawName) {
       const err = document.getElementById('tmplSaveError');
       err.textContent = 'Please enter a template name.';
       err.style.display = '';
       return;
     }
 
-    const incIlty = document.getElementById('tmplILTY').checked;
-    const incStak = document.getElementById('tmplSTAK').checked;
-    const incReqs = document.getElementById('tmplREQS').checked;
-    const incPair = document.getElementById('tmplPAIR').checked;
+    const incIlty  = document.getElementById('tmplILTY').checked;
+    const incStak  = document.getElementById('tmplSTAK').checked;
+    const incReqs  = document.getElementById('tmplREQS').checked;
+    const incPair  = document.getElementById('tmplPAIR').checked;
     const isPublic = document.getElementById('tmplIsPublic').checked;
 
+    // Parse comma-separated keywords
+    const rawKeywords = (document.getElementById('tmplKeywordsInput').value || '');
+    const keywords = rawKeywords.split(',').map(k => k.trim()).filter(Boolean);
+
     const data = {};
-    if (incIlty) data.ilities      = [...selectedIlities];
-    if (incStak) data.stakeholders = [...selectedStakeholders];
-    if (incReqs) data.requirements = requirements.map(r => ({...r}));
+    if (incIlty) data.ilities       = [...selectedIlities];
+    if (incStak) data.stakeholders  = [...selectedStakeholders];
+    if (incReqs) data.requirements  = requirements.map(r => ({...r}));
     if (incPair) data.pairwiseState = JSON.parse(JSON.stringify(pairComparisons || {}));
+
+    // Always capture project preferences
+    data.preferences = {
+      goalMode,
+      reqFormat,
+      pairMode,
+      pairSubject,
+      pairMethod,
+      pughSettings: { ...pughSettings }
+    };
 
     const template = {
       id:        'tmpl_' + Date.now(),
-      name,
+      name:      rawName,
+      filename:  getTmplFilename(rawName),
+      keywords,
       createdAt: new Date().toISOString(),
       isPublic,
       data,
@@ -1268,13 +1318,65 @@ ${sections}
     closeSaveTemplateModal();
     renderTemplateList();
 
-    // Flash confirmation
+    // Flash confirmation on the sidebar button
     const btn = document.querySelector('.action-btn-pro[onclick="openSaveTemplateModal()"]');
     if (btn) {
       const orig = btn.innerHTML;
       btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
       setTimeout(() => { btn.innerHTML = orig; }, 1800);
     }
+  }
+
+  function downloadTemplate(id) {
+    if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
+    const templates = loadTemplates();
+    const t = templates.find(t => t.id === id);
+    if (!t) return;
+    const filename = t.filename || getTmplFilename(t.name);
+    const blob = new Blob([JSON.stringify(t, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function uploadTemplate() {
+    if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
+    document.getElementById('tmplUploadInput').value = '';
+    document.getElementById('tmplUploadInput').click();
+  }
+
+  function handleTmplUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      let t;
+      try {
+        t = JSON.parse(evt.target.result);
+      } catch(err) {
+        alert('Invalid file. Please upload a valid CC_TEMPLATE JSON file.');
+        return;
+      }
+      if (!t.name || !t.data) {
+        alert('This file does not appear to be a valid Controlled Convergence template.');
+        return;
+      }
+      // Assign a fresh ID + import timestamp to avoid collisions
+      t.id         = 'tmpl_' + Date.now();
+      t.importedAt = new Date().toISOString();
+      t.filename   = getTmplFilename(t.name);
+      const templates = loadTemplates();
+      templates.unshift(t);
+      persistTemplates(templates);
+      renderTemplateList();
+      alert(`Template "${escHtml(t.name)}" uploaded successfully.`);
+    };
+    reader.readAsText(file);
   }
 
   function deleteTemplate(id) {
@@ -1299,91 +1401,165 @@ ${sections}
     const el = document.getElementById('tmplPickerList');
     if (!el) return;
     if (!templates.length) {
-      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:8px 0">No templates saved yet.</p>';
+      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:8px 0">No templates saved yet. Use <strong>Save Template</strong> in the sidebar.</p>';
       return;
     }
     el.innerHTML = templates.map(t => {
-      const date = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-      const tags = [
-        t.data.ilities      ? 'Ilities'      : null,
-        t.data.stakeholders ? 'Stakeholders' : null,
-        t.data.requirements ? `${t.data.requirements.length} Req${t.data.requirements.length !== 1 ? 's' : ''}` : null,
-        t.data.pairwiseState ? 'Pairwise'   : null,
+      const date     = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+      const sections = [
+        t.data.ilities       ? 'Lifecycle'     : null,
+        t.data.stakeholders  ? 'Stakeholders'  : null,
+        t.data.requirements  ? `${t.data.requirements.length} Req${t.data.requirements.length !== 1 ? 's' : ''}` : null,
+        t.data.pairwiseState ? 'Pairwise'      : null,
+        t.data.preferences   ? 'Preferences'   : null,
       ].filter(Boolean).join(' · ');
       return `<div class="tmpl-picker-item">
         <div class="tmpl-picker-info">
           <div class="tmpl-picker-name">${escHtml(t.name)}</div>
-          <div class="tmpl-picker-meta">${tags ? tags + ' · ' : ''}Saved ${date}</div>
+          <div class="tmpl-picker-meta">${sections ? sections + ' · ' : ''}Saved ${date}</div>
         </div>
         ${t.isPublic ? '<span class="tmpl-public-badge">Public</span>' : ''}
-        <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;flex-shrink:0" onclick="loadTemplate('${t.id}')">Load</button>
+        <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;flex-shrink:0" onclick="loadTemplate('${t.id}')">Apply</button>
       </div>`;
     }).join('');
   }
+
+  // loadTemplate → opens the 2-step Apply Template modal
+  let _applyingTemplateId = null;
 
   function loadTemplate(id) {
     const templates = loadTemplates();
     const t = templates.find(t => t.id === id);
     if (!t) return;
-    if (!confirm(`Load template "${t.name}"? This will replace your current ilities, stakeholders, requirements, and pairwise state.`)) return;
+    _applyingTemplateId = id;
+
+    // Build the section checkboxes from what's actually in the template
+    const sectionDefs = [
+      { key: 'ilities',       label: 'Lifecycle Properties' },
+      { key: 'stakeholders',  label: 'Stakeholders' },
+      { key: 'requirements',  label: t.data.requirements ? `Requirements (${t.data.requirements.length})` : 'Requirements' },
+      { key: 'pairwiseState', label: 'Pairwise Weights' },
+      { key: 'preferences',   label: 'Project Preferences' },
+    ].filter(s => !!t.data[s.key]);
+
+    const checkboxesEl = document.getElementById('applyTmplCheckboxes');
+    checkboxesEl.innerHTML = sectionDefs.map(s => `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" class="apply-tmpl-cb" data-key="${s.key}" checked> ${s.label}
+      </label>`).join('');
+
+    document.getElementById('applyTmplName').textContent = t.name;
+    document.getElementById('applyTmplStep1').style.display = '';
+    document.getElementById('applyTmplStep2').style.display = 'none';
 
     closeStartFromTemplateModal();
+    document.getElementById('applyTmplModal').classList.add('open');
+  }
 
-    if (t.data.ilities) {
+  function applyTmplReviewImpact() {
+    const checked = [...document.querySelectorAll('.apply-tmpl-cb:checked')];
+    if (!checked.length) {
+      alert('Please select at least one section to apply.');
+      return;
+    }
+    const labelMap = {
+      ilities:       'Lifecycle Properties',
+      stakeholders:  'Stakeholders',
+      requirements:  'Requirements',
+      pairwiseState: 'Pairwise Weights',
+      preferences:   'Project Preferences',
+    };
+    const warnEl = document.getElementById('applyTmplOverwriteList');
+    warnEl.innerHTML = checked.map(cb => `<li>${labelMap[cb.dataset.key] || cb.dataset.key}</li>`).join('');
+    document.getElementById('applyTmplStep1').style.display = 'none';
+    document.getElementById('applyTmplStep2').style.display = '';
+  }
+
+  function applyTmplBack() {
+    document.getElementById('applyTmplStep1').style.display = '';
+    document.getElementById('applyTmplStep2').style.display = 'none';
+  }
+
+  function closeApplyTemplateModal() {
+    document.getElementById('applyTmplModal').classList.remove('open');
+    _applyingTemplateId = null;
+  }
+
+  function confirmApplyTemplate() {
+    const id = _applyingTemplateId;
+    const templates = loadTemplates();
+    const t = templates.find(t => t.id === id);
+    if (!t) return;
+
+    const checked = new Set([...document.querySelectorAll('.apply-tmpl-cb:checked')].map(cb => cb.dataset.key));
+
+    if (checked.has('ilities') && t.data.ilities) {
       selectedIlities = new Set(t.data.ilities);
-      renderIlityToggles && renderIlityToggles();
+      renderIlityGrid();
     }
-    if (t.data.stakeholders) {
+    if (checked.has('stakeholders') && t.data.stakeholders) {
       selectedStakeholders = new Set(t.data.stakeholders);
-      renderStakeholderToggles && renderStakeholderToggles();
+      renderStakGrid();
     }
-    if (t.data.requirements) {
-      requirements = t.data.requirements.map(r => ({...r}));
-      reqIdCounter = requirements.reduce((max, r) => Math.max(max, parseInt(String(r.id).replace('r','')) || 0), 0);
+    if (checked.has('requirements') && t.data.requirements) {
+      requirements  = t.data.requirements.map(r => ({...r}));
+      reqIdCounter  = requirements.reduce((max, r) => Math.max(max, parseInt(String(r.id).replace('r', '')) || 0), 0);
       renderRequirements && renderRequirements();
     }
-    if (t.data.pairwiseState) {
-      Object.assign(pairComparisons, t.data.pairwiseState);
+    if (checked.has('pairwiseState') && t.data.pairwiseState) {
+      pairComparisons = JSON.parse(JSON.stringify(t.data.pairwiseState));
       updatePairGate && updatePairGate();
     }
+    if (checked.has('preferences') && t.data.preferences) {
+      const p = t.data.preferences;
+      if (p.goalMode)     { goalMode    = p.goalMode;    if (typeof switchGoalMode  === 'function') switchGoalMode(goalMode); }
+      if (p.reqFormat)    { reqFormat   = p.reqFormat;   if (typeof switchReqFormat === 'function') switchReqFormat(reqFormat); }
+      if (p.pairMode)     pairMode    = p.pairMode;
+      if (p.pairSubject)  pairSubject = p.pairSubject;
+      if (p.pairMethod)   pairMethod  = p.pairMethod;
+      if (p.pughSettings) Object.assign(pughSettings, p.pughSettings);
+    }
 
-    // Navigate to PROJ to create a project for this template
-    const projBtn = document.querySelector('[data-page="proj"]');
-    if (projBtn) switchPage('proj', projBtn);
-
-    alert(`Template "${t.name}" loaded. Enter a project name above to begin.`);
+    closeApplyTemplateModal();
+    alert(`Template "${t.name}" applied successfully.`);
   }
 
   function renderTemplateList() {
     const templates = loadTemplates();
-    const listEl   = document.getElementById('templateList');
-    const emptyEl  = document.getElementById('templateEmptyState');
-    const startBtn = document.getElementById('startFromTemplateBtn');
+    const listEl    = document.getElementById('templateList');
+    const emptyEl   = document.getElementById('templateEmptyState');
+    const startBtn  = document.getElementById('startFromTemplateBtn');
     if (!listEl) return;
 
     if (!templates.length) {
       listEl.innerHTML = '';
-      if (emptyEl) emptyEl.style.display = '';
+      if (emptyEl)  emptyEl.style.display  = '';
       if (startBtn) startBtn.style.display = 'none';
       return;
     }
-    if (emptyEl) emptyEl.style.display = 'none';
+    if (emptyEl)  emptyEl.style.display  = 'none';
     if (startBtn) startBtn.style.display = '';
 
     listEl.innerHTML = templates.map(t => {
-      const date = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-      const tags = [
-        t.data.ilities      ? 'Ilities'      : null,
-        t.data.stakeholders ? 'Stakeholders' : null,
-        t.data.requirements ? `${t.data.requirements.length} Req${t.data.requirements.length !== 1 ? 's' : ''}` : null,
-        t.data.pairwiseState ? 'Pairwise'   : null,
+      const date     = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+      const sections = [
+        t.data.ilities       ? 'Lifecycle'    : null,
+        t.data.stakeholders  ? 'Stakeholders' : null,
+        t.data.requirements  ? `${t.data.requirements.length} Req${t.data.requirements.length !== 1 ? 's' : ''}` : null,
+        t.data.pairwiseState ? 'Pairwise'     : null,
+        t.data.preferences   ? 'Prefs'        : null,
       ].filter(Boolean).join(' · ');
+      const kwds = t.keywords && t.keywords.length
+        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.keywords.map(k => escHtml(k)).join(', ')}</div>`
+        : '';
       return `<div class="proj-item">
-        <div style="flex:1">
+        <div style="flex:1;min-width:0">
           <div class="proj-item-name">${escHtml(t.name)}</div>
-          <div class="proj-item-meta">${tags ? tags + ' · ' : ''}${date}${t.isPublic ? ' · <span style="color:var(--accent)">Public</span>' : ''}</div>
+          <div class="proj-item-meta">${sections ? sections + ' · ' : ''}${date}${t.isPublic ? ' · <span style="color:var(--accent)">Public</span>' : ''}</div>
+          ${kwds}
         </div>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="loadTemplate('${t.id}')">Load</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="loadTemplate('${t.id}')">Apply</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="downloadTemplate('${t.id}')" title="Download template JSON">⬇</button>
         <button class="proj-item-delete" onclick="deleteTemplate('${t.id}')" title="Delete template">×</button>
       </div>`;
     }).join('');
@@ -2687,6 +2863,11 @@ ${sections}
   const startTmplOverlay = document.getElementById('startFromTemplateModal');
   if (startTmplOverlay) startTmplOverlay.addEventListener('click', function(e) {
     if (e.target === this) closeStartFromTemplateModal();
+  });
+
+  const applyTmplOverlay = document.getElementById('applyTmplModal');
+  if (applyTmplOverlay) applyTmplOverlay.addEventListener('click', function(e) {
+    if (e.target === this) closeApplyTemplateModal();
   });
 
   // ── PUGH / SCOR STATE ──

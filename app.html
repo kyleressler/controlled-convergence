@@ -294,8 +294,11 @@
   <!-- Saved Templates Section -->
   <div id="projTemplatesSection" style="margin-top:32px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="sidebar-label" style="margin-bottom:0">Saved Templates</div>
-      <button class="btn btn-ghost" id="startFromTemplateBtn" style="font-size:11px;padding:4px 10px;display:none" onclick="openStartFromTemplateModal()">+ Start From Template</button>
+      <div class="sidebar-label" style="margin-bottom:0">My Templates</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-ghost action-btn-pro" style="font-size:11px;padding:4px 10px" onclick="uploadTemplate()" title="Upload a CC_TEMPLATE JSON file (Pro)">↑ Upload</button>
+        <button class="btn btn-ghost" id="startFromTemplateBtn" style="font-size:11px;padding:4px 10px;display:none" onclick="openStartFromTemplateModal()">Apply Template</button>
+      </div>
     </div>
     <div id="templateList" class="proj-list"></div>
     <div id="templateEmptyState" style="font-size:13px;color:var(--text-muted);padding:12px 0;display:none">
@@ -1488,20 +1491,30 @@
 
 <!-- ── SAVE TEMPLATE MODAL ── -->
 <div class="modal-overlay" id="saveTemplateModal">
-  <div class="modal-box" style="max-width:460px">
+  <div class="modal-box" style="max-width:480px">
     <div class="modal-title">Save Template</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Save the current session's structure as a reusable template for future projects.</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Save the current session's structure as a reusable template. Concepts and Pugh scores are project-specific and are never included.</div>
 
-    <div style="margin-bottom:16px">
+    <!-- Template Name + live filename preview -->
+    <div style="margin-bottom:4px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Template Name</div>
-      <input type="text" id="tmplNameInput" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Medical Device Baseline, ADAS Safety Starter…">
+      <input type="text" id="tmplNameInput" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Medical Device Baseline, ADAS Safety Starter…" oninput="updateTmplFilenamePreview()">
+    </div>
+    <div id="tmplFilenamePreview" style="font-size:11px;color:var(--text-muted);font-family:monospace;min-height:18px;margin-bottom:14px"></div>
+
+    <!-- Keywords -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Keywords <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(optional)</span></div>
+      <input type="text" id="tmplKeywordsInput" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. medical, consumer electronics, ADAS, automotive, handheld…">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5">Comma-separated. Think: industry (medical, aerospace), product type (handheld device, vehicle subsystem), or methodology (agile, INCOSE).</div>
     </div>
 
-    <div style="margin-bottom:16px">
+    <!-- Include in Template -->
+    <div style="margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px">Include in Template</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="tmplILTY" checked> Selected Ilities
+          <input type="checkbox" id="tmplILTY" checked> Lifecycle Properties
         </label>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
           <input type="checkbox" id="tmplSTAK" checked> Stakeholders
@@ -1513,13 +1526,14 @@
           <input type="checkbox" id="tmplPAIR" checked> Pairwise Weights
         </label>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Goal statements and Pugh scores are project-specific and are not included in templates.</div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.5">Project preferences (goal mode, requirement format, weighting &amp; scoring settings) are always included.</div>
     </div>
 
+    <!-- Share with Community toggle -->
     <div style="margin-bottom:20px;padding:12px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
         <div style="position:relative;width:36px;height:20px;flex-shrink:0">
-          <input type="checkbox" id="tmplIsPublic" checked style="opacity:0;position:absolute;width:100%;height:100%;margin:0;cursor:pointer;z-index:1">
+          <input type="checkbox" id="tmplIsPublic" style="opacity:0;position:absolute;width:100%;height:100%;margin:0;cursor:pointer;z-index:1">
           <div class="tmpl-toggle-track" id="tmplToggleTrack"></div>
         </div>
         <div>
@@ -1540,14 +1554,52 @@
 <!-- ── START FROM TEMPLATE MODAL ── -->
 <div class="modal-overlay" id="startFromTemplateModal">
   <div class="modal-box" style="max-width:520px">
-    <div class="modal-title">Start From Template</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Choose a template to load as the starting point for a new project. Your current session will be cleared.</div>
+    <div class="modal-title">Apply a Template</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Choose a template to apply to your current project.</div>
     <div id="tmplPickerList" style="max-height:320px;overflow-y:auto;margin-bottom:16px"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeStartFromTemplateModal()">Cancel</button>
     </div>
   </div>
 </div>
+
+<!-- ── APPLY TEMPLATE MODAL (2-step conflict resolution) ── -->
+<div class="modal-overlay" id="applyTmplModal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Apply Template</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Template: <strong id="applyTmplName"></strong></div>
+
+    <!-- Step 1: Section selection -->
+    <div id="applyTmplStep1">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6">Select which sections to apply. Uncheck any you want to keep as-is in your current project.</div>
+      <div id="applyTmplCheckboxes" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="applyTmplReviewImpact()">Review Impact →</button>
+        <button class="btn btn-secondary" onclick="closeApplyTemplateModal()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Warning + confirm -->
+    <div id="applyTmplStep2" style="display:none">
+      <div style="margin-bottom:14px;padding:14px;background:rgba(220,38,38,0.08);border:1px solid var(--danger);border-radius:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--danger);margin-bottom:8px">⚠ The following will be overwritten:</div>
+        <ul id="applyTmplOverwriteList" style="margin:0;padding-left:18px;font-size:13px;line-height:1.9"></ul>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">We recommend backing up your current project data before applying. You can export everything as a JSON file right now.</div>
+      <div style="margin-bottom:20px">
+        <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="exportProjectData()">⬇ Export Project Data (Backup)</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="confirmApplyTemplate()">Confirm — Apply Template</button>
+        <button class="btn btn-ghost" onclick="applyTmplBack()">← Back</button>
+        <button class="btn btn-secondary" onclick="closeApplyTemplateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input for Upload Template -->
+<input type="file" id="tmplUploadInput" accept=".json" style="display:none" onchange="handleTmplUpload(event)">
 
 <!-- ── AUTH MODAL (Login / Sign Up) ── -->
 <div class="modal-overlay" id="authModal">
