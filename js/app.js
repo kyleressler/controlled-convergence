@@ -2618,6 +2618,21 @@ ${sections}
   updatePairGate();
   updateNavProjectName();
 
+  // ── Hero page deep-links ─────────────────────────────────────
+  // Runs right after synchronous init so DOM and all functions are ready.
+  // Does NOT wait for Supabase — modal/mode functions are purely local.
+  // Supported hashes: #login  → open login modal
+  //                   #signup → open signup modal
+  //                   #basic  → switch to Basic Mode
+  (function () {
+    var h = window.location.hash;
+    if (!h) return;
+    history.replaceState(null, '', window.location.pathname); // clean URL bar
+    if      (h === '#login')  { openAuthModal('login'); }
+    else if (h === '#signup') { openAuthModal('signup'); }
+    else if (h === '#basic')  { setMode('basic'); }
+  })();
+
   // ── AUTO-SAVE: every 60 seconds if there is an active project ──
   setInterval(function() {
     if (activeProject) {

@@ -89,12 +89,9 @@
     badge.className   = 'account-tier-badge tier-' + userTier;
     badge.textContent = userTier === 'free' ? 'Free' : userTier === 'account' ? 'Account' : 'Pro';
 
-    // CTA button — changes based on signed-in state and tier
-    if (!isSignedIn) {
+    // CTA button — only show when the user has no account yet (free tier, not signed in)
+    if (!isSignedIn && userTier === 'free') {
       cta.textContent   = 'Create Free Account';
-      cta.style.display = '';
-    } else if (userTier === 'account') {
-      cta.textContent   = 'Upgrade to Pro';
       cta.style.display = '';
     } else {
       cta.style.display = 'none';

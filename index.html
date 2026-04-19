@@ -3,1683 +3,737 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controlled Convergence</title>
+  <title>Controlled Convergence — Design Methodology Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
-  <!-- App styles -->
-  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Chart.js (Pugh concept score chart) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    :root {
+      --teal:        #0d6e6e;
+      --teal-dark:   #095858;
+      --teal-light:  #e6f4f4;
+      --teal-mid:    #1a8c8c;
+      --text:        #1a1a1a;
+      --text-muted:  #6b7280;
+      --border:      #e5e7eb;
+      --white:       #ffffff;
+      --shadow-md:   0 4px 16px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
+      --shadow-lg:   0 12px 40px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.07);
+      --radius-card: 16px;
+      --radius-btn:  8px;
+      --font:        'Inter', system-ui, -apple-system, sans-serif;
+    }
 
-  <!-- Supabase JS SDK (auth + database) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); color: var(--text); background: var(--white); -webkit-font-smoothing: antialiased; }
+
+    /* ─── Nav ──────────────────────────────────────────────────────────── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      height: 60px; display: flex; align-items: center; padding: 0 32px;
+    }
+    .nav-inner { width: 100%; max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo  { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-lettermark {
+      width: 34px; height: 34px; background: var(--teal); color: white;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; letter-spacing: -0.5px; flex-shrink: 0;
+    }
+    .nav-wordmark { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.2px; }
+    .nav-actions  { display: flex; align-items: center; gap: 8px; }
+
+    /* ─── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 9px 20px; border-radius: var(--radius-btn);
+      font-family: var(--font); font-size: 14px; font-weight: 500;
+      cursor: pointer; text-decoration: none; border: none; outline: none;
+      transition: background .15s, color .15s, box-shadow .15s, transform .1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-ghost   { background: transparent; color: var(--text-muted); border: 1px solid transparent; }
+    .btn-ghost:hover { color: var(--text); background: #f3f4f6; }
+    .btn-primary { background: var(--teal); color: white; box-shadow: 0 1px 3px rgba(13,110,110,.3); }
+    .btn-primary:hover { background: var(--teal-dark); box-shadow: 0 4px 12px rgba(13,110,110,.35); }
+    .btn-primary-lg { padding: 14px 32px; font-size: 16px; font-weight: 600; border-radius: 10px; }
+    .btn-outline {
+      background: transparent; color: var(--teal);
+      border: 1.5px solid var(--teal); font-weight: 600;
+    }
+    .btn-outline:hover { background: var(--teal-light); }
+
+    /* ─── Hero ──────────────────────────────────────────────────────────── */
+    .hero {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      text-align: center; padding: 40px 24px 40px;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--teal-light); color: var(--teal);
+      font-size: 13px; font-weight: 600; padding: 5px 14px;
+      border-radius: 100px; margin-bottom: 28px; letter-spacing: .2px;
+    }
+    .hero-headline-static { font-size: clamp(40px,6vw,72px); font-weight: 800; line-height: 1.08; letter-spacing: -2px; color: var(--text); }
+    .hero-typewriter-row  { display: flex; align-items: center; justify-content: center; height: clamp(72px,9vw,110px); margin-top: 6px; }
+    .hero-typewriter      { font-size: clamp(36px,5.5vw,66px); font-weight: 800; line-height: 1.2; letter-spacing: -2px; color: var(--teal); white-space: nowrap; overflow: hidden; }
+    .cursor {
+      display: inline-block; width: 3px; height: .85em; background: var(--teal);
+      margin-left: 3px; vertical-align: middle; border-radius: 2px; flex-shrink: 0;
+      animation: blink .75s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .hero-sub  { margin-top: 32px; font-size: 18px; color: var(--text-muted); max-width: 480px; line-height: 1.6; }
+    .hero-cta  { margin-top: 36px; }
+    .hero-cta-note { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+
+    /* ─── Product Visual ───────────────────────────────────────────────── */
+    .product-visual-wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 24px 64px; }
+    .product-visual {
+      width: 100%; max-width: 1000px; margin: 0 auto;
+      border-radius: 20px; overflow: hidden;
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,.06);
+      background: #f8fafc; aspect-ratio: 16/9; position: relative;
+    }
+    .product-visual img { position: absolute; top: 0; left: 0; transform-origin: top left; display: block; max-width: none; }
+    @media (prefers-reduced-motion: reduce) { .product-visual img { width:100%;height:100%;object-fit:cover;position:static; } }
+
+    /* ─── Proven Tools ─────────────────────────────────────────────────── */
+    .section-proven { text-align: center; padding: 0 24px 16px; }
+    .section-heading { font-size: clamp(30px,4vw,48px); font-weight: 800; letter-spacing: -1.5px; color: var(--text); line-height: 1.12; }
+    .section-sub { margin-top: 16px; font-size: 18px; color: var(--text-muted); max-width: 560px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+
+    /* ─── Feature Cards ────────────────────────────────────────────────── */
+    .cards-section { padding: 48px 24px 80px; }
+    .cards-inner { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: row; gap: 20px; align-items: stretch; }
+    .card {
+      flex: 1 1 0; min-width: 0; background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius-card); padding: 0 0 28px;
+      display: flex; flex-direction: column; overflow: hidden; cursor: default;
+      transition: flex .45s cubic-bezier(.4,0,.2,1), box-shadow .3s ease, border-color .3s ease;
+    }
+    .cards-inner:has(.card:hover) .card       { flex: .53 1 0; }
+    .cards-inner:has(.card:hover) .card:hover { flex: 2.4 1 0; box-shadow: var(--shadow-lg); border-color: #d1e8e8; }
+    .card-preview { width: 100%; height: 130px; overflow: hidden; flex-shrink: 0; border-bottom: 1px solid var(--border); background: #f0f7f4; transition: height .45s cubic-bezier(.4,0,.2,1); }
+    .card:hover .card-preview { height: 190px; }
+    .card-preview img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .card-preview.preview-stakeholder img  { object-position: top center; transform: scale(1.08); transform-origin: top center; }
+    .card-preview.preview-requirements img { object-position: top left; transform-origin: top left; }
+    .card-preview.preview-scoring img      { object-position: top left; transform: scale(1.1); transform-origin: top left; }
+    .card-preview.preview-reports img      { object-position: top center; transform: scale(1.05); transform-origin: top center; }
+    .card-body { padding: 20px 24px 0; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .card-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card:hover .card-title { white-space: normal; overflow: visible; text-overflow: unset; }
+    .card-desc { font-size: 14px; color: var(--text-muted); line-height: 1.65; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; transition: opacity .3s ease; }
+    .card:hover .card-desc { display: block; overflow: visible; }
+    .cards-inner:has(.card:hover) .card:not(:hover) .card-desc { opacity: .35; }
+    @media (max-width: 900px) {
+      .cards-inner { flex-wrap: wrap; }
+      .cards-inner .card { flex: 1 1 calc(50% - 10px); }
+      .cards-inner:has(.card:hover) .card,
+      .cards-inner:has(.card:hover) .card:hover { flex: 1 1 calc(50% - 10px); box-shadow: var(--shadow-md); }
+    }
+    @media (max-width: 520px) {
+      .cards-inner .card { flex: 1 1 100%; }
+      .cards-inner:has(.card:hover) .card,
+      .cards-inner:has(.card:hover) .card:hover { flex: 1 1 100%; }
+    }
+
+    /* ─── Pricing Section ──────────────────────────────────────────────── */
+    .section-pricing { padding: 80px 24px 80px; text-align: center; }
+
+    .pricing-intro {
+      max-width: 560px; margin: 16px auto 0;
+      font-size: 18px; color: var(--text-muted); line-height: 1.6;
+    }
+
+    .pricing-cards {
+      max-width: 1000px; margin: 56px auto 0;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start;
+    }
+    @media (max-width: 720px) { .pricing-cards { grid-template-columns: 1fr; max-width: 420px; } }
+
+    .pricing-card {
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 20px; padding: 32px 28px 36px;
+      text-align: left; position: relative;
+      transition: box-shadow .2s ease, transform .2s ease;
+    }
+    .pricing-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .pricing-card.featured { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal), var(--shadow-md); }
+    .pricing-card.featured:hover { box-shadow: 0 0 0 1px var(--teal), var(--shadow-lg); }
+
+    .pricing-badge {
+      display: inline-block; background: var(--teal); color: white;
+      font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 100px; margin-bottom: 20px;
+    }
+    .pricing-badge-spacer { height: 25px; margin-bottom: 20px; }
+
+    .pricing-tier { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.5px; margin-bottom: 6px; }
+
+    .pricing-price {
+      font-size: 36px; font-weight: 800; color: var(--text);
+      letter-spacing: -1px; line-height: 1; margin-bottom: 4px;
+    }
+    .pricing-price span { font-size: 15px; font-weight: 500; color: var(--text-muted); letter-spacing: 0; }
+
+    .pricing-tagline {
+      font-size: 14px; color: var(--text-muted); margin-bottom: 28px;
+      line-height: 1.5;
+    }
+    .pricing-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 24px; }
+
+    .pricing-features {
+      list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;
+    }
+    .pricing-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: var(--text); line-height: 1.5;
+    }
+    .pricing-features li .check { flex-shrink: 0; margin-top: 1px; width: 16px; height: 16px; color: var(--teal); }
+    .pricing-features li.muted { color: var(--text-muted); }
+    .pricing-features li.muted .check { color: #c0d4d4; }
+
+    .pricing-cta { width: 100%; padding: 12px 20px; font-size: 15px; font-weight: 600; border-radius: 10px; text-align: center; }
+    .pricing-note { margin-top: 10px; font-size: 12px; color: var(--text-muted); text-align: center; }
+
+    /* ─── Coming Soon toast (Get Pro) ──────────────────────────────────── */
+    .coming-soon-toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1a1a1a; color: white;
+      padding: 16px 28px; border-radius: 12px;
+      font-size: 14px; font-weight: 500; line-height: 1.6;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 9999; text-align: center;
+      width: max-content; max-width: min(520px, calc(100vw - 48px));
+    }
+    .coming-soon-toast.show {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+
+    /* ─── Modes Section ────────────────────────────────────────────────── */
+    .section-modes {
+      padding: 80px 24px 0;
+      text-align: center;
+    }
+    .section-modes .section-heading { font-size: clamp(28px,3.5vw,44px); }
+
+    .mode-block {
+      max-width: 1000px;
+      margin: 56px auto 0;
+    }
+
+    .mode-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--teal);
+      margin-bottom: 14px;
+    }
+
+    .mode-desc {
+      font-size: 18px; color: var(--text-muted);
+      max-width: 640px; margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+
+    .mode-img-wrap {
+      width: 100%; border-radius: 20px; overflow: hidden;
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,.06);
+      background: #f8fafc;
+    }
+    .mode-img-wrap img { width: 100%; height: auto; display: block; }
+
+    /* Flow diagram wrapper */
+    .flow-wrap {
+      width: 100%;
+      background: var(--teal-light);
+      border: 1px solid #b8d9d9;
+      border-radius: 20px;
+      padding: 36px 28px;
+      box-sizing: border-box;
+    }
+    .flow-wrap svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ─── Bottom CTA ───────────────────────────────────────────────────── */
+    .section-cta {
+      padding: 80px 24px 96px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
+    }
+    .section-cta .cta-heading {
+      font-size: clamp(28px,4vw,52px); font-weight: 800;
+      line-height: 1.1; letter-spacing: -1.5px; color: var(--text); max-width: 720px;
+    }
+    .section-cta .cta-heading em { font-style: normal; color: var(--teal); }
+    .section-cta .cta-note { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── Footer ───────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; font-size: 13px; color: var(--text-muted); }
+  </style>
 </head>
-
 <body>
 
+  <!-- ═══ NAV ═══════════════════════════════════════════════════════════ -->
+  <nav class="nav" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo" aria-label="Controlled Convergence home">
+        <div class="nav-lettermark" aria-hidden="true">CC</div>
+        <span class="nav-wordmark">Controlled Convergence</span>
+      </a>
+      <div class="nav-actions">
+        <a href="app.html#login"  class="btn btn-ghost">Log In</a>
+        <a href="app.html#basic"   class="btn btn-primary">Start for Free</a>
+      </div>
+    </div>
+  </nav>
 
-<!-- ── NAV ── -->
-<nav class="nav">
-  <div class="nav-logo" onclick="switchPage('home', null)" title="Home" style="cursor:pointer"><span>CC</span></div>
-  <!-- MODE TOGGLE: switches between Basic Mode and Full Mode -->
-  <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn" id="modeBtnBasic" onclick="setMode('basic')">⚡ Basic Mode</button>
-    <button class="mode-btn active" id="modeBtnFull" onclick="setMode('full')">◈ Full Mode</button>
-  </div>
+  <!-- ═══ HERO ══════════════════════════════════════════════════════════ -->
+  <section class="hero" aria-labelledby="hero-headline">
+    <div class="hero-eyebrow" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Design Methodology Platform — Free to Use
+    </div>
+    <h1 id="hero-headline">
+      <span class="hero-headline-static">The Platform for</span>
+    </h1>
+    <div class="hero-typewriter-row" aria-live="polite" aria-atomic="true">
+      <span class="hero-typewriter" id="typewriter" aria-label="rotating phrases"></span>
+      <span class="cursor" aria-hidden="true"></span>
+    </div>
+    <p class="hero-sub">
+      A collaborative environment for design teams to define requirements,
+      align stakeholders, and select winning concepts.
+    </p>
+    <div class="hero-cta">
+      <a href="app.html#basic" class="btn btn-primary btn-primary-lg">Start for Free</a>
+      <p class="hero-cta-note">No credit card. No commitment. Works right now.</p>
+    </div>
+  </section>
 
-  <!-- TOOLS DROPDOWN — hidden in Basic Mode via CSS -->
-  <div class="nav-tools-dropdown" id="navToolsDropdown">
-    <button class="nav-tools-trigger" id="navToolsTrigger" onclick="toggleNavDropdown()">Tools <span class="nav-chevron">▾</span></button>
-    <div class="nav-tools-menu" id="navToolsMenu">
-      <button class="nav-tool" data-page="proj"         onclick="switchPage('proj',this);closeNavDropdown()">Project Manager</button>
-      <button class="nav-tool" data-page="tbus"         onclick="switchPage('tbus',this);closeNavDropdown()">Goal Statement</button>
-      <button class="nav-tool" data-page="stak"         onclick="switchPage('stak',this);closeNavDropdown()">Stakeholders</button>
-      <button class="nav-tool" data-page="ilities"      onclick="switchPage('ilities',this);closeNavDropdown()">Lifecycle Properties (Ilities)</button>
-      <button class="nav-tool" data-page="requirements" onclick="switchPage('requirements',this);closeNavDropdown()">Requirements</button>
-      <button class="nav-tool" data-page="pair"         onclick="switchPage('pair',this);closeNavDropdown()">Weighting</button>
-      <button class="nav-tool" data-page="scor"         onclick="switchPage('scor',this);closeNavDropdown()">Concept Scoring</button>
-      <button class="nav-tool" data-page="pugh"         onclick="switchPage('pugh',this);closeNavDropdown()">Pugh Matrix</button>
-      <button class="nav-tool" data-page="conv"          onclick="switchPage('conv',this);closeNavDropdown()">Convergence Summary</button>
+  <!-- ═══ PRODUCT VISUAL ════════════════════════════════════════════════ -->
+  <div class="product-visual-wrap">
+    <div class="product-visual" id="productViewport" role="img" aria-label="Screenshot of the Controlled Convergence platform">
+      <img src="quick-start-screenshot.png" id="productImg" alt="Controlled Convergence quick-start interface" draggable="false" />
     </div>
   </div>
 
-  <button class="nav-blog">Blog</button>
+  <!-- ═══ PROVEN TOOLS ══════════════════════════════════════════════════ -->
+  <section class="section-proven" aria-labelledby="proven-heading">
+    <h2 id="proven-heading" class="section-heading">Proven Engineering Tools That Work</h2>
+    <p class="section-sub">
+      Built on decades of design thinking and systems engineering practice —
+      using only the most efficient tools that actually work — now in a single
+      frictionless workflow.
+    </p>
+  </section>
 
-  <!-- Spacer pushes project name + login to the right -->
-  <div style="flex:1"></div>
+  <!-- ═══ FEATURE CARDS ════════════════════════════════════════════════ -->
+  <section class="cards-section" aria-label="Platform features">
+    <div class="cards-inner">
 
-  <div class="nav-project-name" id="navProjectName" style="display:none">
-    <span class="nav-project-label">PROJECT:</span>
-    <span id="navProjectNameText"></span>
-  </div>
-
-  <!-- Login button — visible only when signed out -->
-  <button id="floatingLoginBtn" onclick="openAuthModal('login')" style="display:none">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    Log In
-  </button>
-</nav>
-
-
-<!-- ── LEFT SIDEBAR ── -->
-<div class="sidebar-left" id="leftSidebar">
-  <!-- Only the hamburger tab is visible when collapsed -->
-  <div class="sidebar-tab" onclick="toggleSidebar('left')" title="Controls">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  </div>
-  <!-- Brand label — visible when collapsed, hidden when open -->
-  <div class="sidebar-brand" aria-hidden="true">Controlled Convergence</div>
-  <!-- Initials circle — visible when collapsed, hidden when open -->
-  <div class="sidebar-initials-circle" id="sidebarInitialsCircle" onclick="toggleSidebar('left')" title="Open sidebar">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-  </div>
-  <!-- Sidebar content — hidden (opacity:0) when collapsed -->
-  <div class="sidebar-content">
-
-    <!-- DEV ONLY: Tier toggle for testing — hidden in production (non-localhost) -->
-    <div id="devTierSection" style="display:none">
-      <div class="sidebar-label" style="color:var(--danger);opacity:0.7">Dev: Tier Toggle</div>
-      <div class="dev-tier-toggle">
-        <button class="dev-tier-btn active" id="devTierFree" onclick="setDevTier('free')">Free</button>
-        <button class="dev-tier-btn" id="devTierAccount" onclick="setDevTier('account')">Account</button>
-        <button class="dev-tier-btn" id="devTierPro" onclick="setDevTier('pro')">Pro</button>
-      </div>
-    </div>
-
-    <div class="sidebar-label" style="margin-top:16px">Current Account Type</div>
-    <div class="account-status-wrap" id="accountStatusWrap">
-      <div class="account-tier-badge tier-free" id="accountTierBadge">Free</div>
-      <button class="account-cta-btn" id="accountCtaBtn" onclick="handleAccountCTA()">Create Free Account</button>
-    </div>
-
-
-    <div class="sidebar-label" style="margin-top:18px">Theme</div>
-    <div class="theme-picker">
-      <button class="theme-btn active" data-theme="engineering" onclick="setTheme('engineering', this)">
-        <div class="theme-swatch theme-swatch-engineering"></div>Engineering
-      </button>
-      <button class="theme-btn" data-theme="light" onclick="setTheme('light', this)">
-        <div class="theme-swatch theme-swatch-light"></div>Light
-      </button>
-      <button class="theme-btn" data-theme="dark" onclick="setTheme('dark', this)">
-        <div class="theme-swatch theme-swatch-dark"></div>Dark
-      </button>
-    </div>
-
-    <div class="sidebar-label" style="margin-top:20px">Preferences</div>
-    <div class="pref-section">
-
-      <div class="pref-item">
-        <div class="pref-item-label">Goal Statement Mode</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefGoalBasicBtn" onclick="prefSetGoalMode('basic')">Basic</button>
-          <button class="pref-btn" id="prefGoalToByBtn" onclick="prefSetGoalMode('structured')">To · By</button>
+      <div class="card">
+        <div class="card-preview preview-stakeholder" aria-hidden="true">
+          <img src="stakeholder-screenshot.png" alt="" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Stakeholder Library</div>
+          <p class="card-desc">Click stakeholder cards to add them to your project. Every requirement traces back to who it serves. Optional — enter actual names and contact information to stakeholder cards.</p>
         </div>
       </div>
 
-      <div class="pref-item">
-        <div class="pref-item-label">Requirement Format</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefReqAgileBtn" onclick="prefSetReqFormat('agile')">Agile</button>
-          <button class="pref-btn" id="prefReqSystemBtn" onclick="prefSetReqFormat('incose')">System</button>
+      <div class="card">
+        <div class="card-preview preview-requirements" aria-hidden="true">
+          <img src="requirements-screenshot.png" alt="" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Requirement Templates</div>
+          <p class="card-desc">Draft requirements in seconds with pre-formatted templates that enforce good structure. Instantly track coverage of your requirements across stakeholders and system qualities. Optional — assign team member responsibility for scoring specific requirements in the concepting phase.</p>
         </div>
       </div>
 
-      <div class="pref-item">
-        <div class="pref-item-label">Weighting Mode</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefPairNonWeightedBtn" onclick="prefSetPairMode('nonweighted')">Non-Weighted</button>
-          <button class="pref-btn" id="prefPairWeightedBtn" onclick="prefSetPairMode('weighted')">Weighted</button>
+      <div class="card">
+        <div class="card-preview preview-scoring" aria-hidden="true">
+          <img src="scoring-screenshot.png" alt="" />
+        </div>
+        <div class="card-body">
+          <div class="card-title">Concept Scoring</div>
+          <p class="card-desc">Score concepts against your datum with a streamlined Pugh matrix interface. Easily establish your minimum viable product criteria and instantly know when a concept meets that threshold. Advanced scoring and tracking tell your team when to shift from competitive benchmarking to ideation and hybridization.</p>
         </div>
       </div>
 
-      <div class="pref-item">
-        <div class="pref-item-label">Weighting Compare</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefPairIlitiesBtn" onclick="prefSetPairSubject('ilities')">Ilities</button>
-          <button class="pref-btn" id="prefPairReqsBtn" onclick="prefSetPairSubject('requirements')">Reqs</button>
+      <div class="card">
+        <div class="card-preview preview-reports" aria-hidden="true">
+          <img src="reports-screenshot.png" alt="" />
         </div>
-      </div>
-
-      <div class="pref-item">
-        <div class="pref-item-label">Weighting Method</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefPairPairwiseBtn" onclick="prefSetPairMethod('pairwise')">Pairwise</button>
-          <button class="pref-btn" id="prefPairForcedRankBtn" onclick="prefSetPairMethod('forcedrank')">Forced Rank</button>
-        </div>
-      </div>
-
-      <div class="pref-item">
-        <div class="pref-item-label">Scoring Mode</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefScorModeBasicBtn" onclick="prefSetScoringMode('basic')">+ 0 −</button>
-          <button class="pref-btn" id="prefScorModeAdvBtn" onclick="prefSetScoringMode('advanced')">−3 to +3</button>
-        </div>
-      </div>
-
-      <div class="pref-item">
-        <div class="pref-item-label">Pugh Min. Acceptable Score</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefMASOffBtn" onclick="prefSetMAS(false)">Off</button>
-          <button class="pref-btn" id="prefMASOnBtn" onclick="prefSetMAS(true)">On</button>
-        </div>
-      </div>
-
-      <div class="pref-item">
-        <div class="pref-item-label">Pugh MTHUS &amp; MTHUWS</div>
-        <div class="pref-toggle">
-          <button class="pref-btn active" id="prefMTHUSOffBtn" onclick="prefSetMTHUS(false)">Off</button>
-          <button class="pref-btn" id="prefMTHUSOnBtn" onclick="prefSetMTHUS(true)">On</button>
+        <div class="card-body">
+          <div class="card-title">Project Reports</div>
+          <p class="card-desc">Spend less time preparing reports and presentations. Automated report generation exports a full audit trail of the — project goal, stakeholders, requirements, scores, concepts, and matrix — ready to present.</p>
         </div>
       </div>
 
     </div>
-
-    <div class="sidebar-label" style="margin-top:20px">Actions</div>
-    <button class="action-btn" onclick="exportProjectData()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export Project Data
-    </button>
-    <button class="action-btn" onclick="uploadProjectData()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Upload Project Data
-    </button>
-    <button class="action-btn" onclick="clearAllWithWarning()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-      Clear All
-    </button>
-    <button class="action-btn action-btn-pro" onclick="exportReport()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Export Report
-      <span class="pro-badge-inline">PRO</span>
-    </button>
-    <button class="action-btn action-btn-pro" onclick="openSaveTemplateModal()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M9 8h6M9 12h4"/></svg>
-      Save Template
-      <span class="pro-badge-inline">PRO</span>
-    </button>
-
-    <div style="border-top:1px solid var(--border);margin: 16px 0 12px;"></div>
-    <div class="sidebar-profile-row" id="sidebarProfileRow">
-      <div class="sidebar-profile-avatar" id="sidebarAvatarEl">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
-      <div class="sidebar-profile-info">
-        <div class="sidebar-profile-name" id="sidebarProfileName">Not signed in</div>
-      </div>
-    </div>
-    <button class="action-btn" onclick="handleLogout()" id="logoutBtn" style="margin-bottom:0;opacity:0.5;cursor:not-allowed" title="Sign in first">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Log Out
-    </button>
-    <div style="border-top:1px solid var(--border);margin:16px 0 8px;"></div>
-    <div style="text-align:center">
-      <button onclick="openTermsModal()" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);padding:0;font-family:var(--font)">Terms of Use</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── RIGHT SIDEBAR ── -->
-<div class="sidebar-right" id="rightSidebar">
-  <!-- Drag handle — grab to resize width -->
-  <div class="sidebar-resize-handle" id="rightResizeHandle"></div>
-  <div class="sidebar-tab" onclick="toggleSidebar('right')" title="Learn">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-  </div>
-  <div class="sidebar-content">
-    <div id="slideContainer">
-      <!-- slides rendered by JS -->
-    </div>
-  </div>
-</div>
-
-<!-- ── SIDEBAR NUDGE TOOLTIP ── -->
-<div class="sidebar-nudge" id="rightSidebarNudge">Need help? Tap here →</div>
-
-<!-- ── PROJ PAGE ── -->
-<main class="main page" id="page-proj" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Project Manager</div>
-    <div class="page-subtitle">Name and create your project.</div>
-  </div>
-
-  <div id="projActiveBanner" style="display:none">
-    <div class="proj-active-card" id="projActiveCard">
-      <div class="proj-active-label">ACTIVE PROJECT</div>
-      <div class="proj-active-name" id="projActiveName"></div>
-      <div class="proj-active-meta" id="projActiveMeta"></div>
-      <div id="projActiveDesc" style="font-size:13px;color:var(--text-light);margin-top:4px"></div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-ghost" style="font-size:12px" onclick="editActiveProject()">Edit</button>
-        <button class="btn btn-ghost" style="font-size:12px" onclick="deactivateProject()">Close Project</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="proj-form-card" id="projFormCard">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div>
-        <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
-        <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
-      </div>
-      <div>
-        <div class="req-form-label">Owner</div>
-        <input type="text" class="add-custom-input" id="projOwnerInput" placeholder="e.g. J. Smith, Team Alpha, Acme Corp..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
-      </div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div class="req-form-label">Description</div>
-      <input type="text" class="add-custom-input" id="projDescInput" placeholder="Brief description of the project goal or context..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
-    </div>
-    <div id="projFormError" style="color:var(--danger,#e53e3e);font-size:12px;margin-bottom:8px;display:none"></div>
-    <button class="btn btn-primary" onclick="createProject()">Start Project</button>
-    <div class="proj-tier-note" id="projTierNote"></div>
-  </div>
-
-  <div id="projSavedSection">
-    <div class="sidebar-label" style="margin-bottom:12px">Saved Projects</div>
-    <div id="projList" class="proj-list"></div>
-    <div id="projSaveNote" class="proj-save-note"></div>
-  </div>
-
-  <!-- Saved Templates Section -->
-  <div id="projTemplatesSection" style="margin-top:32px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="sidebar-label" style="margin-bottom:0">Saved Templates</div>
-      <button class="btn btn-ghost" id="startFromTemplateBtn" style="font-size:11px;padding:4px 10px;display:none" onclick="openStartFromTemplateModal()">+ Start From Template</button>
-    </div>
-    <div id="templateList" class="proj-list"></div>
-    <div id="templateEmptyState" style="font-size:13px;color:var(--text-muted);padding:12px 0;display:none">
-      No saved templates yet. Use <strong>Save Template</strong> in the sidebar to save your current session as a reusable starting point.
-    </div>
-  </div>
-
-  <div class="advisor-zone" style="margin-top:24px">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div>
-        <div class="advisor-name">STU</div>
-        <div class="advisor-role">Controlled Convergence Coach</div>
-      </div>
-    </div>
-    <div class="advisor-body" id="projAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <div></div>
-    <button class="btn btn-continue" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
-      Continue to Goal Statement →
-    </button>
-  </div>
-
-</main>
-
-<!-- ── BASIC MODE PAGE ──
-     Shares the same data model as Full Mode:
-       requirements[]   — same array, displayed as simple list
-       pughConcepts[]   — index 0 = datum (auto-created), 1+ = concepts shown here
-       pughScores{}     — same object, keyed conceptId_reqId
-       activeProject    — same object, name field used
-     On switch Basic→Full: qsSync() writes Basic Mode field values into shared state.
-     On switch Full→Basic: syncGuidedToQS() reads shared state into Basic Mode fields.
--->
-<main class="main page" id="page-basic" style="display:none">
-
-  <div class="qs-header">
-    <div>
-      <div class="qs-title">Basic Mode</div>
-      <div class="qs-subtitle">Jump straight in — the matrix updates as you type.</div>
-    </div>
-    <div class="qs-save-hint">Switch to Full Mode for structured coaching, ility weighting, and PDF export.</div>
-  </div>
-
-  <!-- Project name + Goal -->
-  <div class="qs-top-grid">
-    <div class="qs-field-group">
-      <label class="qs-label" for="qsProjectName">Project Name</label>
-      <input class="qs-input" id="qsProjectName" placeholder="My Design Project" oninput="qsSync()">
-    </div>
-    <div class="qs-field-group">
-      <label class="qs-label" for="qsGoal">Goal</label>
-      <input class="qs-input" id="qsGoal" placeholder="What are you designing and why?" oninput="qsSync()">
-    </div>
-  </div>
-
-  <!-- Requirements + Concepts lists -->
-  <div class="qs-lists-grid">
-    <div class="qs-list-panel">
-      <div class="qs-list-header">
-        <span class="qs-list-title">Requirements (rows)</span>
-        <button class="qs-add-btn" onclick="addQSRequirement()">+ Add</button>
-      </div>
-      <div id="qsRequirementsList"><p class="qs-empty-hint">No requirements yet. Click + Add.</p></div>
-    </div>
-    <div class="qs-list-panel">
-      <div class="qs-list-header">
-        <span class="qs-list-title">Concepts (columns)</span>
-        <button class="qs-add-btn" onclick="addQSConcept()">+ Add</button>
-      </div>
-      <!-- Baseline Concept = pughConcepts[0], always present, always first column -->
-      <div class="qs-baseline-row">
-        <span class="qs-baseline-label">Baseline Concept</span>
-        <input class="qs-row-input qs-baseline-input" id="qsBaselineName"
-               placeholder="Datum"
-               oninput="updateQSBaseline(this.value)">
-      </div>
-      <div class="qs-concepts-divider"></div>
-      <div id="qsConceptsList"><p class="qs-empty-hint">No additional concepts yet. Click + Add.</p></div>
-    </div>
-  </div>
-
-  <!-- Simple Pugh Matrix -->
-  <div class="qs-matrix-section">
-    <div class="qs-matrix-header">
-      <span class="qs-list-title">Pugh Matrix</span>
-      <span class="qs-matrix-hint">Score each concept vs. datum: better (+), same (0), worse (−)</span>
-    </div>
-    <div id="qsMatrixWrap"><p class="qs-matrix-empty">Add requirements and concepts above to see the matrix.</p></div>
-  </div>
-
-  <!-- Concept Score Summary chart (mirrors the Pugh page chart) -->
-  <div class="pugh-chart-container" id="qsChartContainer" style="display:none">
-    <div class="pugh-chart-title">Concept Score Summary</div>
-    <div class="pugh-chart-wrap">
-      <canvas id="qsConceptChart"></canvas>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── HOME PAGE ── -->
-<main class="main page active" id="page-home">
-  <div class="home-hero">
-    <div class="home-hero-inner">
-      <h1 class="home-headline">Make Better Design Decisions</h1>
-      <p class="home-tagline">A structured methodology for evaluating design concepts against real engineering requirements — objectively, systematically, and collaboratively.</p>
-      <div class="home-cta-row">
-        <button class="home-cta-quick" onclick="setMode('basic')">⚡ Basic Mode →</button>
-        <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Mode →</button>
-      </div>
-      <p class="home-cta-sub">Basic Mode: jump straight to a matrix &nbsp;|&nbsp; Full Mode: structured workflow with coaching and exports</p>
-    </div>
-  </div>
-
-  <div class="home-steps">
-    <div class="home-steps-title">The Controlled Convergence Workflow <button class="info-icon" onclick="openSidebarToSlide('home', 0)" title="About this method">ⓘ</button></div>
-    <div class="home-steps-row">
-      <div class="home-step">
-        <div class="home-step-num">1</div>
-        <div class="home-step-label">Goal Statement</div>
-        <div class="home-step-desc">Define what you're designing, for whom, and under what constraints.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">2</div>
-        <div class="home-step-label">Stakeholders</div>
-        <div class="home-step-desc">Identify who is affected by and who influences the design.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">3</div>
-        <div class="home-step-label">Ilities</div>
-        <div class="home-step-desc">Select the quality dimensions that matter most to your design.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">4</div>
-        <div class="home-step-label">Requirements</div>
-        <div class="home-step-desc">Capture specific, measurable engineering requirements.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">5</div>
-        <div class="home-step-label">Pairwise</div>
-        <div class="home-step-desc">Rank requirements by relative importance through pairwise comparison.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">6</div>
-        <div class="home-step-label">Score</div>
-        <div class="home-step-desc">Score each design concept against the datum for every requirement.</div>
-      </div>
-      <div class="home-step-arrow">→</div>
-      <div class="home-step">
-        <div class="home-step-num">7</div>
-        <div class="home-step-label">Pugh Matrix</div>
-        <div class="home-step-desc">Visualize which concepts dominate and converge on the best design.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="home-values">
-    <div class="home-value">
-      <div class="home-value-title">Objective Evaluation</div>
-      <div class="home-value-body">Eliminate gut-feel decisions. Score concepts against an agreed datum using a weighted matrix.</div>
-    </div>
-    <div class="home-value">
-      <div class="home-value-title">Iterative Convergence</div>
-      <div class="home-value-body">Weak concepts are eliminated. Strong concepts are hybridized. The best design emerges.</div>
-    </div>
-    <div class="home-value">
-      <div class="home-value-title">Defensible Results</div>
-      <div class="home-value-body">Export a full audit trail — requirements, scores, and matrix — ready to present to stakeholders.</div>
-    </div>
-  </div>
-</main>
-
-<!-- ── GOAL STATEMENT PAGE ── -->
-<main class="main page" id="page-tbus">
-  <div class="page-header">
-    <div class="page-title">Goal Statement <button class="info-icon" onclick="openSidebarToSlide('tbus', 0)" title="What is a Goal Statement?">ⓘ</button></div>
-    <div class="page-subtitle">Define what you are trying to accomplish before you decide how you are going to accomplish it.</div>
-
-  </div>
-
-  <!-- Basic Goal Input -->
-  <div id="goalBasicForm">
-    <div class="statement-card">
-      <!-- uses statement-part so flex:1 on the textarea works and focus-within background fires -->
-      <div class="statement-part" style="border-bottom:none;flex-direction:column;gap:10px;padding:20px 24px 16px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">Goal Statement</div>
-        <textarea class="part-input" id="input-goal-basic" placeholder="Describe what you are trying to accomplish in one clear sentence. Focus on the outcome for a person, not a product or technology.&#10;&#10;Example: Help first-year engineering students evaluate competing design concepts objectively and reach a defensible recommendation before their final review." rows="5" oninput="onGoalBasicInput()" style="font-size:15px;line-height:1.7;width:100%;box-sizing:border-box;padding:0;min-height:100px"></textarea>
-        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;padding-bottom:4px">A basic goal statement is a great starting point. Switch to <strong>To · By · While</strong> mode for a structured, three-part statement that separates intent from method from constraint.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Statement Form -->
-  <div class="statement-card" id="statementCard" style="display:none">
-
-    <!-- TO -->
-    <div class="statement-part" id="part-to">
-      <div class="part-label-wrap">
-        <span class="part-keyword to-kw">TO</span>
-        <span class="part-hint">Solution-neutral intent — describe the outcome for a person, not a product</span>
-        <button class="info-icon" onclick="openSidebarToSlide('tbus', 1)" title="The TO · BY · WHILE framework">ⓘ</button>
-      </div>
-      <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution.&#10;&#10;Example: Help commuters cross the river between downtown and Riverside safely, at any time of year." rows="3" oninput="onInput('to')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-to"></div></div>
-    </div>
-    <div class="validation-msg" id="val-to">
-      <span id="val-to-text"></span>
-    </div>
-
-    <!-- BY -->
-    <div class="statement-part" id="part-by">
-      <div class="part-label-wrap">
-        <span class="part-keyword by-kw">BY</span>
-        <span class="part-hint">How you will accomplish the To — specific function or approach</span>
-      </div>
-      <textarea class="part-input" id="input-by" placeholder="How will you accomplish the To above? Unlike the To, the By can and should be specific.&#10;&#10;Example: providing a fixed crossing structure that supports pedestrians and cyclists in all weather conditions." rows="3" oninput="onInput('by')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-by"></div></div>
-    </div>
-    <div class="validation-msg" id="val-by">
-      <span id="val-by-text"></span>
-    </div>
-
-    <!-- USING -->
-    <div class="statement-part" id="part-using" style="opacity:0.55;pointer-events:none">
-      <div class="part-label-wrap">
-        <span class="part-keyword using-kw">USING</span>
-        <span class="part-hint">Converged solution</span>
-      </div>
-      <textarea class="part-input" id="input-using" placeholder="The USING is the specific solution form we are going to use and will be determined through Controlled Convergence in our Pugh Matrix. To Be Determined..." rows="3" readonly tabindex="-1"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-using"></div></div>
-    </div>
-    <div class="validation-msg" id="val-using" style="display:none">
-      <span id="val-using-text"></span>
-    </div>
-
-    <!-- WHILE -->
-    <div class="statement-part" id="part-while">
-      <div class="part-label-wrap">
-        <span class="part-keyword while-kw">WHILE</span>
-        <span class="part-hint">Constraint or condition</span>
-        <button class="info-icon" onclick="openSidebarToSlide('tbus', 3)" title="Common Goal Statement mistakes">ⓘ</button>
-      </div>
-      <textarea class="part-input" id="input-while" placeholder="A real constraint that could actually eliminate a concept if violated. Ask: would a concept that ignores this still be acceptable?&#10;&#10;Example: staying within a $4M capital budget and minimizing disruption to ongoing river traffic." rows="3" oninput="onInput('while')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-while"></div></div>
-    </div>
-    <div class="validation-msg" id="val-while">
-      <span id="val-while-text"></span>
-    </div>
-
-  </div>
-
-  <!-- Live Preview Banner -->
-  <div class="preview-banner" id="previewBanner"></div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
-      ← Return to Project Manager
-    </button>
-    <button class="btn btn-continue" id="btnContinue" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
-      Continue to Stakeholders →
-    </button>
-  </div>
-
-  <!-- Advisor Zone -->
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div>
-        <div class="advisor-name">STU</div>
-        <div class="advisor-role">Controlled Convergence Coach</div>
-      </div>
-    </div>
-
-    <div class="advisor-body" id="advisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-
-    <div class="advisor-thinking" id="advisorThinking">
-      <span>Reviewing your statement</span>
-      <div class="dots">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
-
-    <div class="advisor-footer">
-      <button class="btn btn-secondary" id="btnCoach" onclick="handleCoachingClick()" style="display:flex;align-items:center;gap:6px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        Get Coaching
-        <span class="pro-badge-inline" id="coachProBadge">PRO</span>
-      </button>
-    </div>
-  </div>
-
-
-</main>
-
-<!-- ── ILITIES PAGE ── -->
-<main class="main page" id="page-ilities" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Lifecycle Properties (Ilities) <button class="info-icon" onclick="openSidebarToSlide('ilities', 0)" title="What are lifecycle properties?">ⓘ</button></div>
-    <div class="page-subtitle">Select the lifecycle properties relevant to your project. You can categorize requirements against these properties to track coverage.</div>
-  </div>
-
-  <div class="ility-selection-bar">
-    <span class="ility-count"><strong id="ilityCount">0</strong> of 25 selected <button class="info-icon" onclick="openSidebarToSlide('ilities', 1)" title="How to select ilities">ⓘ</button></span>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllIlities()">Select All</button>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllIlities()">Deselect All</button>
-    </div>
-  </div>
-
-  <div class="ility-grid" id="ilityGrid"></div>
-
-  <div class="add-custom-row" style="align-items:flex-end">
-    <div class="add-custom-fields">
-      <input class="add-custom-input" id="customIlityName" placeholder="Custom ility name...">
-      <input class="add-custom-input" id="customIlityDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomIlity()">
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn btn-secondary" onclick="addCustomIlity()">Add</button>
-      <span class="account-badge-inline">ACCOUNT+</span>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
-      ← Return to Stakeholders
-    </button>
-    <button class="btn btn-continue" id="btnIlityContinue" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
-      Continue to Requirements →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body" id="ilityAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── STAKEHOLDERS PAGE ── -->
-<main class="main page" id="page-stak" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Stakeholders <button class="info-icon" onclick="openSidebarToSlide('stak', 0)" title="What are stakeholders?">ⓘ</button></div>
-    <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to who it serves or affects.</div>
-  </div>
-
-  <div class="stak-selection-bar">
-    <span class="stak-count"><strong id="stakCount">0</strong> selected <button class="info-icon" onclick="openSidebarToSlide('stak', 1)" title="How to identify stakeholders">ⓘ</button></span>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-ghost" style="font-size:12px" onclick="selectAllStakeholders()">Select All</button>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="deselectAllStakeholders()">Deselect All</button>
-    </div>
-  </div>
-
-  <div class="stak-grid" id="stakGrid"></div>
-
-  <div class="add-custom-row" style="align-items:flex-end;flex-direction:column;gap:8px">
-    <div style="display:flex;gap:8px;width:100%;align-items:flex-end">
-      <div class="add-custom-fields" style="flex:1">
-        <input class="add-custom-input" id="customStakName" placeholder="Stakeholder label (e.g. End User, Technician)...">
-        <input class="add-custom-input" id="customStakDesc" placeholder="Short description (optional)..." onkeydown="if(event.key==='Enter')addCustomStak()">
-      </div>
-      <button class="btn btn-secondary" onclick="addCustomStak()">Add</button>
-    </div>
-    <!-- Contact fields — tier-gated -->
-    <div style="display:flex;gap:8px;width:100%;align-items:center;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
-        <input class="add-custom-input" id="customStakContactName"
-          placeholder="Contact name (optional)"
-          style="flex:1"
-          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
-        <span class="account-badge-inline" style="white-space:nowrap;flex-shrink:0">ACCOUNT+</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
-        <input class="add-custom-input" id="customStakContactTitle"
-          placeholder="Contact title (optional)"
-          style="flex:1"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
-        <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px">
-        <input class="add-custom-input" id="customStakContactEmail"
-          type="email"
-          placeholder="Contact email (optional)"
-          style="flex:1"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
-        <span class="pro-badge-inline" style="white-space:nowrap;flex-shrink:0;margin-left:0">PRO</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
-      ← Return to Goal Statement
-    </button>
-    <button class="btn btn-continue" id="btnStakContinue" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
-      Continue to Lifecycle Properties →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body" id="stakAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── REQUIREMENTS PAGE ── -->
-<main class="main page" id="page-requirements" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Requirements</div>
-    <div class="page-subtitle">Write requirements and classify them. The coverage charts can help you spot gaps in your requirements.</div>
-  </div>
-
-  <div class="req-form-card" id="reqFormCard">
-    <div class="req-form-label">Type</div>
-    <div class="req-type-selector" id="reqTypeSelector">
-      <button class="req-type-chip active" data-type="essential" onclick="setReqType('essential', this)">Essential</button>
-      <button class="req-type-chip" data-type="desirable" onclick="setReqType('desirable', this)">Desirable</button>
-      <button class="req-type-chip" data-type="optional" onclick="setReqType('optional', this)">Optional</button>
-      <button class="req-type-chip" data-type="willnot" onclick="setReqType('willnot', this)">Will Not</button>
-      <button class="req-type-chip" data-type="mustnot" onclick="setReqType('mustnot', this)">Must Not</button>
-    </div>
-
-    <!-- ── AGILE / JIRA form ── -->
-    <div id="reqAgileSection" style="margin-top:12px">
-      <div class="req-agile-row">
-        <span class="req-agile-label">As a</span>
-        <select class="req-select" id="reqAgileStakeholder" style="flex:1">
-          <option value="">— select stakeholder —</option>
-        </select>
-      </div>
-      <div class="req-agile-row">
-        <span class="req-agile-label">I care about</span>
-        <select class="req-select" id="reqAgileIlity" style="flex:1">
-          <option value="">— select ility —</option>
-        </select>
-      </div>
-      <div class="req-agile-row" style="align-items:flex-start">
-        <span class="req-agile-label" style="margin-top:8px">and I want</span>
-        <textarea class="req-text-input" id="reqAgileWant"
-          placeholder="what you want the system to do or provide..."
-          rows="2" style="flex:1;margin:0"></textarea>
-      </div>
-      <div class="req-agile-row" style="align-items:flex-start">
-        <span class="req-agile-label req-agile-optional" style="margin-top:8px">so that</span>
-        <textarea class="req-text-input" id="reqAgileSoThat"
-          placeholder="(optional) the outcome or reason this matters..."
-          rows="2" style="flex:1;margin:0"></textarea>
-      </div>
-    </div>
-
-    <!-- ── SYSTEM / INCOSE form ── -->
-    <div id="reqIncoseSection" style="display:none">
-      <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement <button class="info-icon" onclick="openSidebarToSlide('requirements', 1)" title="How to write strong requirements">ⓘ</button></div>
-      <textarea class="req-text-input" id="reqText" placeholder="The system shall..." rows="2"></textarea>
-
-      <div class="req-form-columns">
-        <div class="req-form-col">
-          <div>
-            <div class="req-form-label">Primary Ility <span style="color:var(--danger)">*</span></div>
-            <select class="req-select" id="reqPrimaryIlity" onchange="syncReqSecondary('ility')">
-              <option value="">— select —</option>
-            </select>
-          </div>
-          <div>
-            <div class="req-form-label">Secondary Ility</div>
-            <select class="req-select" id="reqSecondaryIlity">
-              <option value="">(none)</option>
-            </select>
-          </div>
-        </div>
-        <div class="req-form-col">
-          <div>
-            <div class="req-form-label">Primary Stakeholder</div>
-            <select class="req-select" id="reqPrimaryStakeholder" onchange="syncReqSecondary('stak')">
-              <option value="">— select —</option>
-            </select>
-          </div>
-          <div>
-            <div class="req-form-label">Secondary Stakeholder</div>
-            <select class="req-select" id="reqSecondaryStakeholder">
-              <option value="">(none)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Responsible Scorer (Pro, both modes) ── -->
-    <div style="margin-top:12px">
-      <div class="req-form-label" style="display:flex;align-items:center;gap:6px">
-        Responsible Scorer
-        <span class="pro-badge-inline" style="margin-left:0">PRO</span>
-        <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional — who will score this requirement in SCOR)</span>
-      </div>
-      <select class="req-select" id="reqScorer" style="width:100%"
-        onfocus="if(userTier!=='pro'){this.blur();showUpgradePrompt('pro-scorer');}">
-        <option value="">— none —</option>
-      </select>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-      <button class="btn btn-primary" id="reqAddBtn" onclick="addRequirement()">Add Requirement</button>
-      <button class="btn btn-ghost" id="reqCancelEdit" style="display:none" onclick="cancelReqEdit()">Cancel</button>
-    </div>
-  </div>
-
-  <div class="req-layout">
-    <div>
-      <div id="reqList" class="req-list">
-        <div class="req-empty" id="reqEmpty">No requirements yet. Add your first one above.</div>
-      </div>
-    </div>
-    <div class="req-charts-col">
-      <div class="req-chart-stack">
-        <div class="req-chart-card">
-          <div class="req-chart-title">Coverage by Ility</div>
-          <div id="reqChartIlity"></div>
-        </div>
-        <div class="req-chart-card">
-          <div class="req-chart-title">Coverage by Stakeholder</div>
-          <div id="reqChartStak"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
-      ← Return to Lifecycle Properties
-    </button>
-    <button class="btn btn-continue" id="btnReqContinue" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
-      Continue to Weighting →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body" id="reqAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── PAIR PAGE ── -->
-<main class="main page" id="page-pair" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Weighting <button class="info-icon" onclick="openSidebarToSlide('pair', 0)" title="What is weighting?">ⓘ</button></div>
-    <div class="page-subtitle" id="pairSubtitle">If desired, you can apply weights to either Ilities or Requirements in your Pugh Matrix scoring.</div>
-  </div>
-
-  <div class="pair-mode-bar">
-    <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
-      <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
-      <div class="pair-progress-track">
-        <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
-      </div>
-    </div>
-    <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
-  </div>
-
-  <div id="pairWeightedSection">
-    <!-- Conflict card (hidden by default) -->
-    <div class="pair-conflict-card" id="pairConflictCard" style="display:none">
-      <div class="pair-conflict-title">⚠ Logic Inconsistency Detected</div>
-      <div class="pair-conflict-body" id="pairConflictBody"></div>
-      <div class="pair-conflict-choices" id="pairConflictChoices"></div>
-    </div>
-
-    <!-- Empty state (no ilities selected) -->
-    <div class="pair-card" id="pairEmptyMsg" style="display:none;text-align:center;padding:32px 28px;color:var(--text-muted);font-size:14px">
-      Go to <strong>ILTY</strong> and select at least 2 ilities to begin the pairwise comparison.
-    </div>
-
-    <!-- Comparison card -->
-    <div class="pair-card" id="pairCompareCard">
-      <div class="pair-question" id="pairQuestion">Assume that your team has achieved a perfect minimum viable product where every shall requirement is being met and none of your desirable requirements are being met. In this situation, if you had additional resources (time, money, or people), which of these would you spend your resources on?</div>
-      <div class="pair-vs-row">
-        <button class="pair-choice-btn" id="pairBtnA" onclick="choosePair('A')"></button>
-        <div class="pair-vs-label">vs</div>
-        <button class="pair-choice-btn" id="pairBtnB" onclick="choosePair('B')"></button>
-      </div>
-    </div>
-
-    <!-- Live ranking chart (appears after first choice) -->
-    <div class="pair-log" id="pairLiveChartCard" style="display:none">
-      <div class="pair-log-title" id="pairLiveChartTitle">Running Rankings</div>
-      <div id="pairLiveChart"></div>
-    </div>
-
-    <!-- Results (hidden until done) -->
-    <div class="pair-results" id="pairResults" style="display:none">
-      <div class="pair-results-header">Ility Weights — Final Rankings</div>
-      <div id="pairResultRows"></div>
-    </div>
-
-    <!-- Log -->
-    <div class="pair-log" id="pairLog" style="display:none">
-      <div class="pair-log-title">Comparisons Made</div>
-      <div id="pairLogEntries"></div>
-    </div>
-  </div>
-
-  <div id="pairNonWeightedSection" style="display:none">
-    <div class="pair-nonweighted-card">
-      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px" id="pairNonWeightedTitle">Non-Weighted Mode</div>
-      <p style="font-size:14px;color:var(--text-muted);line-height:1.65" id="pairNonWeightedDesc">All selected ilities will carry equal weight in the Pugh matrix. This is a valid choice when your team agrees that no single system property dominates the design space, or when there is insufficient information to prioritize.</p>
-      <div id="pairNonWeightedList" style="margin-top:20px;display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-  </div>
-
-  <!-- Forced Rank section -->
-  <div id="pairForcedRankSection" style="display:none">
-    <div class="pair-card">
-      <div class="pair-question" id="pairForcedRankQuestion">Drag cards or use the ↑↓ arrows to rank from most to least important. Weights (1–5) are assigned automatically based on position and carried into the Pugh Matrix.</div>
-      <div id="pairForcedRankList" class="pair-forced-list"></div>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
-      ← Return to Requirements
-    </button>
-    <button class="btn btn-continue" id="btnPairContinue" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
-      Continue to Concept Scoring →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body" id="pairAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── SCOR PAGE ── -->
-<main class="main page" id="page-scor" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Concept Scoring <button class="info-icon" onclick="openSidebarToSlide('scor', 0)" title="What is concept scoring?">ⓘ</button></div>
-    <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept added becomes the Datum — your fixed baseline. Score concepts requirement by requirement. The results will be shown in the Pugh Matrix.</div>
-  </div>
-
-  <!-- Add concept row + settings button -->
-  <div class="concept-add-row">
-    <input type="text" class="add-custom-input" id="scorConceptInput"
-      placeholder="Concept name (e.g. Cable-stayed Bridge, Pneumatic Actuator, Option 3…)"
-      style="flex:1;max-width:440px"
-      onkeydown="if(event.key==='Enter')addPughConcept()">
-    <button class="btn btn-primary" onclick="addPughConcept()">Add Concept</button>
-    <button class="btn btn-ghost" id="scorSettingsBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="toggleScoringSettings()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      Concept Settings
-    </button>
-  </div>
-
-  <!-- Concept Settings panel -->
-  <div id="scorSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:16px">Concept Settings</div>
-
-    <!-- Section A: Custom concept fields -->
-    <div style="margin-bottom:20px">
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Custom Concept Fields</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">Define fields that apply to every concept in this project — e.g. Weight, Material, Key Innovation. You'll fill them in when adding each concept.</div>
-      <div id="scorCustomFieldsList" style="margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="text" id="scorCfNameInput" class="add-custom-input" placeholder="Field name…" style="flex:1;max-width:200px" onkeydown="if(event.key==='Enter')addConceptCustomField()">
-        <select id="scorCfTypeSelect" class="add-custom-input" style="width:auto;flex-shrink:0">
-          <option value="text">Text</option>
-          <option value="number">Number</option>
-        </select>
-        <button class="btn btn-secondary" onclick="addConceptCustomField()" style="font-size:12px;flex-shrink:0">+ Add Field</button>
-      </div>
-    </div>
-
-    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
-
-    <!-- Section B: Scorer filter -->
-    <div>
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Responsible Scorer Filter</div>
-      <select id="scorerFilterSelect" class="add-custom-input" onchange="setScorerFilter(this.value)" style="max-width:300px">
-        <option value="">All Requirements</option>
-      </select>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">Filters which requirements are shown during scoring. Has no effect on Pugh Matrix calculations. Assign scorers on the REQS page.</div>
-    </div>
-
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;text-align:right">
-      <button class="btn btn-primary" onclick="closeScoringSettings()" style="font-size:12px">Done</button>
-    </div>
-  </div>
-
-  <!-- Concept cards list -->
-  <div id="scorConceptCards" class="concept-cards-wrap"></div>
-
-  <!-- Empty state (no concepts yet) -->
-  <div id="scorEmptyState" style="text-align:center;padding:40px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
-    Add your first concept above. It will become the <strong>Datum</strong> — the baseline all other concepts are compared against.
-  </div>
-
-  <!-- Scoring view (shown when a concept is selected) -->
-  <div id="scorScoringView" style="display:none">
-    <div class="scor-view">
-      <div class="scor-view-header">
-        <div style="flex:1">
-          <div class="scor-view-concept-name" id="scorViewName"></div>
-          <div class="scor-view-progress" id="scorViewProgress"></div>
-          <div class="scor-progress-track"><div class="scor-progress-fill" id="scorProgressFill" style="width:0%"></div></div>
-        </div>
-        <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="exitScoringView()">← All Concepts</button>
+  </section>
+
+  <!-- ═══ PRICING ═══════════════════════════════════════════════════════ -->
+  <section class="section-pricing" aria-labelledby="pricing-heading">
+    <h2 id="pricing-heading" class="section-heading">Simple, Honest Pricing</h2>
+    <p class="pricing-intro">
+      Run a full analysis right now — no account needed. Create a free account
+      to save your work and unlock advanced tools. Upgrade to Pro only when
+      you're ready for more.
+    </p>
+
+    <div class="pricing-cards">
+
+      <!-- ── Free ── -->
+      <div class="pricing-card">
+        <div class="pricing-badge-spacer" aria-hidden="true"></div>
+        <div class="pricing-tier">Free</div>
+        <div class="pricing-price">$0</div>
+        <p class="pricing-tagline">No account. No signup. Start a full analysis right now.</p>
+        <hr class="pricing-divider" />
+        <ul class="pricing-features" aria-label="Free tier features">
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Full methodology
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Basic concept scoring
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Score summary chart
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Import &amp; Export your work
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Pre-loaded stakeholders &amp; system quality library
+          </li>
+          <li class="muted">
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Session only — work not saved
+          </li>
+        </ul>
+        <a href="app.html#basic" class="btn btn-outline pricing-cta">Try It Free</a>
+        <p class="pricing-note">No account required</p>
       </div>
 
-      <!-- Datum definition view (replaces old datum notice) -->
-      <div id="scorDatumDefView" style="display:none">
-        <div class="scor-req-display">
-          <div class="scor-req-badges" id="datumReqBadges"></div>
-          <div class="scor-req-text"   id="datumReqText"></div>
-          <div class="scor-req-meta"   id="datumReqMeta"></div>
-        </div>
-
-        <!-- Datum performance level -->
-        <div class="datum-def-section">
-          <div class="datum-def-label">Datum Performance Level</div>
-          <input class="datum-def-input" id="datumLevelInput" type="text"
-            placeholder="e.g. 12 kg, 4.5 sec, mild steel, current manual process..."
-            oninput="saveDatumField()">
-        </div>
-
-        <!-- Advanced anchors (shown only in advanced mode) -->
-        <div id="datumAnchorSection" style="display:none">
-          <div class="datum-def-section" style="padding-top:10px">
-            <div class="datum-def-label" style="color:var(--success)">▲ Best Reasonable (+3)</div>
-            <input class="datum-def-input" id="datumAnchorHighInput" type="text"
-              placeholder="The best a concept could realistically achieve for this requirement..."
-              oninput="saveDatumField()">
-          </div>
-          <div class="datum-def-section" style="padding-top:10px">
-            <div class="datum-def-label" style="color:var(--danger)">▼ Worst Reasonable (−3)</div>
-            <input class="datum-def-input" id="datumAnchorLowInput" type="text"
-              placeholder="The worst a concept could realistically be for this requirement..."
-              oninput="saveDatumField()">
-          </div>
-        </div>
-
-        <!-- MAS selector (shown only when MAS enabled + Account+) -->
-        <div id="datumMasSection" style="display:none" class="datum-mas-row">
-          <div class="datum-mas-label">MAS</div>
-          <div class="datum-mas-btns" id="datumMasBtns"></div>
-          <div style="font-size:11px;color:var(--text-muted);margin-left:8px">Minimum Acceptable Score for this requirement</div>
-        </div>
-
-        <div class="scor-nav-row" style="margin-top:14px">
-          <button class="btn btn-ghost" id="datumPrevBtn" onclick="datumDefNav(-1)" style="font-size:13px">← Prev</button>
-          <div class="scor-req-counter" id="datumReqCounter"></div>
-          <button class="btn btn-primary" id="datumNextBtn" onclick="datumDefNav(1)" style="font-size:13px">Next →</button>
-        </div>
+      <!-- ── Account ── -->
+      <div class="pricing-card">
+        <div class="pricing-badge-spacer" aria-hidden="true"></div>
+        <div class="pricing-tier">Account</div>
+        <div class="pricing-price">$0</div>
+        <p class="pricing-tagline">Just an email. Unlocks the full advanced toolset at no cost.</p>
+        <hr class="pricing-divider" />
+        <ul class="pricing-features" aria-label="Account tier features">
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Everything in Free
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Save projects — work persists between sessions
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Advanced concept scoring
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Weighted comparisons
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Minimum acceptable score tracking
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Deep matrix analytics
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Custom stakeholders &amp; system qualities
+          </li>
+        </ul>
+        <a href="app.html#signup" class="btn btn-outline pricing-cta">Create Free Account</a>
+        <p class="pricing-note">No credit card · No commitment</p>
       </div>
 
-      <!-- Req-by-req scoring -->
-      <div id="scorReqView" style="display:none">
-        <div class="scor-req-display">
-          <div class="scor-req-badges" id="scorReqBadges"></div>
-          <div class="scor-req-text" id="scorReqText"></div>
-          <div class="scor-req-meta" id="scorReqMeta"></div>
-        </div>
-
-        <!-- Datum reference panel (shown when datum performance defined) -->
-        <div id="scorDatumRefPanel" class="datum-ref-panel" style="display:none"></div>
-
-        <!-- Basic scoring: +, 0, − -->
-        <div class="scor-score-row" id="scorBasicBtns">
-          <button class="scor-btn" id="scorBtnPlus"  onclick="setScore('+')">+</button>
-          <button class="scor-btn" id="scorBtnNeu"   onclick="setScore('0')">0</button>
-          <button class="scor-btn" id="scorBtnMinus" onclick="setScore('-')">−</button>
-        </div>
-        <!-- Advanced scoring: +3 to −3 (Account+) -->
-        <div class="scor-num-row" id="scorAdvBtns" style="display:none"></div>
-
-        <div class="scor-nav-row">
-          <button class="btn btn-ghost" id="scorPrevBtn" onclick="scoringNav(-1)" style="font-size:13px">← Prev</button>
-          <div class="scor-req-counter" id="scorReqCounter"></div>
-          <button class="btn btn-primary" id="scorNextBtn" onclick="scoringNav(1)" style="font-size:13px">Next →</button>
-        </div>
-
-        <!-- Concept performance input -->
-        <div class="concept-perf-section">
-          <div class="datum-def-label">Concept Performance Value <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional — for reference only)</span></div>
-          <input class="concept-perf-input" id="conceptPerfInput" type="text"
-            placeholder="e.g. 8.2 kg, 3 sec, aluminium alloy..."
-            oninput="saveConceptPerf()">
-        </div>
-
-        <!-- Notes / Comments -->
-        <div class="concept-notes-section">
-          <div class="datum-def-label">Notes / Comments <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-          <textarea class="concept-notes-input" id="conceptNotesInput" rows="3"
-            placeholder="Add notes explaining this score or capturing performance context…"
-            oninput="saveConceptNote()"></textarea>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
-      ← Return to Weighting
-    </button>
-    <button class="btn btn-continue" id="btnScorContinue" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
-      Continue to Pugh Matrix →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-<!-- ── PUGH PAGE ── -->
-<main class="main page" id="page-pugh" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Pugh Matrix <button class="info-icon" onclick="openSidebarToSlide('pugh', 0)" title="What is the Pugh Matrix?">ⓘ</button></div>
-    <div class="page-subtitle">Your concepts scored against requirements in one view.</div>
-  </div>
-
-  <div class="pugh-toolbar">
-    <button class="btn btn-ghost" style="font-size:12px" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">← Edit Concepts</button>
-    <div style="flex:1"></div>
-  </div>
-
-  <!-- Empty state -->
-  <div id="pughEmptyState" style="text-align:center;padding:52px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
-    Go to <strong>SCOR</strong> and add at least two concepts to build the matrix.
-  </div>
-
-  <!-- Matrix table -->
-  <div class="pugh-matrix-wrap" id="pughTableWrap" style="display:none">
-    <table class="pugh-table" id="pughTable"></table>
-  </div>
-
-  <!-- Concept Score Chart -->
-  <div class="pugh-chart-container" id="pughChartContainer" style="display:none">
-    <div class="pugh-chart-title">Concept Score Summary</div>
-    <div style="position:relative;height:300px;width:100%">
-      <canvas id="pughConceptChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Navigation buttons -->
-  <div class="continue-btn-wrap">
-    <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
-      ← Return to Concept Scoring
-    </button>
-    <button class="btn btn-continue" id="btnPughContinue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
-      Continue to Convergence Summary →
-    </button>
-  </div>
-
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div><div class="advisor-name">STU</div><div class="advisor-role">Controlled Convergence Coach</div></div>
-    </div>
-    <div class="advisor-body" id="pughAdvisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-  </div>
-
-</main>
-
-
-<!-- ── CONVERGENCE SUMMARY PAGE ── -->
-<main class="main page" id="page-conv" style="display:none">
-
-  <div class="page-header">
-    <div class="page-title">Convergence Summary <button class="info-icon" onclick="openSidebarToSlide('conv', 0)" title="What is Convergence?">ⓘ</button></div>
-    <div class="page-subtitle">Record your chosen concept, complete your lessons learned, identify any open risks or assumptions, assign next steps, and log your convergence date.</div>
-  </div>
-
-  <!-- ── BASIC GOAL MODE ────────────────────────────────────── -->
-  <div id="convGoalBasicSection">
-    <div class="conv-section-label" style="margin-top:0">Goal Statement</div>
-    <div class="statement-card">
-      <div class="conv-goal-display" id="convGoalBasicDisplay"></div>
-    </div>
-
-    <div class="conv-section-label">Chosen Solution</div>
-    <div class="statement-card">
-      <div style="padding:20px">
-        <div class="req-form-label" style="margin-bottom:8px">Which concept did you choose?</div>
-        <select class="req-select" id="convConceptDropdownBasic" onchange="onConvConceptChange()" style="margin-bottom:16px">
-          <option value="">— Select chosen concept —</option>
-        </select>
-        <div class="req-form-label" style="margin-bottom:8px">Why did you choose this concept?</div>
-        <textarea class="req-text-input" id="convRationaleBasic" rows="3" style="margin-bottom:0"
-          placeholder="Explain your decision. Consider factors beyond the matrix score — cost, feasibility, team capability, stakeholder preference, or constraints that weren't fully captured in requirements."
-          oninput="onConvRationaleInput()"></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── STRUCTURED (To · By · Using · While) MODE ─────────── -->
-  <div id="convGoalStructuredSection" style="display:none">
-    <div class="conv-section-label" style="margin-top:0">Goal Statement</div>
-    <div class="statement-card">
-
-      <!-- TO (read-only) -->
-      <div class="statement-part" id="convPartTo">
-        <div class="part-label-wrap">
-          <span class="part-keyword to-kw">TO</span>
-          <span class="part-hint">Solution-neutral intent</span>
-        </div>
-        <div class="conv-readonly-text" id="convToDisplay"></div>
-      </div>
-
-      <!-- BY (read-only) -->
-      <div class="statement-part" id="convPartBy">
-        <div class="part-label-wrap">
-          <span class="part-keyword by-kw">BY</span>
-          <span class="part-hint">Method or approach</span>
-        </div>
-        <div class="conv-readonly-text" id="convByDisplay"></div>
-      </div>
-
-      <!-- USING (active — the convergence moment) -->
-      <div class="statement-part conv-using-active" id="convPartUsing">
-        <div class="part-label-wrap">
-          <span class="part-keyword using-kw">USING</span>
-          <span class="part-hint">Converged solution — complete here</span>
-        </div>
-        <div style="flex:1;padding:14px 20px 16px 12px;display:flex;flex-direction:column;gap:10px">
-          <select class="req-select" id="convConceptDropdownStructured" onchange="onConvConceptChange()">
-            <option value="">— Select chosen concept —</option>
-          </select>
-          <textarea class="req-text-input" id="convRationaleStructured" rows="3" style="margin-bottom:0"
-            placeholder="Describe the chosen solution — the specific form, technology, or approach. This completes your USING statement. Explain why this concept was selected over the alternatives."
-            oninput="onConvRationaleInput()"></textarea>
-        </div>
-      </div>
-
-      <!-- WHILE (read-only) -->
-      <div class="statement-part" id="convPartWhile" style="border-bottom:none">
-        <div class="part-label-wrap">
-          <span class="part-keyword while-kw">WHILE</span>
-          <span class="part-hint">Constraint or condition</span>
-        </div>
-        <div class="conv-readonly-text" id="convWhileDisplay"></div>
+      <!-- ── Pro (featured) ── -->
+      <div class="pricing-card featured" aria-label="Recommended tier">
+        <div class="pricing-badge">The Best</div>
+        <div class="pricing-tier">Pro</div>
+        <div class="pricing-price">$9 <span>/ month</span></div>
+        <p class="pricing-tagline">Perfect for advanced individuals and teams working on multiple projects. Generate reports, save templates, and create custom stakeholders and lifecycle properties.</p>
+        <hr class="pricing-divider" />
+        <ul class="pricing-features" aria-label="Pro tier features">
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Everything in Free &amp; Account
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Save more projects
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            PDF report export — full audit trail, ready to present
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Project templates — save and reuse your best workflows
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Unlimited custom stakeholders &amp; system qualities
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Assign responsible scorers to requirements
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Stakeholder name and contact info assignment
+          </li>
+          <li class="muted">
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            AI coaching for goals and concept scoring — coming soon
+          </li>
+          <li class="muted">
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Team sharing &amp; collaboration — coming soon
+          </li>
+        </ul>
+        <button onclick="showComingSoon()" class="btn btn-primary pricing-cta">Get Pro</button>
+        <p class="pricing-note">Billing coming soon — create a free account now</p>
       </div>
 
     </div>
-  </div>
+  </section>
 
-  <!-- ── LESSONS LEARNED ───────────────────────────────────── -->
-  <div class="conv-section-label">Lessons Learned</div>
-  <div class="statement-card">
+  <!-- ═══ MEETS YOUR TEAM'S NEEDS ═══════════════════════════════════════ -->
+  <section class="section-modes" aria-labelledby="modes-heading">
+    <h2 id="modes-heading" class="section-heading">Meets Your Team's Needs</h2>
 
-    <div class="conv-lesson-part">
-      <div class="conv-lesson-prompt">What did you discover about your requirements that you didn't expect?</div>
-      <textarea class="req-text-input" id="convLessonReq" rows="2" style="margin-bottom:0"
-        placeholder="Consider: gaps in coverage, ility imbalances, requirements that proved hard to score, or stakeholders whose needs were underrepresented."
-        oninput="onConvSave()"></textarea>
-    </div>
-
-    <div class="conv-lesson-part">
-      <div class="conv-lesson-prompt">What concepts did you not explore that you wish you had?</div>
-      <textarea class="req-text-input" id="convLessonConcepts" rows="2" style="margin-bottom:0"
-        placeholder="What alternatives were never generated or scored? What ideas were dismissed too early?"
-        oninput="onConvSave()"></textarea>
-    </div>
-
-    <div class="conv-lesson-part">
-      <div class="conv-lesson-prompt">What assumption going in turned out to be wrong?</div>
-      <textarea class="req-text-input" id="convLessonAssumption" rows="2" style="margin-bottom:0"
-        placeholder="What did you believe at the start of this project that the process revealed to be incorrect or incomplete?"
-        oninput="onConvSave()"></textarea>
-    </div>
-
-    <div class="conv-lesson-part" style="border-bottom:none">
-      <div class="conv-lesson-prompt">What would you do differently next time?</div>
-      <textarea class="req-text-input" id="convLessonDifferent" rows="2" style="margin-bottom:0"
-        placeholder="If you ran this process again with the same team and brief, what would you change?"
-        oninput="onConvSave()"></textarea>
-    </div>
-
-  </div>
-
-  <!-- ── OPEN RISKS & ASSUMPTIONS ──────────────────────────── -->
-  <div class="conv-section-label">Open Risks &amp; Assumptions</div>
-  <div class="statement-card">
-    <div style="padding:20px">
-      <div class="req-form-label" style="margin-bottom:8px">What open risks or unvalidated assumptions remain with the chosen concept?</div>
-      <textarea class="req-text-input" id="convRisksField" rows="3" style="margin-bottom:0"
-        placeholder="What is still uncertain? What would need to be true for this concept to succeed? What could eliminate it at the next stage of development?"
-        oninput="onConvSave()"></textarea>
-    </div>
-  </div>
-
-  <!-- ── NEXT STEPS ─────────────────────────────────────────── -->
-  <div class="conv-section-label">Next Steps</div>
-  <div class="statement-card">
-    <div style="padding:20px">
-      <div id="convNextStepsList"></div>
-      <button class="btn btn-secondary" onclick="addConvNextStep()" style="font-size:12px;margin-top:4px">+ Add Next Step</button>
-    </div>
-  </div>
-
-  <!-- ── LOG CONVERGENCE DATE ───────────────────────────────── -->
-  <div class="conv-close-zone">
-    <div id="convClosedStatus"></div>
-    <button class="btn conv-close-btn" id="convCloseBtn" onclick="closeConvProject()">
-      ✓ Log Convergence Date
-    </button>
-  </div>
-
-  <!-- Navigation -->
-  <div class="continue-btn-wrap" style="margin-top:16px">
-    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
-      ← Return to Pugh Matrix
-    </button>
-  </div>
-
-</main>
-
-
-<!-- ── ADD CONCEPT MODAL (custom fields) ── -->
-<div class="modal-overlay" id="addConceptModal" onclick="if(event.target===this)cancelAddConcept()">
-  <div class="modal-box" style="max-width:480px">
-    <div class="modal-title">Add Concept</div>
-    <div class="modal-field">
-      <div class="modal-label">Concept Name</div>
-      <input class="modal-input" id="addConceptNameInput" type="text"
-        placeholder="e.g. Cable-stayed Bridge, Option A…"
-        onkeydown="if(event.key==='Enter')confirmAddConcept()">
-    </div>
-    <div id="addConceptCustomFieldInputs"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="confirmAddConcept()">Add Concept</button>
-      <button class="btn btn-secondary" onclick="cancelAddConcept()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── CONCEPT SUMMARY MODAL ── -->
-<div class="modal-overlay" id="conceptSummaryModal" onclick="if(event.target===this)closeConceptSummary()">
-  <div class="modal-box" style="max-width:580px;max-height:82vh;display:flex;flex-direction:column">
-    <div class="modal-title" id="conceptSummaryTitle">Concept Summary</div>
-    <div id="conceptSummaryBody" style="overflow-y:auto;flex:1;font-size:13px;line-height:1.6;padding-right:4px"></div>
-    <div class="modal-footer" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-primary" onclick="closeConceptSummary()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── EDIT MODAL ── -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal-box">
-    <div class="modal-title" id="modalTitle">Edit</div>
-    <div class="modal-field">
-      <div class="modal-label">Name</div>
-      <input class="modal-input" id="modalName" type="text">
-    </div>
-    <div class="modal-field">
-      <div class="modal-label">Description</div>
-      <input class="modal-input" id="modalDesc" type="text">
-    </div>
-    <!-- Contact fields — only shown when editing a stakeholder -->
-    <div id="modalContactFields" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">Contact Info <span style="font-weight:400;text-transform:none;letter-spacing:0">(private — never shared)</span></div>
-      <div class="modal-field">
-        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Contact Name <span class="account-badge-inline">ACCOUNT+</span></div>
-        <input class="modal-input" id="modalContactName" type="text" placeholder="e.g. Jane Smith"
-          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
-      </div>
-      <div class="modal-field">
-        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Title <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
-        <input class="modal-input" id="modalContactTitle" type="text" placeholder="e.g. Senior Tractor Operator"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
-      </div>
-      <div class="modal-field">
-        <div class="modal-label" style="display:flex;align-items:center;gap:6px">Email <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
-        <input class="modal-input" id="modalContactEmail" type="email" placeholder="e.g. jane@company.com"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveEditModal()">Save</button>
-      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-      <button class="modal-delete" onclick="deleteFromModal()">Delete</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ── PUGH SCORE POPUP ── -->
-<div id="pughScorePopup" role="dialog" aria-label="Set score"></div>
-
-<!-- ── EXPORT REPORT MODAL ── -->
-<div class="modal-overlay" id="exportReportModal">
-  <div class="modal-box" style="max-width:480px">
-    <div class="modal-title">Export Report</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Select the sections to include in your professional PDF report.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptTBUW" checked> Goal Statement
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptILTY" checked> Lifecycle Properties
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptSTAK" checked> Stakeholders
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptREQS" checked> Requirements
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptPAIR" checked> Pairwise Rankings
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptSCOR" checked> Concept Scoring
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptPUGH" checked> Pugh Matrix
-      </label>
-    </div>
-    <div style="margin-bottom:20px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">File Name</div>
-      <input type="text" id="rptFileName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Bridge_Design_Report">
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">.pdf will be appended automatically</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="generateReport()">Generate PDF</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('exportReportModal').classList.remove('open')">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── SAVE TEMPLATE MODAL ── -->
-<div class="modal-overlay" id="saveTemplateModal">
-  <div class="modal-box" style="max-width:460px">
-    <div class="modal-title">Save Template</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Save the current session's structure as a reusable template for future projects.</div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Template Name</div>
-      <input type="text" id="tmplNameInput" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Medical Device Baseline, ADAS Safety Starter…">
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px">Include in Template</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="tmplILTY" checked> Selected Ilities
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="tmplSTAK" checked> Stakeholders
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="tmplREQS" checked> Requirements
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="tmplPAIR" checked> Pairwise Weights
-        </label>
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Goal statements and Pugh scores are project-specific and are not included in templates.</div>
-    </div>
-
-    <div style="margin-bottom:20px;padding:12px 14px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <div style="position:relative;width:36px;height:20px;flex-shrink:0">
-          <input type="checkbox" id="tmplIsPublic" checked style="opacity:0;position:absolute;width:100%;height:100%;margin:0;cursor:pointer;z-index:1">
-          <div class="tmpl-toggle-track" id="tmplToggleTrack"></div>
-        </div>
-        <div>
-          <div style="font-size:13px;font-weight:600">Share with Community</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">When the public template library launches, this template will be discoverable by other users.</div>
-        </div>
-      </label>
-    </div>
-
-    <div id="tmplSaveError" style="color:var(--danger);font-size:12px;margin-bottom:8px;display:none"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
-      <button class="btn btn-secondary" onclick="closeSaveTemplateModal()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── START FROM TEMPLATE MODAL ── -->
-<div class="modal-overlay" id="startFromTemplateModal">
-  <div class="modal-box" style="max-width:520px">
-    <div class="modal-title">Start From Template</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Choose a template to load as the starting point for a new project. Your current session will be cleared.</div>
-    <div id="tmplPickerList" style="max-height:320px;overflow-y:auto;margin-bottom:16px"></div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeStartFromTemplateModal()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── AUTH MODAL (Login / Sign Up) ── -->
-<div class="modal-overlay" id="authModal">
-  <div class="modal-box" style="max-width:420px">
-
-    <!-- Tab switcher -->
-    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)">
-      <button id="authTabLogin" onclick="switchAuthTab('login')"
-        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s">
-        Log In
-      </button>
-      <button id="authTabSignup" onclick="switchAuthTab('signup')"
-        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-weight:600;font-size:13px;cursor:pointer;transition:all 0.15s">
-        Sign Up — Free
-      </button>
-    </div>
-
-    <!-- Login form -->
-    <div id="authFormLogin">
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Email</div>
-        <input type="email" id="authLoginEmail" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="you@example.com" autocomplete="email">
-      </div>
-      <div style="margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Password</div>
-        <input type="password" id="authLoginPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="••••••••" autocomplete="current-password"
-          onkeydown="if(event.key==='Enter') submitAuthLogin()">
-      </div>
-      <div id="authLoginError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="authLoginBtn" onclick="submitAuthLogin()">Log In</button>
-        <button class="btn btn-secondary" onclick="closeAuthModal()">Cancel</button>
+    <!-- ── Basic Mode ── -->
+    <div class="mode-block">
+      <p class="mode-eyebrow" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Basic Mode
+      </p>
+      <p class="mode-desc">
+        Use Basic Mode for fast and streamlined all on one page concept analysis.
+        Perfect for beginners or on the fly design studies.
+      </p>
+      <div class="mode-img-wrap">
+        <img src="basic-mode-screenshot.png" alt="Basic Mode interface showing streamlined single-page concept analysis" />
       </div>
     </div>
 
-    <!-- Sign-up form -->
-    <div id="authFormSignup" style="display:none">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
-        Create a free account to save projects across sessions and devices.
-      </div>
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Name</div>
-        <input type="text" id="authSignupName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Your name or team name" autocomplete="name">
-      </div>
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Email</div>
-        <input type="email" id="authSignupEmail" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="you@example.com" autocomplete="email">
-      </div>
-      <div style="margin-bottom:20px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Password</div>
-        <input type="password" id="authSignupPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Min. 8 characters" autocomplete="new-password"
-          onkeydown="if(event.key==='Enter') submitAuthSignup()">
-      </div>
-      <div id="authSignupError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
-      <div id="authSignupSuccess" style="color:var(--success,#22c55e);font-size:12px;margin-bottom:10px;display:none"></div>
-      <label style="display:flex;align-items:flex-start;gap:9px;margin-bottom:16px;cursor:pointer">
-        <input type="checkbox" id="authTermsCheck" onchange="updateSignupBtn()" style="margin-top:2px;flex-shrink:0;accent-color:var(--accent)">
-        <span style="font-size:12px;color:var(--text-muted);line-height:1.55">I have read and agree to the <button type="button" onclick="openTermsModal()" style="background:none;border:none;padding:0;color:var(--accent);font-size:12px;cursor:pointer;text-decoration:underline;font-family:var(--font)">Terms of Use</button>. I understand that content I enter is not private and may be used by Controlled Convergence.</span>
-      </label>
-      <div class="modal-footer">
-        <button class="btn btn-primary" id="authSignupBtn" onclick="submitAuthSignup()" disabled style="opacity:0.45;cursor:not-allowed">Create Account</button>
-        <button class="btn btn-secondary" onclick="closeAuthModal()">Cancel</button>
+    <!-- ── Full Mode ── -->
+    <div class="mode-block">
+      <p class="mode-eyebrow" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Full Mode
+      </p>
+      <p class="mode-desc">
+        Or enable Full Mode to experience the entire Controlled Convergence workflow.
+        Ideal for more complex developments requiring deeper dives.
+      </p>
+
+      <!-- Workflow Diagram -->
+      <div class="flow-wrap" role="img" aria-label="Full Mode workflow: Goal Statement, Stakeholders, Lifecycle Properties, Requirements, Weighting, Concept Scoring, Pugh Matrix, Convergence">
+        <svg viewBox="0 0 706 254" xmlns="http://www.w3.org/2000/svg" overflow="visible">
+          <defs>
+            <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#0d6e6e"/>
+            </marker>
+          </defs>
+
+          <!-- ── ROW 1 (left → right) ──────────────────────────────── -->
+          <!-- 1: Goal Statement -->
+          <rect x="24" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="40" cy="36" r="12" fill="#0d6e6e"/>
+          <text x="40" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">1</text>
+          <text x="98" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Goal Statement</text>
+
+          <!-- Arrow 1 → 2 -->
+          <line x1="174" y1="59" x2="191" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 2: Stakeholders -->
+          <rect x="194" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="210" cy="36" r="12" fill="#0d6e6e"/>
+          <text x="210" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">2</text>
+          <text x="268" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Stakeholders</text>
+
+          <!-- Arrow 2 → 3 -->
+          <line x1="344" y1="59" x2="361" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 3: Lifecycle Properties -->
+          <rect x="364" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="380" cy="36" r="12" fill="#0d6e6e"/>
+          <text x="380" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">3</text>
+          <text x="438" y="63" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">Lifecycle</text>
+          <text x="438" y="78" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">Properties</text>
+
+          <!-- Arrow 3 → 4 -->
+          <line x1="514" y1="59" x2="531" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 4: Requirements -->
+          <rect x="534" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="550" cy="36" r="12" fill="#0d6e6e"/>
+          <text x="550" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">4</text>
+          <text x="608" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Requirements</text>
+
+          <!-- Turn-down: 4 → 5 -->
+          <line x1="608" y1="100" x2="608" y2="149" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- ── ROW 2 (right → left) ──────────────────────────────── -->
+          <!-- 5: Weighting -->
+          <rect x="534" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="550" cy="168" r="12" fill="#0d6e6e"/>
+          <text x="550" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">5</text>
+          <text x="608" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Weighting</text>
+
+          <!-- Arrow 5 → 6 -->
+          <line x1="532" y1="191" x2="515" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 6: Concept Scoring -->
+          <rect x="364" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="380" cy="168" r="12" fill="#0d6e6e"/>
+          <text x="380" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">6</text>
+          <text x="438" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Concept Scoring</text>
+
+          <!-- Arrow 6 → 7 -->
+          <line x1="362" y1="191" x2="345" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 7: Pugh Matrix -->
+          <rect x="194" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="210" cy="168" r="12" fill="#0d6e6e"/>
+          <text x="210" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">7</text>
+          <text x="268" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Pugh Matrix</text>
+
+          <!-- Arrow 7 → 8 -->
+          <line x1="192" y1="191" x2="175" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- 8: Convergence — terminal node (filled teal) -->
+          <rect x="24" y="152" width="148" height="78" rx="10" fill="#0d6e6e" stroke="#0d6e6e" stroke-width="1.5"/>
+          <circle cx="40" cy="168" r="12" fill="white"/>
+          <text x="40" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="#0d6e6e">8</text>
+          <text x="98" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="14" font-weight="700" fill="white">Convergence</text>
+        </svg>
       </div>
     </div>
 
+  </section>
+
+  <!-- ═══ BOTTOM CTA ════════════════════════════════════════════════════ -->
+  <section class="section-cta" aria-labelledby="cta-heading">
+    <h2 id="cta-heading" class="cta-heading">
+      Did We Mention It is <em>Free?</em><br>What Are You Waiting For?
+    </h2>
+    <a href="app.html#basic" class="btn btn-primary btn-primary-lg">Start for Free</a>
+    <p class="cta-note">No credit card. No commitment. Works right now.</p>
+  </section>
+
+  <!-- ═══ FOOTER ════════════════════════════════════════════════════════ -->
+  <footer><p>© 2026 Controlled Convergence</p></footer>
+
+  <!-- ═══ COMING SOON TOAST ════════════════════════════════════════════ -->
+  <div id="comingSoonToast" class="coming-soon-toast" role="status" aria-live="polite">
+    Pro billing coming soon — <a href="app.html#signup" style="color:#7dd3d3;text-decoration:underline;">create a free account now</a> and you'll be first to know.
   </div>
-</div>
 
-<!-- ── TERMS OF USE MODAL ── -->
-<div class="modal-overlay" id="termsModal" onclick="if(event.target===this)closeTermsModal()">
-  <div class="modal-box" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
-    <div class="modal-title">Terms of Use</div>
-    <div style="overflow-y:auto;flex:1;font-size:13px;color:var(--text-muted);line-height:1.75;padding-right:4px">
+  <!-- ═══ TYPEWRITER ════════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      const phrases = [
+        "Shipping it faster",
+        "Defining first, designing second",
+        "Aligning stakeholders",
+        "Converging on solutions",
+        "Uncovering requirements",
+      ];
+      const el = document.getElementById("typewriter");
+      let pi = 0, ci = 0, del = false;
+      function tick() {
+        const p = phrases[pi];
+        if (!del) {
+          el.textContent = p.slice(0, ++ci);
+          if (ci === p.length) { del = true; setTimeout(tick, 2500); return; }
+          setTimeout(tick, 52);
+        } else {
+          el.textContent = p.slice(0, --ci);
+          if (ci === 0) { del = false; pi = (pi + 1) % phrases.length; setTimeout(tick, 400); return; }
+          setTimeout(tick, 28);
+        }
+      }
+      setTimeout(tick, 600);
+    })();
+  </script>
 
-      <p style="font-size:11px;color:var(--text-light);margin-bottom:20px">Last updated: April 2026</p>
+  <!-- ═══ COMING SOON HANDLER ══════════════════════════════════════════ -->
+  <script>
+    var _cstTimer = null;
+    function showComingSoon() {
+      var toast = document.getElementById('comingSoonToast');
+      toast.classList.add('show');
+      clearTimeout(_cstTimer);
+      _cstTimer = setTimeout(function() { toast.classList.remove('show'); }, 5000);
+    }
+  </script>
 
-      <p style="margin-bottom:16px">By creating an account or using Controlled Convergence (the "Service"), you agree to these Terms of Use. If you do not agree, do not use the Service.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">1 &nbsp; What This Service Is</p>
-      <p style="margin-bottom:16px">Controlled Convergence is a research preview product under active development. It may contain errors, change without notice, or become unavailable at any time.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">2 &nbsp; Your Content</p>
-      <p style="margin-bottom:16px">By submitting any content, data, or information to the Service ("User Content"), you grant Controlled Convergence a perpetual, irrevocable, worldwide, royalty-free license to store, use, and process that content for any purpose, including improving the Service. You should not submit confidential, proprietary, or sensitive information. No expectation of privacy exists with respect to content entered into the Service.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">3 &nbsp; Acceptable Use</p>
-      <p style="margin-bottom:16px">You agree to use the Service only for lawful purposes and in a manner that does not infringe the rights of others. You may not attempt to gain unauthorized access to any part of the Service or its infrastructure.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">4 &nbsp; No Warranties</p>
-      <p style="margin-bottom:16px">The Service is provided "as is" and "as available" without warranties of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, or uninterrupted availability.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">5 &nbsp; Limitation of Liability</p>
-      <p style="margin-bottom:16px">To the maximum extent permitted by applicable law, Controlled Convergence's total liability to you shall not exceed $100. We are not liable for any indirect, incidental, consequential, or punitive damages arising from your use of the Service.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">6 &nbsp; Termination</p>
-      <p style="margin-bottom:16px">We may suspend or terminate your access to the Service at any time, for any reason, without notice or liability.</p>
-
-      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);margin-bottom:6px">7 &nbsp; Changes to These Terms</p>
-      <p style="margin-bottom:4px">We may update these Terms at any time. The date at the top of this page reflects the most recent revision. Continued use of the Service after changes are posted constitutes acceptance of the updated Terms.</p>
-
-    </div>
-    <div class="modal-footer" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <button class="btn btn-primary" onclick="closeTermsModal()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── UPGRADE MODAL ── -->
-<div class="modal-overlay" id="upgradeModal">
-  <div class="modal-box">
-    <div class="modal-title" id="upgradeModalTitle">Upgrade Required</div>
-    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px" id="upgradeModalBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="closeUpgradeModal()" id="upgradeModalCta">Learn More</button>
-      <button class="btn btn-secondary" onclick="closeUpgradeModal()">Not Now</button>
-    </div>
-  </div>
-</div>
-
-<!-- ─────────────────────────────────────────────────────────
-     JavaScript — load order is critical:
-       1. config.js    ← Supabase URL + anon key → _supabase client
-       2. state.js     ← mutable app state (globals)
-       3. api.js       ← async backend interface (Supabase)
-       4. auth.js      ← authentication interface (Supabase)
-       5. analytics.js ← event tracking wrapper
-       6. projects.js  ← project model + Stripe gate
-       7. ui.js        ← all render* / update* functions
-       8. app.js       ← event handlers, business logic, init()
-     ───────────────────────────────────────────────────────── -->
-<script src="js/config.js"></script>
-<script src="js/state.js"></script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/analytics.js"></script>
-<script src="js/projects.js"></script>
-<script src="js/sidebar-content.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
+  <!-- ═══ GSAP ══════════════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const viewport = document.getElementById("productViewport");
+      const img      = document.getElementById("productImg");
+      function init() {
+        const vpW = viewport.offsetWidth, vpH = viewport.offsetHeight;
+        const natW = img.naturalWidth || 700, natH = img.naturalHeight || 950;
+        const baseW = vpW, baseH = vpW * (natH / natW);
+        gsap.set(img, { width: baseW, height: baseH });
+        function beatAt(fx, fy, S) {
+          const rx = vpW/2 - fx*baseW*S, ry = vpH/2 - fy*baseH*S;
+          return { scaleX:S, scaleY:S, x:Math.min(0,Math.max(-(baseW*S-vpW),rx)), y:Math.min(0,Math.max(-(baseH*S-vpH),ry)) };
+        }
+        const ZOOM = 2.0;
+        const START = { scaleX:1, scaleY:1, x:0, y:0 };
+        const b2 = { scaleX:1, scaleY:1, x:0, y:-(baseH-vpH) };
+        const b3 = beatAt(0.20, 0.15, ZOOM);
+        const b4 = beatAt(0.80, 0.15, ZOOM);
+        function loop() {
+          gsap.set(img, START);
+          gsap.timeline({ onComplete: loop })
+            .to(img, { duration:3, ease:"power2.inOut", delay:2.5, ...b2 })
+            .to(img, { duration:3, ease:"power2.inOut", delay:2.0, ...b3 })
+            .to(img, { duration:2, ease:"power2.inOut", delay:2.5, ...b4 })
+            .to(img, { duration:6, ease:"power1.inOut", delay:2.5, ...START });
+        }
+        loop();
+      }
+      img.complete && img.naturalWidth ? init() : img.addEventListener("load", init);
+      img.addEventListener("error", init);
+    })();
+  </script>
 
 </body>
 </html>
