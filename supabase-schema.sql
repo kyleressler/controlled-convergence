@@ -329,8 +329,8 @@ CREATE POLICY "Owners and members can view projects"
     )
   );
 
--- Owners can update projects freely; scoped editors can update (app enforces field limits)
-CREATE POLICY "Owners and scoped editors can update projects"
+-- Owners can update projects freely; editors and scoped editors can update too
+CREATE POLICY "Owners and editors can update projects"
   ON public.projects FOR UPDATE
   USING (
     auth.uid() = user_id
@@ -338,7 +338,7 @@ CREATE POLICY "Owners and scoped editors can update projects"
       SELECT 1 FROM public.project_members
       WHERE project_members.project_id = projects.id
         AND project_members.user_id = auth.uid()
-        AND project_members.role = 'scoped_editor'
+        AND project_members.role IN ('editor', 'scoped_editor')
     )
   );
 
@@ -394,6 +394,53 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.get_my_project_role(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_my_project_role(TEXT) TO authenticated;
+
+
+-- ── 7. ACCEPT PROJECT INVITE FUNCTION ───────────────────────
+-- Called when an invited user clicks Accept on a collab_invite task.
+-- Atomically: validates the task, adds the user to project_members,
+-- and marks the task accepted. SECURITY DEFINER so the invitee can
+-- insert their own row into project_members without a broad INSERT policy.
+
+CREATE OR REPLACE FUNCTION public.accept_project_invite(p_task_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_task       public.tasks%ROWTYPE;
+  v_project_id TEXT;
+  v_role       TEXT;
+BEGIN
+  -- Fetch and validate the task
+  SELECT * INTO v_task FROM public.tasks WHERE id = p_task_id;
+  IF NOT FOUND                         THEN RETURN jsonb_build_object('error', 'Task not found'); END IF;
+  IF v_task.task_type <> 'collab_invite' THEN RETURN jsonb_build_object('error', 'Not an invite task'); END IF;
+  IF v_task.assignee_id <> auth.uid() THEN RETURN jsonb_build_object('error', 'Not authorized'); END IF;
+  IF v_task.status <> 'pending'       THEN RETURN jsonb_build_object('error', 'Invite is no longer pending'); END IF;
+
+  -- Pull project_id and role out of the task payload
+  v_project_id := v_task.payload->>'project_id';
+  v_role       := v_task.payload->>'role';
+  IF v_project_id IS NULL OR v_role IS NULL THEN
+    RETURN jsonb_build_object('error', 'Invalid invite payload');
+  END IF;
+
+  -- Add to project_members (upsert — safe to re-accept)
+  INSERT INTO public.project_members (project_id, user_id, role, invited_by)
+  VALUES (v_project_id, auth.uid(), v_role, v_task.assigner_id)
+  ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role;
+
+  -- Mark the task accepted
+  UPDATE public.tasks SET status = 'accepted' WHERE id = p_task_id;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.accept_project_invite(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.accept_project_invite(UUID) TO authenticated;
 
 
 -- ── 8. TEST ACCOUNTS (manual setup — run separately) ─────────

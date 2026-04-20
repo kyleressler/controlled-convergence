@@ -559,6 +559,13 @@
         approveBtn.textContent = 'Approve';
         approveBtn.onclick = function() { openApprovalModal(task.id); };
         actions.appendChild(approveBtn);
+      } else if (task.task_type === 'collab_invite') {
+        // Project invite: Accept triggers the secure accept function
+        var acceptInviteBtn = document.createElement('button');
+        acceptInviteBtn.className = 'task-action-btn';
+        acceptInviteBtn.textContent = 'Accept';
+        acceptInviteBtn.onclick = function() { acceptCollabInvite(task.id); };
+        actions.appendChild(acceptInviteBtn);
       } else {
         // All other task types: standard Accept
         var acceptBtn = document.createElement('button');
@@ -748,20 +755,29 @@
 
   // Apply/remove CSS role classes on the body element.
   function _applyRoleClasses() {
-    document.body.classList.remove('cc-role-owner', 'cc-role-viewer', 'cc-role-scoped-editor');
+    document.body.classList.remove('cc-role-owner', 'cc-role-viewer', 'cc-role-scoped-editor', 'cc-role-editor');
     var role = currentProjectRole;
-    if (role === 'viewer')        document.body.classList.add('cc-role-viewer');
+    if (role === 'viewer')             document.body.classList.add('cc-role-viewer');
     else if (role === 'scoped_editor') document.body.classList.add('cc-role-scoped-editor');
-    else if (role === 'owner')    document.body.classList.add('cc-role-owner');
+    else if (role === 'editor')        document.body.classList.add('cc-role-editor');
+    else if (role === 'owner')         document.body.classList.add('cc-role-owner');
 
     // Update role badge in nav
     var badge = document.getElementById('navRoleBadge');
     if (!badge) return;
     if (!role || role === 'owner') {
       badge.style.display = 'none';
-    } else {
-      badge.textContent   = role === 'viewer' ? 'Viewer' : 'Editor';
-      badge.className     = 'nav-role-badge nav-role-badge-' + (role === 'viewer' ? 'viewer' : 'editor');
+    } else if (role === 'viewer') {
+      badge.textContent = '👁 Viewer';
+      badge.className   = 'nav-role-badge nav-role-badge-viewer';
+      badge.style.display = '';
+    } else if (role === 'editor') {
+      badge.textContent = '✏️ Editor';
+      badge.className   = 'nav-role-badge nav-role-badge-editor';
+      badge.style.display = '';
+    } else if (role === 'scoped_editor') {
+      badge.textContent = '✏️ Editor';
+      badge.className   = 'nav-role-badge nav-role-badge-editor';
       badge.style.display = '';
     }
   }
@@ -770,6 +786,7 @@
   function _clearProjectRole() {
     currentProjectRole = null;
     myAssignedScoringTasks = [];
+    projectCollaborators = [];
     _applyRoleClasses();
   }
 
@@ -783,13 +800,20 @@
     return currentProjectRole === 'scoped_editor';
   }
 
+  // True for the implicit project owner only. Used to gate admin actions
+  // (invite, assign tasks, delete project). Does NOT include 'editor'.
   function isOwner() {
     return !currentProjectRole || currentProjectRole === 'owner';
   }
 
+  // True when the user can freely edit all project content (owner or full editor).
+  function canEdit() {
+    return isOwner() || currentProjectRole === 'editor';
+  }
+
   // Returns true if the current user is allowed to edit the given Pugh cell.
   function canEditScoringCell(reqId, conceptId) {
-    if (isOwner()) return true;
+    if (canEdit()) return true;
     if (isViewOnly()) return false;
     // Scoped editor: must have an assigned task that covers this req + concept
     return myAssignedScoringTasks.some(function(t) {
@@ -800,6 +824,136 @@
       if (scope === 'all') return true;
       return t.payload.conceptIds && t.payload.conceptIds.includes(String(conceptId));
     });
+  }
+
+  // ── PROJECT COLLABORATOR INVITE (Features 6 & 7) ─────────────
+
+  var _inviteTargetProjectId = null; // project ID the invite modal is open for
+
+  function openInviteModal(projectId) {
+    _inviteTargetProjectId = projectId;
+    // Show project name in the modal header
+    var proj = savedProjects.find(function(p) { return p.id === projectId; });
+    var titleEl = document.getElementById('inviteModalProjectName');
+    if (titleEl) titleEl.textContent = proj ? proj.name : 'this project';
+    // Reset form
+    var emailEl = document.getElementById('inviteEmail');
+    var roleEl  = document.getElementById('inviteRole');
+    var errEl   = document.getElementById('inviteError');
+    var btnEl   = document.getElementById('inviteSubmitBtn');
+    if (emailEl) emailEl.value = '';
+    if (roleEl)  roleEl.value  = 'viewer';
+    if (errEl)   { errEl.textContent = ''; errEl.style.display = 'none'; }
+    if (btnEl)   { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+    document.getElementById('inviteModal').classList.add('open');
+  }
+
+  function closeInviteModal() {
+    document.getElementById('inviteModal').classList.remove('open');
+    _inviteTargetProjectId = null;
+  }
+
+  async function submitInvite() {
+    var errEl = document.getElementById('inviteError');
+    var btnEl = document.getElementById('inviteSubmitBtn');
+    if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+
+    if (!appState.currentUser) {
+      if (errEl) { errEl.textContent = 'Sign in to invite collaborators.'; errEl.style.display = ''; }
+      return;
+    }
+    if (!_inviteTargetProjectId) {
+      if (errEl) { errEl.textContent = 'No project selected.'; errEl.style.display = ''; }
+      return;
+    }
+
+    var email = (document.getElementById('inviteEmail')?.value || '').trim().toLowerCase();
+    var role  = document.getElementById('inviteRole')?.value || 'viewer';
+
+    if (!email) {
+      if (errEl) { errEl.textContent = 'Enter an email address.'; errEl.style.display = ''; }
+      return;
+    }
+    if (email === appState.currentUser.email) {
+      if (errEl) { errEl.textContent = 'You can\'t invite yourself.'; errEl.style.display = ''; }
+      return;
+    }
+
+    if (btnEl) { btnEl.textContent = 'Sending…'; btnEl.disabled = true; }
+
+    // Resolve email → Supabase user ID
+    var assigneeId = null;
+    try {
+      var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: email });
+      assigneeId = resolvedId || null;
+    } catch(e) { /* ignore if function not available */ }
+
+    var proj = savedProjects.find(function(p) { return p.id === _inviteTargetProjectId; });
+    var roleLabel = role === 'scoped_editor' ? 'Editor' : 'Viewer';
+    var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
+
+    var { error } = await _supabase.from('tasks').insert({
+      project_id:     _inviteTargetProjectId,
+      assigner_id:    appState.currentUser.id,
+      assignee_id:    assigneeId,
+      assignee_email: email,
+      task_type:      'collab_invite',
+      status:         'pending',
+      title:          title,
+      payload: {
+        project_id:   _inviteTargetProjectId,
+        project_name: proj ? proj.name : '',
+        role:         role,
+        invited_by_email: appState.currentUser.email
+      }
+    });
+
+    if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+
+    if (error) {
+      if (errEl) { errEl.textContent = 'Error sending invite: ' + error.message; errEl.style.display = ''; }
+      return;
+    }
+
+    closeInviteModal();
+    // Refresh the Tasks panel badge
+    _refreshTasksNavBtn();
+    // Show a brief confirmation inline on the project card
+    renderProjList();
+  }
+
+  // Load project_members for the given project so the owner can see collaborators.
+  // Only works when signed in; owners only (RLS enforces this).
+  async function loadProjectCollaborators(projectId) {
+    projectCollaborators = [];
+    if (!appState.currentUser || !projectId) { renderProjList(); return; }
+
+    var { data, error } = await _supabase
+      .from('project_members')
+      .select('user_id, role, invited_by, created_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      projectCollaborators = data;
+    }
+    renderProjList(); // Re-render so collaborator list updates
+  }
+
+  // Accept a collab_invite task by calling the SECURITY DEFINER function.
+  async function acceptCollabInvite(taskId) {
+    var { data, error } = await _supabase.rpc('accept_project_invite', { p_task_id: taskId });
+    if (error || (data && data.error)) {
+      alert('Could not accept invite: ' + (error ? error.message : data.error));
+      return;
+    }
+    // Reload the user's project list so the shared project appears
+    if (appState.currentUser) {
+      await loadProjects(appState.currentUser.id);
+      renderProjList();
+    }
+    // Refresh the Tasks panel
+    renderTasksPanel();
   }
 
   // ── REQ REVIEW TASK ASSIGNER ─────────────────────────────────
@@ -2587,6 +2741,10 @@ ${sections}
     // Determine the current user's role and apply UI restrictions
     if (typeof loadCurrentProjectRole === 'function') {
       loadCurrentProjectRole(id);
+    }
+    // Load collaborators so the owner can see who has access in Project Manager
+    if (typeof loadProjectCollaborators === 'function') {
+      loadProjectCollaborators(id);
     }
   }
 

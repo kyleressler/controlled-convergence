@@ -1787,6 +1787,39 @@
   </div>
 </div>
 
+<!-- ── INVITE COLLABORATOR MODAL ── -->
+<div class="modal-overlay" id="inviteModal" onclick="if(event.target===this)closeInviteModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Invite to <span id="inviteModalProjectName">project</span></div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Email -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Email address</div>
+        <input id="inviteEmail" type="email" class="add-custom-input" placeholder="collaborator@example.com" style="width:100%;box-sizing:border-box" />
+      </div>
+
+      <!-- Permission level -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Permission level</div>
+        <select id="inviteRole" class="add-custom-input" style="width:100%">
+          <option value="viewer">Viewer — read-only access to the full project</option>
+          <option value="editor">Editor — full edit access to the project</option>
+          <option value="scoped_editor">Scoped Editor — can only edit via assigned tasks</option>
+        </select>
+      </div>
+
+      <div id="inviteError" style="color:var(--danger);font-size:12px;display:none"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="inviteSubmitBtn" onclick="submitInvite()">Send Invite</button>
+      <button class="btn btn-secondary" onclick="closeInviteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── APPROVAL MODAL (assignee completes a review task) ── -->
 <div class="modal-overlay" id="approvalModal" onclick="if(event.target===this)closeApprovalModal()">
   <div class="modal-box" style="max-width:480px">

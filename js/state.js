@@ -72,8 +72,13 @@ let pughAdvBackup = {};
 // ── Permission / Role ────────────────────────────────────────
 // The current user's role on the active project.
 // null = not determined yet or no project loaded
-// 'owner' | 'scoped_editor' | 'viewer'
+// 'owner' | 'editor' | 'scoped_editor' | 'viewer'
 let currentProjectRole = null;
+
+// Collaborators (project_members rows) for the active project.
+// Populated by loadProjectCollaborators() when a project loads (owners only).
+// Each entry: { user_id, role, invited_by, created_at, email? }
+let projectCollaborators = [];
 
 // Scoring tasks assigned TO the current user for the active project.
 // Used by scoped editors to know which cells they're allowed to score.

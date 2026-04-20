@@ -2156,6 +2156,38 @@ body.cc-role-scoped-editor [onclick*="deletePughConcept"] {
   text-align: center;
 }
 
+/* ── PROJECT COLLABORATOR LIST + INVITE BUTTON ── */
+.proj-collab-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.proj-collab-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+.proj-collab-chip {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6366f1;
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.proj-invite-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ── TASKS PANEL ── */
 .tasks-panel-overlay {
   position: fixed;

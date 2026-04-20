@@ -218,15 +218,34 @@
       const dateStr = (p.createdAt || p.created_at)
         ? new Date(p.createdAt || p.created_at).toLocaleDateString()
         : '';
+
+      // Invite button — shown on the active project card for non-free tiers.
+      // Auth + ownership is enforced at submit time inside submitInvite().
+      const inviteBtn = (isActive && userTier !== 'free')
+        ? `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`
+        : '';
+
+      // Collaborator chips (only show when this card is the active project, so the list is loaded)
+      let collabHtml = '';
+      if (isActive && typeof projectCollaborators !== 'undefined' && projectCollaborators.length > 0) {
+        const chips = projectCollaborators.map(m => {
+          const roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+          return `<span class="proj-collab-chip">${roleLabel}</span>`;
+        }).join('');
+        collabHtml = `<div class="proj-collab-list"><span class="proj-collab-label">Collaborators:</span>${chips}</div>`;
+      }
+
       return `
       <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate · Drag not needed">
         <div style="flex:1;min-width:0">
           <div class="proj-item-name">${activeIndicator}${p.name}</div>
           ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
           <div class="proj-item-meta">${dateStr}${p.owner ? ' · ' + p.owner : ''}</div>
+          ${collabHtml}
         </div>
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           ${activateBtn}
+          ${inviteBtn}
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProject('${p.id}')" title="Edit project name">Edit</button>
           <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>
         </div>
