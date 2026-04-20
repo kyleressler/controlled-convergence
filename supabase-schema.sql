@@ -443,7 +443,38 @@ REVOKE EXECUTE ON FUNCTION public.accept_project_invite(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.accept_project_invite(UUID) TO authenticated;
 
 
--- ── 8. TEST ACCOUNTS (manual setup — run separately) ─────────
+-- ── 8. LINK PENDING TASKS ON SIGN-IN ────────────────────────
+-- When a new user signs up after being emailed a task link, their account
+-- doesn't exist yet so the task was created with assignee_id = NULL.
+-- This function is called on every login and patches those orphaned tasks
+-- with the user's real UUID so they appear in their Tasks panel.
+-- SECURITY DEFINER so we can join against auth.users to resolve the email.
+
+CREATE OR REPLACE FUNCTION public.link_pending_tasks_to_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_email TEXT;
+BEGIN
+  SELECT email INTO v_email FROM auth.users WHERE id = auth.uid();
+  IF v_email IS NULL THEN RETURN; END IF;
+
+  UPDATE public.tasks
+  SET assignee_id = auth.uid()
+  WHERE assignee_email = v_email
+    AND assignee_id IS NULL
+    AND status = 'pending';
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.link_pending_tasks_to_user() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.link_pending_tasks_to_user() TO authenticated;
+
+
+-- ── 9. TEST ACCOUNTS (manual setup — run separately) ──────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

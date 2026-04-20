@@ -1948,6 +1948,26 @@
   </div>
 </div>
 
+<!-- ── MAILTO MODAL (Feature 8) — shown when a task is assigned to someone without an account ── -->
+<div class="modal-overlay" id="mailtoModal" onclick="if(event.target===this)closeMailtoModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">Send them an email</div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="mailtoModalMsg" style="font-size:13px;color:var(--text);line-height:1.6"></div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.55">
+        Clicking the button below will open your email client with a pre-filled message including a link to sign up.
+        Once they create an account, the task will appear automatically in their Tasks panel.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <a id="mailtoLink" href="#" class="btn btn-primary" target="_blank" onclick="setTimeout(closeMailtoModal,500)">Open email client</a>
+      <button class="btn btn-secondary" onclick="closeMailtoModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─────────────────────────────────────────────────────────
      JavaScript — load order is critical:
        1. config.js    ← Supabase URL + anon key → _supabase client

@@ -687,6 +687,42 @@
       .replace(/"/g, '&quot;');
   }
 
+  // ── MAILTO MODAL (Feature 8) ─────────────────────────────────
+  // Shown after creating a task for someone who doesn't have an account yet.
+
+  function _showMailtoModal(opts) {
+    // opts: { toEmail, hasAccount, subject, body }
+    var baseUrl  = window.location.origin + window.location.pathname;
+    var route    = opts.hasAccount ? '#login' : '#signup';
+    var appLink  = baseUrl + route;
+
+    // Build the body, appending the app link
+    var fullBody = opts.body
+      + '\n\nGet started here:\n' + appLink
+      + '\n\nOnce you\'re signed in, click the Tasks button in the top navigation to see your assignment.';
+
+    var subject  = encodeURIComponent(opts.subject);
+    var bodyEnc  = encodeURIComponent(fullBody);
+    var mailto   = 'mailto:' + opts.toEmail + '?subject=' + subject + '&body=' + bodyEnc;
+
+    // Populate modal
+    var msgEl  = document.getElementById('mailtoModalMsg');
+    var linkEl = document.getElementById('mailtoLink');
+    if (msgEl) {
+      msgEl.innerHTML = opts.hasAccount
+        ? '<strong>' + _escHtml(opts.toEmail) + '</strong> already has an account. Send them a heads-up so they know to check their Tasks panel.'
+        : '<strong>' + _escHtml(opts.toEmail) + '</strong> doesn\'t have an account yet. Send them an email so they know to sign up.';
+    }
+    if (linkEl) {
+      linkEl.href = mailto;
+    }
+    document.getElementById('mailtoModal').classList.add('open');
+  }
+
+  function closeMailtoModal() {
+    document.getElementById('mailtoModal').classList.remove('open');
+  }
+
   // ── Show/hide the Tasks nav button based on auth state ──
   // Check for pending tasks after auth and auto-open the panel if any exist.
   // Called after login, signup, and session restore on page load.
@@ -920,6 +956,15 @@
     _refreshTasksNavBtn();
     // Show a brief confirmation inline on the project card
     renderProjList();
+    // Feature 8: if invitee has no account, prompt the owner to email them
+    if (!assigneeId) {
+      _showMailtoModal({
+        toEmail:    email,
+        hasAccount: false,
+        subject:    'You\'ve been invited to collaborate on "' + (proj ? proj.name : 'a project') + '"',
+        body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has invited you to collaborate on a project in Controlled Convergence.'
+      });
+    }
   }
 
   // Load project_members for the given project so the owner can see collaborators.
@@ -1096,6 +1141,15 @@
 
     closeReqReviewModal();
     await loadReqReviewTasksForProject(activeProject.id);
+    // Feature 8: if assignee has no account, prompt the owner to email them
+    if (!assigneeId) {
+      _showMailtoModal({
+        toEmail:    assigneeEmail,
+        hasAccount: false,
+        subject:    'Action needed: requirement review for "' + (activeProject ? activeProject.name : 'a project') + '"',
+        body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has asked you to review a requirement in Controlled Convergence.'
+      });
+    }
   }
 
   // ── Approval flow (assignee completes a req_review task) ──
@@ -1364,6 +1418,15 @@
     await loadActiveScoringTasksForProject(activeProject.id);
     // Refresh Tasks panel badge count
     _refreshTasksNavBtn();
+    // Feature 8: if assignee has no account, prompt the owner to email them
+    if (!assigneeId) {
+      _showMailtoModal({
+        toEmail:    assigneeEmail,
+        hasAccount: false,
+        subject:    'Action needed: concept scoring task for "' + (activeProject ? activeProject.name : 'a project') + '"',
+        body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has assigned you a concept scoring task in Controlled Convergence.'
+      });
+    }
   }
 
   // ── Badge helpers (used by ui.js renderRequirements / renderConceptCards) ──
