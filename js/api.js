@@ -39,7 +39,10 @@ async function saveProject(project) {
       .select()
       .single();
 
-    if (error) return { data: null, error: error.message };
+    if (error) {
+      console.error('[saveProject] Supabase error:', error.message, '| code:', error.code, '| user:', appState.currentUser?.id, '| project:', project.id);
+      return { data: null, error: error.message };
+    }
 
     // Keep in-memory array in sync
     const idx = savedProjects.findIndex(p => p.id === project.id);
@@ -48,7 +51,8 @@ async function saveProject(project) {
     return { data: project, error: null };
   }
 
-  // Fallback: in-memory only (anonymous visitor)
+  // Fallback: in-memory only (anonymous visitor — data will not survive a refresh)
+  console.warn('[saveProject] No current user — saving in-memory only. Project will be lost on refresh.');
   const idx = savedProjects.findIndex(p => p.id === project.id);
   if (idx >= 0) {
     savedProjects[idx] = project;

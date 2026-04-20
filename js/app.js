@@ -319,6 +319,12 @@
   function openAuthModal(tab) {
     tab = tab || 'login';
     switchAuthTab(tab);
+    // Switch password fields to type="password" now that the modal is opening.
+    // They live as type="text" in the HTML so Safari doesn't show autofill on page load.
+    var loginPw  = document.getElementById('authLoginPassword');
+    var signupPw = document.getElementById('authSignupPassword');
+    if (loginPw)  loginPw.type  = 'password';
+    if (signupPw) signupPw.type = 'password';
     document.getElementById('authModal').classList.add('open');
   }
 
@@ -328,6 +334,11 @@
       var el = document.getElementById(id);
       if (el) el.value = '';
     });
+    // Reset password fields back to type="text" so Safari won't trigger autofill on the next page load.
+    var loginPw  = document.getElementById('authLoginPassword');
+    var signupPw = document.getElementById('authSignupPassword');
+    if (loginPw)  loginPw.type  = 'text';
+    if (signupPw) signupPw.type = 'text';
     // Reset terms checkbox and button state
     var termsCheck = document.getElementById('authTermsCheck');
     if (termsCheck) termsCheck.checked = false;
