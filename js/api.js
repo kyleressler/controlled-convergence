@@ -77,7 +77,10 @@ async function loadProjects(userId) {
       .select('*')
       .order('updated_at', { ascending: false });
 
-    if (error) return { data: [], error: error.message };
+    if (error) {
+      console.error('[loadProjects] Supabase error:', error.message, '| code:', error.code);
+      return { data: [], error: error.message };
+    }
 
     // Normalize Supabase rows back to the project model shape
     const projects = (data || []).map(row => ({

@@ -2258,6 +2258,29 @@ body.cc-role-scoped-editor [onclick*="deletePughConcept"] {
 }
 .tasks-panel-close:hover { color: var(--text); background: var(--border); }
 
+/* Task History row — thin strip below the panel header */
+.tasks-panel-history-row {
+  padding: 6px 20px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tasks-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: color 0.15s;
+}
+.tasks-history-btn:hover { color: var(--accent); }
+
 .tasks-section {
   padding: 0 20px;
   overflow-y: auto;
@@ -3205,3 +3228,58 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
       padding: 6px 14px;
       border-radius: 6px;
     }
+
+/* ── TASK HISTORY TIMELINE ── */
+.task-hist-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0;
+}
+.task-hist-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.task-hist-entry:last-child { border-bottom: none; }
+.task-hist-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.task-hist-icon-assign  { background: rgba(var(--accent-rgb, 59,130,246), 0.12); color: var(--accent); }
+.task-hist-icon-inbox   { background: rgba(var(--accent-rgb, 59,130,246), 0.08); color: var(--text-muted); }
+.task-hist-icon-check   { background: rgba(34,197,94,0.12); color: #22c55e; }
+.task-hist-icon-decline { background: rgba(239,68,68,0.12);  color: #ef4444; }
+.task-hist-content {
+  flex: 1;
+  min-width: 0;
+}
+.task-hist-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.task-hist-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.task-hist-proj {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.task-hist-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 32px 0;
+}

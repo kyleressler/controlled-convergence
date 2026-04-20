@@ -193,7 +193,9 @@
     const list = document.getElementById('projList');
     const note = document.getElementById('projSaveNote');
     if (!list) return;
-    if (userTier === 'free') {
+    // Anonymous free-tier visitors see the sign-up prompt instead of an empty list.
+    // Logged-in users (even on free tier) always see their project list.
+    if (userTier === 'free' && !appState.currentUser) {
       list.innerHTML = '';
       if (note) note.innerHTML = '<button class="btn btn-primary" style="margin-top:4px" onclick="handleAccountCTA()">Create a Free Account</button>';
       return;

@@ -35,7 +35,7 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-    'free',
+    'account',
     'engineering'
   )
   ON CONFLICT (id) DO NOTHING;
@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS public.project_members (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id  TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  role        TEXT NOT NULL CHECK (role IN ('owner', 'scoped_editor', 'viewer')),
+  role        TEXT NOT NULL CHECK (role IN ('owner', 'editor', 'scoped_editor', 'viewer')),
   invited_by  UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (project_id, user_id)
@@ -521,7 +521,41 @@ REVOKE EXECUTE ON FUNCTION public.link_pending_tasks_to_user() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.link_pending_tasks_to_user() TO authenticated;
 
 
--- ── 9. TEST ACCOUNTS (manual setup — run separately) ──────────
+-- ── 9. GRANT PROJECT ACCESS FROM TASK ──────────────────────────
+-- Called when an assignee clicks "Load Project and View Details" on a scoring
+-- or req_review task. Atomically validates the task is theirs, then inserts
+-- them into project_members as scoped_editor so they can view the project.
+-- SECURITY DEFINER bypasses the normal owner-only INSERT policy on project_members.
+
+CREATE OR REPLACE FUNCTION public.grant_task_project_access(p_task_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_task public.tasks%ROWTYPE;
+BEGIN
+  SELECT * INTO v_task FROM public.tasks WHERE id = p_task_id;
+  IF NOT FOUND THEN RETURN jsonb_build_object('error', 'Task not found'); END IF;
+  IF v_task.assignee_id <> auth.uid() THEN RETURN jsonb_build_object('error', 'Not authorized'); END IF;
+  IF v_task.task_type NOT IN ('scoring', 'req_review') THEN RETURN jsonb_build_object('error', 'Invalid task type'); END IF;
+  IF v_task.status NOT IN ('pending', 'accepted') THEN RETURN jsonb_build_object('error', 'Task is not active'); END IF;
+
+  -- Add as scoped_editor (safe to call multiple times)
+  INSERT INTO public.project_members (project_id, user_id, role, invited_by)
+  VALUES (v_task.project_id, auth.uid(), 'scoped_editor', v_task.assigner_id)
+  ON CONFLICT (project_id, user_id) DO NOTHING;
+
+  RETURN jsonb_build_object('success', true, 'project_id', v_task.project_id);
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.grant_task_project_access(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.grant_task_project_access(UUID) TO authenticated;
+
+
+-- ── 10. TEST ACCOUNTS (manual setup — run separately) ──────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

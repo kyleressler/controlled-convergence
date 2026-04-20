@@ -515,7 +515,8 @@
     var statusClass = 'task-status-' + (task.status || 'pending');
     var statusLabel = (task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1);
     var title       = task.title || _taskTypeLabel(task.task_type);
-    var projectHint = task.project_id ? ('<span>Project: ' + _shortId(task.project_id) + '</span>') : '';
+    var projName    = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+    var projectHint = task.project_id ? ('<span>' + _escHtml(projName) + '</span>') : '';
     var dateHint    = task.created_at ? ('<span>' + _relativeDate(task.created_at) + '</span>') : '';
 
     // Top row: title + status chip
@@ -535,11 +536,11 @@
     var actions = document.createElement('div');
     actions.className = 'task-card-actions';
 
-    // View details — always available
+    // Preview details — always available
     var detailBtn = document.createElement('button');
     detailBtn.className = 'task-action-btn';
-    detailBtn.textContent = 'View details';
-    detailBtn.onclick = function() { openTaskDetailModal(task); };
+    detailBtn.textContent = 'Preview details';
+    detailBtn.onclick = function() { openTaskDetailModal(task, role); };
     actions.appendChild(detailBtn);
 
     if (role === 'assigner') {
@@ -607,34 +608,223 @@
   }
 
   // Open the task detail modal.
-  function openTaskDetailModal(task) {
-    var title  = task.title || _taskTypeLabel(task.task_type);
-    var detail = document.getElementById('taskDetailBody');
+  // role: 'assignee' | 'assigner' — controls whether "Load Project" button appears.
+  function openTaskDetailModal(task, role) {
+    var title      = task.title || _taskTypeLabel(task.task_type);
+    var detail     = document.getElementById('taskDetailBody');
+    var projName   = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+    var statusText = (task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1);
+
     var rows = [
       ['Type',    _taskTypeLabel(task.task_type)],
-      ['Status',  task.status],
-      ['Project', task.project_id || '—'],
+      ['Status',  statusText],
+      ['Project', projName],
       ['Created', task.created_at ? new Date(task.created_at).toLocaleString() : '—'],
       ['Expires', task.expires_at ? new Date(task.expires_at).toLocaleString() : 'No expiry'],
     ];
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
     rows.forEach(function(r) {
-      html += '<tr><td style="padding:5px 10px 5px 0;color:var(--text-muted);white-space:nowrap;vertical-align:top;font-weight:600">'
-            + _escHtml(r[0]) + '</td><td style="padding:5px 0;color:var(--text)">' + _escHtml(String(r[1])) + '</td></tr>';
+      html += '<tr><td style="padding:6px 12px 6px 0;color:var(--text-muted);white-space:nowrap;vertical-align:top;font-weight:600">'
+            + _escHtml(r[0]) + '</td><td style="padding:6px 0;color:var(--text)">' + _escHtml(String(r[1])) + '</td></tr>';
     });
     html += '</table>';
+
+    // Human-friendly payload section
     if (task.payload) {
-      html += '<div style="margin-top:14px;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Payload</div>';
-      html += '<pre style="background:var(--bg,rgba(0,0,0,0.15));border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;color:var(--text-muted)">'
-            + _escHtml(JSON.stringify(task.payload, null, 2)) + '</pre>';
+      var p = task.payload;
+      html += '<div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">';
+
+      if (task.task_type === 'req_review') {
+        if (p.requirementText) {
+          html += '<div>'
+                + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:5px">Requirement</div>'
+                + '<div style="font-size:13px;color:var(--text);background:var(--bg,rgba(0,0,0,0.06));border:1px solid var(--border);border-radius:6px;padding:10px 12px;line-height:1.55">'
+                + _escHtml(p.requirementText) + '</div></div>';
+        }
+        if (p.instructions) {
+          html += '<div>'
+                + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:5px">Instructions</div>'
+                + '<div style="font-size:13px;color:var(--text);line-height:1.55">' + _escHtml(p.instructions) + '</div></div>';
+        }
+        if (p.approval) {
+          html += '<div>'
+                + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--success,#22c55e);margin-bottom:5px">Approved</div>'
+                + '<div style="font-size:13px;color:var(--text);line-height:1.55">By ' + _escHtml(p.approval.approverName || 'Unknown')
+                + ' on ' + new Date(p.approval.approvedAt).toLocaleDateString() + '</div>'
+                + (p.approval.comment ? '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-style:italic">&ldquo;' + _escHtml(p.approval.comment) + '&rdquo;</div>' : '')
+                + '</div>';
+        }
+      } else if (task.task_type === 'scoring') {
+        var reqCount   = (p.requirementIds || []).length;
+        var scopeLabel = p.conceptScope === 'all' ? 'all concepts' : ((p.conceptIds || []).length + ' concept' + ((p.conceptIds || []).length !== 1 ? 's' : ''));
+        html += '<div style="font-size:13px;color:var(--text);line-height:1.7">'
+              + 'Score <strong>' + reqCount + ' requirement' + (reqCount !== 1 ? 's' : '') + '</strong> against ' + _escHtml(scopeLabel) + '.'
+              + '</div>';
+      } else if (task.task_type === 'collab_invite') {
+        var inviteRole = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).replace(/_/g, ' ')) : 'Viewer';
+        html += '<div style="font-size:13px;color:var(--text);line-height:1.7">'
+              + 'You\'ve been invited to collaborate as <strong>' + _escHtml(inviteRole) + '</strong>.'
+              + '</div>';
+      }
+
+      html += '</div>';
     }
+
     detail.innerHTML = html;
     document.getElementById('taskDetailTitle').textContent = title;
+
+    // Show "Load Project and View Details" button only for assignees on active tasks
+    var loadProjBtn = document.getElementById('taskDetailLoadProjBtn');
+    if (loadProjBtn) {
+      var canLoad = role === 'assignee'
+        && (task.task_type === 'scoring' || task.task_type === 'req_review')
+        && (task.status === 'pending' || task.status === 'accepted');
+      loadProjBtn.style.display = canLoad ? '' : 'none';
+      if (canLoad) {
+        loadProjBtn.onclick = function() { loadProjectFromTask(task); };
+      }
+    }
+
     document.getElementById('taskDetailModal').classList.add('open');
   }
 
   function closeTaskDetailModal() {
     document.getElementById('taskDetailModal').classList.remove('open');
+  }
+
+  // Grant scoped_editor access via SECURITY DEFINER, then load the project
+  // and navigate to the relevant page (requirements or scoring).
+  async function loadProjectFromTask(task) {
+    var loadProjBtn = document.getElementById('taskDetailLoadProjBtn');
+    if (loadProjBtn) { loadProjBtn.textContent = 'Loading…'; loadProjBtn.disabled = true; }
+
+    var { data: result, error: rpcErr } = await _supabase.rpc('grant_task_project_access', { p_task_id: task.id });
+    if (loadProjBtn) { loadProjBtn.textContent = 'Load Project & View Details'; loadProjBtn.disabled = false; }
+
+    if (rpcErr) { alert('Could not access project: ' + rpcErr.message); return; }
+    if (result && result.error) { alert('Could not access project: ' + result.error); return; }
+
+    closeTaskDetailModal();
+    closeTasksPanel();
+
+    // Reload the full project list — the new membership now makes this project visible
+    await loadProjects(appState.currentUser.id);
+
+    var projectId = task.project_id;
+    var proj = savedProjects.find(function(p) { return p.id === projectId; });
+    if (!proj) {
+      alert('Access granted — find the project in Project Manager.');
+      return;
+    }
+
+    loadProject(projectId);
+
+    // Navigate to the relevant page
+    if (task.task_type === 'req_review') {
+      switchPage('requirements', document.querySelector('[data-page="requirements"]'));
+    } else if (task.task_type === 'scoring') {
+      switchPage('scor', document.querySelector('[data-page="scor"]'));
+    }
+  }
+
+  // ── TASK HISTORY MODAL ───────────────────────────────────────
+
+  async function openTaskHistoryModal() {
+    if (!appState.currentUser) return;
+    var uid  = appState.currentUser.id;
+    var body = document.getElementById('taskHistoryBody');
+    if (body) body.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px 0">Loading…</div>';
+    document.getElementById('taskHistoryModal').classList.add('open');
+
+    var results = await Promise.all([
+      _supabase.from('tasks').select('*').eq('assignee_id', uid).order('created_at', { ascending: false }),
+      _supabase.from('tasks').select('*').eq('assigner_id', uid).order('created_at', { ascending: false })
+    ]);
+    var toMe = results[0].data || [];
+    var byMe = results[1].data || [];
+
+    // Build flat timeline entries from both task sets
+    var entries = [];
+    var seen    = {};
+
+    function _statusVerb(status) {
+      return { accepted: 'accepted', declined: 'declined', completed: 'approved / completed', expired: 'expired' }[status] || status;
+    }
+
+    byMe.forEach(function(task) {
+      if (seen[task.id]) return;
+      seen[task.id] = true;
+      var proj      = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+      var recipient = task.assignee_email || 'someone';
+      entries.push({
+        date: task.created_at,
+        icon: 'assign',
+        html: 'You assigned <strong>' + _escHtml(task.title || _taskTypeLabel(task.task_type)) + '</strong>'
+            + ' to ' + _escHtml(recipient)
+            + ' <span class="task-hist-proj">' + _escHtml(proj) + '</span>'
+      });
+      if (task.status !== 'pending') {
+        entries.push({
+          date: task.updated_at,
+          icon: task.status === 'declined' ? 'decline' : 'check',
+          html: _escHtml(recipient) + ' <strong>' + _statusVerb(task.status) + '</strong> your task'
+              + ' <span class="task-hist-proj">' + _escHtml(proj) + '</span>'
+        });
+      }
+    });
+
+    toMe.forEach(function(task) {
+      if (seen[task.id]) return; // already counted (e.g. self-assigned)
+      seen[task.id] = true;
+      var proj = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+      entries.push({
+        date: task.created_at,
+        icon: 'inbox',
+        html: 'You received: <strong>' + _escHtml(task.title || _taskTypeLabel(task.task_type)) + '</strong>'
+            + ' <span class="task-hist-proj">' + _escHtml(proj) + '</span>'
+      });
+      if (task.status !== 'pending') {
+        entries.push({
+          date: task.updated_at,
+          icon: task.status === 'declined' ? 'decline' : 'check',
+          html: 'You <strong>' + _statusVerb(task.status) + '</strong>: '
+              + _escHtml(task.title || _taskTypeLabel(task.task_type))
+        });
+      }
+    });
+
+    // Sort newest first
+    entries.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+
+    if (!body) return;
+    if (entries.length === 0) {
+      body.innerHTML = '<div class="task-hist-empty">No task activity yet.</div>';
+      return;
+    }
+
+    var svgAssign  = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+    var svgCheck   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+    var svgDecline = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    var svgInbox   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>';
+
+    var html = '<div class="task-hist-timeline">';
+    entries.forEach(function(e) {
+      var iconSvg   = e.icon === 'decline' ? svgDecline : e.icon === 'assign' ? svgAssign : e.icon === 'inbox' ? svgInbox : svgCheck;
+      var iconClass = 'task-hist-icon task-hist-icon-' + e.icon;
+      html += '<div class="task-hist-entry">'
+            + '<div class="' + iconClass + '">' + iconSvg + '</div>'
+            + '<div class="task-hist-content">'
+            + '<div class="task-hist-text">' + e.html + '</div>'
+            + '<div class="task-hist-date">' + new Date(e.date).toLocaleString() + '</div>'
+            + '</div>'
+            + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  function closeTaskHistoryModal() {
+    document.getElementById('taskHistoryModal').classList.remove('open');
   }
 
   // Update a task's status (accept / decline / complete).
@@ -1127,9 +1317,10 @@
     } catch(e) {}
 
     var payload = {
-      requirementId: String(_reviewTaskTargetReqId),
+      projectName:     activeProject ? activeProject.name : '',
+      requirementId:   String(_reviewTaskTargetReqId),
       requirementText: reqText,
-      instructions: instructions
+      instructions:    instructions
     };
 
     // Ensure the project exists in Supabase before inserting the task (FK requirement)
@@ -1412,7 +1603,7 @@
       assigneeId = resolvedId || null;
     } catch(e) { /* function may not exist yet — safe to ignore */ }
 
-    var payload = { requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
+    var payload = { projectName: activeProject ? activeProject.name : '', requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
 
     // Ensure the project exists in Supabase before inserting the task (FK requirement)
     var { error: projSaveErr } = await saveProject(activeProject);
@@ -1876,7 +2067,21 @@
         return Math.max(max, n);
       }, 0);
     }
-    if (data.project) { activeProject = data.project; updateNavProjectName(); }
+    if (data.project) {
+      activeProject = data.project;
+      // Stamp with the current user so RLS allows saving
+      if (appState.currentUser) activeProject.user_id = appState.currentUser.id;
+      updateNavProjectName();
+      // Save it like any other project so it persists in the Project Manager
+      if (appState.currentUser || userTier !== 'free') {
+        const existing = savedProjects.findIndex(p => p.id === activeProject.id);
+        if (existing < 0) savedProjects.push(activeProject);
+        else savedProjects[existing] = activeProject;
+        appState.projects = savedProjects.slice();
+        saveProject(activeProject).catch(e => console.warn('example save failed', e));
+        try { localStorage.setItem('cc_activeProjectId', activeProject.id); } catch(e) {}
+      }
+    }
     if (typeof renderProjPage === 'function') renderProjPage();
     populateReqForms();
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();

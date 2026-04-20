@@ -1821,6 +1821,13 @@
     </button>
   </div>
 
+  <div class="tasks-panel-history-row">
+    <button class="tasks-history-btn" onclick="openTaskHistoryModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Task History
+    </button>
+  </div>
+
   <div class="tasks-panel-body">
 
     <!-- Section: Assigned to me -->
@@ -1846,10 +1853,22 @@
 <!-- ── TASK DETAIL MODAL ── -->
 <div class="modal-overlay" id="taskDetailModal" onclick="if(event.target===this)closeTaskDetailModal()">
   <div class="modal-box" style="max-width:520px;max-height:80vh;display:flex;flex-direction:column">
-    <div class="modal-title" id="taskDetailTitle">Task Details</div>
+    <div class="modal-title" id="taskDetailTitle">Preview Details</div>
     <div id="taskDetailBody" style="overflow-y:auto;flex:1;font-size:13px;color:var(--text-muted);line-height:1.7"></div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px">
+      <button class="btn btn-primary" id="taskDetailLoadProjBtn" style="display:none;width:100%">Load Project &amp; View Details</button>
+      <button class="btn btn-secondary" onclick="closeTaskDetailModal()" style="width:100%">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TASK HISTORY MODAL ── -->
+<div class="modal-overlay" id="taskHistoryModal" onclick="if(event.target===this)closeTaskHistoryModal()">
+  <div class="modal-box" style="max-width:560px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-title">Task History</div>
+    <div id="taskHistoryBody" style="overflow-y:auto;flex:1;padding-right:4px"></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeTaskDetailModal()">Close</button>
+      <button class="btn btn-secondary" onclick="closeTaskHistoryModal()">Close</button>
     </div>
   </div>
 </div>
