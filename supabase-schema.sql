@@ -311,36 +311,83 @@ CREATE POLICY "Owners can remove project members"
 
 
 -- ── Update projects RLS to allow member access ────────────────
--- Drop the old owner-only SELECT and UPDATE policies, replace with
--- policies that also cover invited collaborators.
+-- Uses SECURITY DEFINER helper functions to avoid infinite recursion
+-- (projects policy → project_members → projects policy → ...).
 
 DROP POLICY IF EXISTS "Users can view their own projects"   ON public.projects;
 DROP POLICY IF EXISTS "Users can update their own projects" ON public.projects;
+DROP POLICY IF EXISTS "Owners and members can view projects" ON public.projects;
+DROP POLICY IF EXISTS "Owners and editors can update projects" ON public.projects;
+
+-- Helper: is the current user a member of this project?
+CREATE OR REPLACE FUNCTION public.user_has_project_access(p_project_id TEXT)
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.project_members
+    WHERE project_id = p_project_id AND user_id = auth.uid()
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.user_has_project_access(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.user_has_project_access(TEXT) TO authenticated;
+
+-- Helper: is the current user the owner of this project?
+CREATE OR REPLACE FUNCTION public.user_is_project_owner(p_project_id TEXT)
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.projects
+    WHERE id = p_project_id AND user_id = auth.uid()
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.user_is_project_owner(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.user_is_project_owner(TEXT) TO authenticated;
+
+-- Helper: can the current user edit this project (editor or scoped_editor role)?
+CREATE OR REPLACE FUNCTION public.user_can_edit_project(p_project_id TEXT)
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.project_members
+    WHERE project_id = p_project_id
+      AND user_id = auth.uid()
+      AND role IN ('editor', 'scoped_editor')
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.user_can_edit_project(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.user_can_edit_project(TEXT) TO authenticated;
 
 -- Owners AND members can view a project
 CREATE POLICY "Owners and members can view projects"
   ON public.projects FOR SELECT
-  USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.project_members
-      WHERE project_members.project_id = projects.id
-        AND project_members.user_id = auth.uid()
-    )
-  );
+  USING (auth.uid() = user_id OR public.user_has_project_access(id));
 
--- Owners can update projects freely; editors and scoped editors can update too
+-- Owners, editors, and scoped editors can update projects
 CREATE POLICY "Owners and editors can update projects"
   ON public.projects FOR UPDATE
-  USING (
-    auth.uid() = user_id
-    OR EXISTS (
-      SELECT 1 FROM public.project_members
-      WHERE project_members.project_id = projects.id
-        AND project_members.user_id = auth.uid()
-        AND project_members.role IN ('scoped_editor')
-    )
-  );
+  USING (auth.uid() = user_id OR public.user_can_edit_project(id));
+
+
+-- ── Fix project_members policies to use helper functions ───────
+-- The original policies joined back to projects, creating the same recursion.
+
+DROP POLICY IF EXISTS "Owners can view all project members"  ON public.project_members;
+DROP POLICY IF EXISTS "Owners can add project members"       ON public.project_members;
+DROP POLICY IF EXISTS "Owners can update member roles"       ON public.project_members;
+DROP POLICY IF EXISTS "Owners can remove project members"    ON public.project_members;
+
+CREATE POLICY "Owners can view all project members"
+  ON public.project_members FOR SELECT
+  USING (public.user_is_project_owner(project_id));
+
+CREATE POLICY "Owners can add project members"
+  ON public.project_members FOR INSERT
+  WITH CHECK (public.user_is_project_owner(project_id));
+
+CREATE POLICY "Owners can update member roles"
+  ON public.project_members FOR UPDATE
+  USING (public.user_is_project_owner(project_id));
+
+CREATE POLICY "Owners can remove project members"
+  ON public.project_members FOR DELETE
+  USING (public.user_is_project_owner(project_id));
 
 
 -- ── Update tasks RLS so project members can see project tasks ─

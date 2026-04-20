@@ -157,8 +157,10 @@ function _onAuthStateUpdated() {
 
   // Feature 8: link any tasks that were created for this email before they
   // had an account. Fire-and-forget — errors are non-fatal.
+  // Note: Supabase RPC builders are thenable but don't expose .catch() directly,
+  // so we use .then(null, handler) to swallow errors safely.
   if (appState.currentUser) {
-    _supabase.rpc('link_pending_tasks_to_user').catch(function() {});
+    _supabase.rpc('link_pending_tasks_to_user').then(null, function() {});
   }
 }
 
