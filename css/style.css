@@ -1805,6 +1805,12 @@
 }
 .sidebar-profile-avatar.logged-in { background: var(--accent); color: #fff; border-color: var(--accent); }
 .sidebar-profile-name { font-size: 12px; color: var(--text-muted); }
+.sidebar-profile-row.clickable { cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px 4px; transition: background 0.12s; }
+.sidebar-profile-row.clickable:hover { background: var(--accent-light); }
+.sidebar-profile-row.clickable:hover .sidebar-profile-name { color: var(--accent); }
+
+/* Settings modal — delete button enabled state */
+#settingsDeleteBtn:not([disabled]) { cursor: pointer !important; opacity: 1 !important; }
 .sidebar-initials-circle {
   position: absolute;
   bottom: 16px;

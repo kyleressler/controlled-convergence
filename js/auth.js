@@ -171,11 +171,26 @@ function _refreshLogoutButton() {
   }
 }
 
-/** Show the signed-in user's name in the sidebar profile row. */
+/** Show the signed-in user's name in the sidebar profile row, and make it clickable when logged in. */
 function _refreshSidebarProfile() {
   const nameEl = document.getElementById('sidebarProfileName');
+  const rowEl  = document.getElementById('sidebarProfileRow');
   if (!nameEl) return;
-  nameEl.textContent = appState.currentUser
-    ? (appState.currentUser.name || appState.currentUser.email)
-    : 'Not signed in';
+  if (appState.currentUser) {
+    nameEl.textContent = appState.currentUser.name || appState.currentUser.email;
+    if (rowEl) {
+      rowEl.classList.add('clickable');
+      rowEl.title   = 'Account settings';
+      rowEl.onclick = function() {
+        if (typeof openSettingsModal === 'function') openSettingsModal();
+      };
+    }
+  } else {
+    nameEl.textContent = 'Not signed in';
+    if (rowEl) {
+      rowEl.classList.remove('clickable');
+      rowEl.title   = '';
+      rowEl.onclick = null;
+    }
+  }
 }

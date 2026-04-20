@@ -1635,6 +1635,111 @@
 <!-- Hidden file input for Upload Template -->
 <input type="file" id="tmplUploadInput" accept=".json" style="display:none" onchange="handleTmplUpload(event)">
 
+<!-- ── SETTINGS MODAL ── -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="modal-box" style="max-width:460px">
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border)">
+      <button id="settingsTab-profile" onclick="switchSettingsTab('profile')"
+        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s;font-family:var(--font)">
+        Profile
+      </button>
+      <button id="settingsTab-danger" onclick="switchSettingsTab('danger')"
+        style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-weight:600;font-size:13px;cursor:pointer;transition:all 0.15s;font-family:var(--font)">
+        Danger Zone
+      </button>
+    </div>
+
+    <!-- ── Profile tab ── -->
+    <div id="settingsForm-profile">
+
+      <!-- Name + Email -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px">Account Info</div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Display Name</div>
+        <input type="text" id="settingsName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Your name" autocomplete="name">
+      </div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Email Address</div>
+        <input type="email" id="settingsEmail" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="you@example.com" autocomplete="email">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px">Changing your email will send a confirmation to the new address.</div>
+      </div>
+
+      <div id="settingsProfileError"  style="color:var(--danger);font-size:12px;margin-bottom:8px;display:none"></div>
+      <div id="settingsProfileSuccess" style="color:var(--success,#22c55e);font-size:12px;margin-bottom:8px;display:none"></div>
+
+      <div class="modal-footer" style="margin-top:0">
+        <button class="btn btn-primary" id="settingsSaveProfileBtn" onclick="saveProfileSettings()">Save Changes</button>
+        <button class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid var(--border);margin:20px 0 16px"></div>
+
+      <!-- Password section -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px">Change Password</div>
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">New Password</div>
+        <input type="password" id="settingsNewPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Min. 8 characters" autocomplete="new-password">
+      </div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">Confirm New Password</div>
+        <input type="password" id="settingsConfirmPassword" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="Re-enter new password" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')savePasswordSettings()">
+      </div>
+
+      <div id="settingsPasswordError"  style="color:var(--danger);font-size:12px;margin-bottom:8px;display:none"></div>
+      <div id="settingsPasswordSuccess" style="color:var(--success,#22c55e);font-size:12px;margin-bottom:8px;display:none"></div>
+
+      <div class="modal-footer" style="margin-top:0">
+        <button class="btn btn-primary" id="settingsSavePasswordBtn" onclick="savePasswordSettings()">Update Password</button>
+      </div>
+
+    </div>
+
+    <!-- ── Danger Zone tab ── -->
+    <div id="settingsForm-danger" style="display:none">
+
+      <div style="background:var(--danger-light);border:1px solid var(--danger-border);border-radius:10px;padding:16px 18px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:6px">Delete Account</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6">
+          This will permanently delete your account and <strong>all associated data</strong> — projects, templates, and tasks. This action cannot be undone.
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">
+          Type <span style="color:var(--danger);font-family:monospace">DELETE</span> to confirm
+        </div>
+        <input type="text" id="settingsDeleteConfirmInput" class="add-custom-input"
+          style="width:100%;box-sizing:border-box;border-color:var(--danger-border)"
+          placeholder="DELETE"
+          autocomplete="off"
+          oninput="onDeleteConfirmInput()">
+      </div>
+
+      <div id="settingsDangerError" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+
+      <div class="modal-footer" style="margin-top:0">
+        <button class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+        <button id="settingsDeleteBtn"
+          onclick="deleteAccount()"
+          disabled
+          style="background:var(--danger);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:not-allowed;opacity:0.45;font-family:var(--font);transition:opacity 0.15s"
+          onmouseenter="if(!this.disabled)this.style.opacity='0.85'"
+          onmouseleave="if(!this.disabled)this.style.opacity='1'">
+          Permanently Delete My Account
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
 <!-- ── AUTH MODAL (Login / Sign Up) ── -->
 <div class="modal-overlay" id="authModal">
   <div class="modal-box" style="max-width:420px">
@@ -1983,6 +2088,7 @@
 <script src="js/state.js"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
+  <script src="js/settings.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/sidebar-content.js"></script>
