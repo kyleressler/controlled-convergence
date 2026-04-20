@@ -44,6 +44,10 @@
   </div>
 
   <button class="nav-blog">Blog</button>
+  <button class="nav-tasks-btn" id="navTasksBtn" onclick="openTasksPanel()" title="Your tasks">
+    Tasks
+    <span class="nav-tasks-badge" id="navTasksBadge" style="display:none"></span>
+  </button>
 
   <!-- Spacer pushes project name + login to the right -->
   <div style="flex:1"></div>
@@ -1688,6 +1692,53 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ── TASKS PANEL ── -->
+<div class="tasks-panel-overlay" id="tasksPanelOverlay" onclick="if(event.target===this)closeTasksPanel()"></div>
+<div class="tasks-panel" id="tasksPanel">
+
+  <div class="tasks-panel-header">
+    <div class="tasks-panel-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Tasks
+    </div>
+    <button class="tasks-panel-close" onclick="closeTasksPanel()" title="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="tasks-panel-body">
+
+    <!-- Section: Assigned to me -->
+    <div class="tasks-panel-section">
+      <div class="tasks-section-label">Assigned to me</div>
+      <div id="tasksAssignedToMe">
+        <div class="tasks-empty" id="tasksAssignedToMeEmpty">No tasks assigned to you.</div>
+      </div>
+    </div>
+
+    <!-- Section: Tasks I assigned -->
+    <div class="tasks-panel-section">
+      <div class="tasks-section-label">Assigned by me</div>
+      <div id="tasksAssignedByMe">
+        <div class="tasks-empty" id="tasksAssignedByMeEmpty">You haven't assigned any tasks yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ── TASK DETAIL MODAL ── -->
+<div class="modal-overlay" id="taskDetailModal" onclick="if(event.target===this)closeTaskDetailModal()">
+  <div class="modal-box" style="max-width:520px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="taskDetailTitle">Task Details</div>
+    <div id="taskDetailBody" style="overflow-y:auto;flex:1;font-size:13px;color:var(--text-muted);line-height:1.7"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTaskDetailModal()">Close</button>
+    </div>
   </div>
 </div>
 

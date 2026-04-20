@@ -137,7 +137,80 @@ CREATE POLICY "Users can delete their own templates"
   USING (auth.uid() = user_id);
 
 
--- ── 4. TEST ACCOUNTS (manual setup — run separately) ─────────
+-- ── 4. TASKS ─────────────────────────────────────────────────
+-- One row per task. Tasks are created by a project owner (assigner) and
+-- directed at a stakeholder or project member (assignee).
+-- task_type:  'scoring'       — score requirements/concepts (Feature 3)
+--             'req_review'    — review and approve a requirement (Feature 4)
+--             'collab_invite' — accept/decline a project collaboration invite (Feature 6)
+-- status:     pending | accepted | declined | completed | expired
+
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id    TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  assigner_id   UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  assignee_id   UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  assignee_email TEXT,                      -- used before/if assignee has no account
+  task_type     TEXT NOT NULL DEFAULT 'scoring'
+                  CHECK (task_type IN ('scoring', 'req_review', 'collab_invite')),
+  status        TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending', 'accepted', 'declined', 'completed', 'expired')),
+  title         TEXT,                       -- short description shown in panel
+  payload       JSONB,                      -- task-specific data (req ids, concept ids, etc.)
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ                 -- optional expiry; NULL = no expiry
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee_id  ON public.tasks (assignee_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigner_id  ON public.tasks (assigner_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id   ON public.tasks (project_id);
+
+-- RLS
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+
+-- Assignee can see tasks directed at them
+CREATE POLICY "Assignees can view their tasks"
+  ON public.tasks FOR SELECT
+  USING (auth.uid() = assignee_id);
+
+-- Assigner can see tasks they created
+CREATE POLICY "Assigners can view tasks they created"
+  ON public.tasks FOR SELECT
+  USING (auth.uid() = assigner_id);
+
+-- Assigner can insert tasks
+CREATE POLICY "Assigners can create tasks"
+  ON public.tasks FOR INSERT
+  WITH CHECK (auth.uid() = assigner_id);
+
+-- Assigner can update (revoke/delete) tasks they created
+CREATE POLICY "Assigners can update their tasks"
+  ON public.tasks FOR UPDATE
+  USING (auth.uid() = assigner_id);
+
+-- Assignee can update status (accept / decline / complete)
+CREATE POLICY "Assignees can update task status"
+  ON public.tasks FOR UPDATE
+  USING (auth.uid() = assignee_id);
+
+-- Assigner can delete tasks they created
+CREATE POLICY "Assigners can delete their tasks"
+  ON public.tasks FOR DELETE
+  USING (auth.uid() = assigner_id);
+
+-- Trigger: keep updated_at current
+CREATE OR REPLACE FUNCTION public.handle_task_updated()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$;
+
+DROP TRIGGER IF EXISTS on_task_updated ON public.tasks;
+CREATE TRIGGER on_task_updated
+  BEFORE UPDATE ON public.tasks
+  FOR EACH ROW EXECUTE FUNCTION public.handle_task_updated();
+
+
+-- ── 5. TEST ACCOUNTS (manual setup — run separately) ─────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

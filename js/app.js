@@ -413,6 +413,268 @@
   }
 
 
+  // ── TASKS PANEL ──────────────────────────────────────────────
+  // Tasks are stored in the `tasks` Supabase table.
+  // The panel slides in from the right and shows two sections:
+  //   1. Tasks assigned TO the current user   (they must act)
+  //   2. Tasks assigned BY the current user   (they can track / revoke)
+
+  var _tasksPanelOpen = false;
+
+  function openTasksPanel() {
+    document.getElementById('tasksPanel').classList.add('open');
+    document.getElementById('tasksPanelOverlay').classList.add('open');
+    _tasksPanelOpen = true;
+    renderTasksPanel();
+  }
+
+  function closeTasksPanel() {
+    document.getElementById('tasksPanel').classList.remove('open');
+    document.getElementById('tasksPanelOverlay').classList.remove('open');
+    _tasksPanelOpen = false;
+  }
+
+  // Fetch all tasks for the current user (both directions) and render the panel.
+  async function renderTasksPanel() {
+    if (!appState.currentUser) return;
+    var uid = appState.currentUser.id;
+
+    // Fetch tasks assigned to me
+    var { data: toMe, error: errToMe } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('assignee_id', uid)
+      .order('created_at', { ascending: false });
+
+    // Fetch tasks I assigned
+    var { data: byMe, error: errByMe } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('assigner_id', uid)
+      .order('created_at', { ascending: false });
+
+    _renderTaskSection('tasksAssignedToMe', 'tasksAssignedToMeEmpty', toMe || [], 'assignee');
+    _renderTaskSection('tasksAssignedByMe', 'tasksAssignedByMeEmpty', byMe || [], 'assigner');
+    _updateTasksBadge(toMe || []);
+  }
+
+  // Update the nav badge with count of pending tasks assigned to me.
+  function _updateTasksBadge(toMe) {
+    var badge = document.getElementById('navTasksBadge');
+    if (!badge) return;
+    var pending = (toMe || []).filter(function(t) { return t.status === 'pending'; }).length;
+    if (pending > 0) {
+      badge.textContent = pending;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Render a list of task cards into a container element.
+  // role: 'assignee' (tasks directed at me) | 'assigner' (tasks I created)
+  function _renderTaskSection(containerId, emptyId, tasks, role) {
+    var container = document.getElementById(containerId);
+    var emptyEl   = document.getElementById(emptyId);
+    if (!container) return;
+
+    // Remove previously rendered cards (but leave the empty placeholder)
+    Array.from(container.querySelectorAll('.task-card')).forEach(function(c) { c.remove(); });
+
+    if (!tasks || tasks.length === 0) {
+      if (emptyEl) emptyEl.style.display = '';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    tasks.forEach(function(task) {
+      var card = _buildTaskCard(task, role);
+      container.appendChild(card);
+    });
+  }
+
+  // Build a single task card DOM element.
+  function _buildTaskCard(task, role) {
+    var card = document.createElement('div');
+    card.className = 'task-card';
+    card.dataset.taskId = task.id;
+
+    var statusClass = 'task-status-' + (task.status || 'pending');
+    var statusLabel = (task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1);
+    var title       = task.title || _taskTypeLabel(task.task_type);
+    var projectHint = task.project_id ? ('<span>Project: ' + _shortId(task.project_id) + '</span>') : '';
+    var dateHint    = task.created_at ? ('<span>' + _relativeDate(task.created_at) + '</span>') : '';
+
+    // Top row: title + status chip
+    var top = document.createElement('div');
+    top.className = 'task-card-top';
+    top.innerHTML = '<span class="task-card-title">' + _escHtml(title) + '</span>'
+                  + '<span class="task-status ' + statusClass + '">' + statusLabel + '</span>';
+    card.appendChild(top);
+
+    // Meta row: project id + date
+    var meta = document.createElement('div');
+    meta.className = 'task-card-meta';
+    meta.innerHTML = projectHint + dateHint;
+    card.appendChild(meta);
+
+    // Action buttons
+    var actions = document.createElement('div');
+    actions.className = 'task-card-actions';
+
+    // View details — always available
+    var detailBtn = document.createElement('button');
+    detailBtn.className = 'task-action-btn';
+    detailBtn.textContent = 'View details';
+    detailBtn.onclick = function() { openTaskDetailModal(task); };
+    actions.appendChild(detailBtn);
+
+    if (role === 'assigner') {
+      // Send follow-up reminder (mailto)
+      if (task.status === 'pending') {
+        var reminderBtn = document.createElement('button');
+        reminderBtn.className = 'task-action-btn';
+        reminderBtn.textContent = 'Send reminder';
+        reminderBtn.onclick = function() { _taskSendReminder(task); };
+        actions.appendChild(reminderBtn);
+      }
+
+      // Revoke / delete (only if not completed)
+      if (task.status !== 'completed') {
+        var revokeBtn = document.createElement('button');
+        revokeBtn.className = 'task-action-btn danger';
+        revokeBtn.textContent = task.status === 'pending' ? 'Revoke' : 'Delete';
+        revokeBtn.onclick = function() { _taskRevoke(task.id); };
+        actions.appendChild(revokeBtn);
+      }
+    }
+
+    if (role === 'assignee' && task.status === 'pending') {
+      // Assignee can accept or decline pending tasks
+      var acceptBtn = document.createElement('button');
+      acceptBtn.className = 'task-action-btn';
+      acceptBtn.textContent = 'Accept';
+      acceptBtn.onclick = function() { _taskUpdateStatus(task.id, 'accepted'); };
+      actions.appendChild(acceptBtn);
+
+      var declineBtn = document.createElement('button');
+      declineBtn.className = 'task-action-btn danger';
+      declineBtn.textContent = 'Decline';
+      declineBtn.onclick = function() { _taskUpdateStatus(task.id, 'declined'); };
+      actions.appendChild(declineBtn);
+    }
+
+    card.appendChild(actions);
+    return card;
+  }
+
+  // Open the task detail modal.
+  function openTaskDetailModal(task) {
+    var title  = task.title || _taskTypeLabel(task.task_type);
+    var detail = document.getElementById('taskDetailBody');
+    var rows = [
+      ['Type',    _taskTypeLabel(task.task_type)],
+      ['Status',  task.status],
+      ['Project', task.project_id || '—'],
+      ['Created', task.created_at ? new Date(task.created_at).toLocaleString() : '—'],
+      ['Expires', task.expires_at ? new Date(task.expires_at).toLocaleString() : 'No expiry'],
+    ];
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    rows.forEach(function(r) {
+      html += '<tr><td style="padding:5px 10px 5px 0;color:var(--text-muted);white-space:nowrap;vertical-align:top;font-weight:600">'
+            + _escHtml(r[0]) + '</td><td style="padding:5px 0;color:var(--text)">' + _escHtml(String(r[1])) + '</td></tr>';
+    });
+    html += '</table>';
+    if (task.payload) {
+      html += '<div style="margin-top:14px;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Payload</div>';
+      html += '<pre style="background:var(--bg,rgba(0,0,0,0.15));border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;color:var(--text-muted)">'
+            + _escHtml(JSON.stringify(task.payload, null, 2)) + '</pre>';
+    }
+    detail.innerHTML = html;
+    document.getElementById('taskDetailTitle').textContent = title;
+    document.getElementById('taskDetailModal').classList.add('open');
+  }
+
+  function closeTaskDetailModal() {
+    document.getElementById('taskDetailModal').classList.remove('open');
+  }
+
+  // Update a task's status (accept / decline / complete).
+  async function _taskUpdateStatus(taskId, newStatus) {
+    var { error } = await _supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', taskId);
+    if (error) { console.warn('[tasks] update error', error.message); return; }
+    renderTasksPanel();
+  }
+
+  // Revoke (or delete) a task the current user assigned.
+  async function _taskRevoke(taskId) {
+    if (!confirm('Revoke this task? The assignee will no longer see it.')) return;
+    var { error } = await _supabase.from('tasks').delete().eq('id', taskId);
+    if (error) { console.warn('[tasks] delete error', error.message); return; }
+    renderTasksPanel();
+  }
+
+  // Generate a mailto: reminder for a pending task.
+  function _taskSendReminder(task) {
+    var email   = task.assignee_email || '';
+    var subject = encodeURIComponent('Reminder: action needed in Controlled Convergence');
+    var body    = encodeURIComponent(
+      'Hi,\n\nThis is a reminder that you have a pending task waiting for you in Controlled Convergence.\n\n'
+      + 'Log in at https://controlledconvergence.com to view and act on your task.\n\n'
+      + 'Task: ' + (task.title || _taskTypeLabel(task.task_type)) + '\n'
+    );
+    window.open('mailto:' + email + '?subject=' + subject + '&body=' + body);
+  }
+
+  // ── Tasks helpers ──
+
+  function _taskTypeLabel(type) {
+    var map = { scoring: 'Scoring request', req_review: 'Requirement review', collab_invite: 'Project invitation' };
+    return map[type] || type || 'Task';
+  }
+
+  function _shortId(id) {
+    return id ? id.slice(-8) : '—';
+  }
+
+  function _relativeDate(iso) {
+    var d = new Date(iso);
+    var now = new Date();
+    var diff = Math.round((now - d) / 60000); // minutes
+    if (diff < 1) return 'just now';
+    if (diff < 60) return diff + 'm ago';
+    diff = Math.round(diff / 60);
+    if (diff < 24) return diff + 'h ago';
+    diff = Math.round(diff / 24);
+    return diff + 'd ago';
+  }
+
+  function _escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Show/hide the Tasks nav button based on auth state ──
+  function _refreshTasksNavBtn() {
+    // The Tasks button is always visible. If the user is signed in,
+    // fetch their pending count to update the badge.
+    if (!appState.currentUser) return;
+    _supabase
+      .from('tasks')
+      .select('id, status')
+      .eq('assignee_id', appState.currentUser.id)
+      .eq('status', 'pending')
+      .then(function(res) {
+        _updateTasksBadge(res.data || []);
+      });
+  }
+
   // ── PROJECT DATA EXPORT / UPLOAD ──
   function exportProjectData() {
     const data = {

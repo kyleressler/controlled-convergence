@@ -143,6 +143,7 @@ function _onAuthStateUpdated() {
   if (typeof updatePughAccountToggles=== 'function') updatePughAccountToggles();
   if (typeof renderProjList         === 'function') renderProjList();
   if (typeof renderTemplateList     === 'function') renderTemplateList();
+  if (typeof _refreshTasksNavBtn    === 'function') _refreshTasksNavBtn();
   _refreshLogoutButton();
   _refreshSidebarProfile();
 }
