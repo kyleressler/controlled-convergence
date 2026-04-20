@@ -2613,15 +2613,24 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
 
     .pugh-concept-th {
-      text-align: center; padding: 10px 8px; font-size: 12px;
-      font-weight: 700; background: var(--surface); color: var(--text); vertical-align: middle;
-      word-break: break-word;
+      text-align: center; padding: 8px 4px; font-size: 12px;
+      font-weight: 700; background: var(--surface); color: var(--text); vertical-align: bottom;
+      white-space: nowrap; width: 36px; min-width: 36px; max-width: 36px; height: 140px;
     }
-    .pugh-concept-th.datum-th { color: var(--accent); border-bottom: 2px solid var(--accent); }
-    .pugh-datum-tag { font-size: 10px; font-weight: 400; color: var(--accent); opacity: 0.8; display: block; margin-top: 2px; }
+    .pugh-concept-th-inner {
+      display: inline-block;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      white-space: nowrap;
+      max-height: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pugh-concept-th.datum-th { color: var(--accent); border-left: 2px solid var(--accent); }
+    .pugh-datum-tag { font-size: 10px; font-weight: 400; color: var(--accent); opacity: 0.8; display: block; margin-top: 4px; }
 
     .pugh-cell {
-      text-align: center; vertical-align: middle; min-width: 72px; padding: 8px 4px;
+      text-align: center; vertical-align: middle; min-width: 36px; padding: 8px 4px;
       cursor: pointer; transition: background 0.1s; user-select: none; font-weight: 800;
       position: relative;
     }

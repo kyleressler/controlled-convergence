@@ -1372,7 +1372,7 @@
       : '';
     const thCols = pughConcepts.map((c, i) => {
       const isDatum = i === 0;
-      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</th>`;
+      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</span></th>`;
     }).join('');
     // Determine collapse-all triangle state for cell A1
     const totalCols = pughConcepts.length + 1 + (showMASCol ? 1 : 0);
