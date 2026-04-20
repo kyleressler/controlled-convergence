@@ -376,6 +376,7 @@
     updatePughAccountToggles();
     renderProjList();
     closeAuthModal();
+    await _checkAndShowTasksOnAuth();
   }
 
   async function submitAuthSignup() {
@@ -410,6 +411,7 @@
     updateTierBadges();
     renderProjList();
     closeAuthModal();
+    await _checkAndShowTasksOnAuth();
   }
 
 
@@ -661,6 +663,21 @@
   }
 
   // ── Show/hide the Tasks nav button based on auth state ──
+  // Check for pending tasks after auth and auto-open the panel if any exist.
+  // Called after login, signup, and session restore on page load.
+  async function _checkAndShowTasksOnAuth() {
+    if (!appState.currentUser) return;
+    var { data } = await _supabase
+      .from('tasks')
+      .select('id')
+      .eq('assignee_id', appState.currentUser.id)
+      .eq('status', 'pending')
+      .limit(1);
+    if (data && data.length > 0) {
+      openTasksPanel();
+    }
+  }
+
   function _refreshTasksNavBtn() {
     // The Tasks button is always visible. If the user is signed in,
     // fetch their pending count to update the badge.
@@ -3714,6 +3731,8 @@ ${sections}
           } catch(e) {}
         }
       });
+      // Auto-open Tasks panel on page load if pending tasks exist
+      _checkAndShowTasksOnAuth();
     }
     updateAccountStatus();
     updateTierBadges();
