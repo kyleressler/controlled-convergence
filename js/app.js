@@ -710,6 +710,98 @@
       });
   }
 
+  // ── PERMISSION LEVELS / ROLE MANAGEMENT ──────────────────────
+
+  // Load the current user's role for the given project and apply UI restrictions.
+  async function loadCurrentProjectRole(projectId) {
+    currentProjectRole = null;
+    myAssignedScoringTasks = [];
+    _applyRoleClasses();
+
+    if (!projectId || !appState.currentUser) return;
+
+    // Default to owner — the RPC may not exist on older deploys
+    currentProjectRole = 'owner';
+    try {
+      var { data: role } = await _supabase.rpc('get_my_project_role', { p_project_id: projectId });
+      if (role) currentProjectRole = role;
+    } catch(e) { /* function not yet deployed — default to owner */ }
+
+    // If scoped editor, load their assigned scoring tasks so we know what they can score
+    if (currentProjectRole === 'scoped_editor') {
+      var { data: assigned } = await _supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('task_type', 'scoring')
+        .eq('assignee_id', appState.currentUser.id)
+        .in('status', ['pending', 'accepted']);
+      myAssignedScoringTasks = assigned || [];
+    }
+
+    _applyRoleClasses();
+    // Re-render key pages so role-based controls show/hide correctly
+    if (typeof renderRequirements === 'function') renderRequirements();
+    if (typeof renderConceptCards === 'function') renderConceptCards();
+    if (typeof renderProjPage     === 'function') renderProjPage();
+  }
+
+  // Apply/remove CSS role classes on the body element.
+  function _applyRoleClasses() {
+    document.body.classList.remove('cc-role-owner', 'cc-role-viewer', 'cc-role-scoped-editor');
+    var role = currentProjectRole;
+    if (role === 'viewer')        document.body.classList.add('cc-role-viewer');
+    else if (role === 'scoped_editor') document.body.classList.add('cc-role-scoped-editor');
+    else if (role === 'owner')    document.body.classList.add('cc-role-owner');
+
+    // Update role badge in nav
+    var badge = document.getElementById('navRoleBadge');
+    if (!badge) return;
+    if (!role || role === 'owner') {
+      badge.style.display = 'none';
+    } else {
+      badge.textContent   = role === 'viewer' ? 'Viewer' : 'Editor';
+      badge.className     = 'nav-role-badge nav-role-badge-' + (role === 'viewer' ? 'viewer' : 'editor');
+      badge.style.display = '';
+    }
+  }
+
+  // Clear role state when no project is active.
+  function _clearProjectRole() {
+    currentProjectRole = null;
+    myAssignedScoringTasks = [];
+    _applyRoleClasses();
+  }
+
+  // ── Role helpers (called throughout the app) ──
+
+  function isViewOnly() {
+    return currentProjectRole === 'viewer';
+  }
+
+  function isScopedEditor() {
+    return currentProjectRole === 'scoped_editor';
+  }
+
+  function isOwner() {
+    return !currentProjectRole || currentProjectRole === 'owner';
+  }
+
+  // Returns true if the current user is allowed to edit the given Pugh cell.
+  function canEditScoringCell(reqId, conceptId) {
+    if (isOwner()) return true;
+    if (isViewOnly()) return false;
+    // Scoped editor: must have an assigned task that covers this req + concept
+    return myAssignedScoringTasks.some(function(t) {
+      if (!t.payload) return false;
+      var reqOk = t.payload.requirementIds && t.payload.requirementIds.includes(String(reqId));
+      if (!reqOk) return false;
+      var scope = t.payload.conceptScope;
+      if (scope === 'all') return true;
+      return t.payload.conceptIds && t.payload.conceptIds.includes(String(conceptId));
+    });
+  }
+
   // ── REQ REVIEW TASK ASSIGNER ─────────────────────────────────
 
   var _reviewTaskTargetReqId = null; // req ID currently being assigned
@@ -1619,7 +1711,7 @@
     if (typeof updateNavCompletion === 'function') updateNavCompletion();
 
     // ── Project / Nav ──
-    activeProject = null; updateNavProjectName();
+    activeProject = null; updateNavProjectName(); if (typeof _clearProjectRole === 'function') _clearProjectRole();
     populateReqForms();
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
     if (typeof syncSidebarPrefs === 'function') syncSidebarPrefs();
@@ -2492,12 +2584,16 @@ ${sections}
     if (typeof loadReqReviewTasksForProject === 'function') {
       loadReqReviewTasksForProject(id);
     }
+    // Determine the current user's role and apply UI restrictions
+    if (typeof loadCurrentProjectRole === 'function') {
+      loadCurrentProjectRole(id);
+    }
   }
 
   function deleteProject(id) {
     if (!confirm('Delete this project? This cannot be undone.')) return;
     savedProjects = savedProjects.filter(p => p.id !== id);
-    if (activeProject && activeProject.id === id) { activeProject = null; updateNavProjectName(); }
+    if (activeProject && activeProject.id === id) { activeProject = null; updateNavProjectName(); if (typeof _clearProjectRole === 'function') _clearProjectRole(); }
     // api.saveProject() — async persistence (replace when Supabase is live)
     saveProject(activeProject).catch(e => console.warn('save failed', e));
     renderProjPage();
@@ -4442,6 +4538,8 @@ ${sections}
   }
 
   function startScoringConcept(id) {
+    // Viewers cannot score at all
+    if (typeof isViewOnly === 'function' && isViewOnly()) return;
     const isDatum = pughConcepts[0]?.id === id;
     if (isDatum) {
       startDatumDef();
@@ -4725,6 +4823,11 @@ ${sections}
 
   function openScorePopup(event, conceptId, reqId) {
     event.stopPropagation();
+    // Viewers cannot score; scoped editors only if this cell is assigned to them
+    if (typeof isViewOnly === 'function' && isViewOnly()) return;
+    if (typeof isScopedEditor === 'function' && isScopedEditor()) {
+      if (typeof canEditScoringCell === 'function' && !canEditScoringCell(reqId, conceptId)) return;
+    }
     const popup = document.getElementById('pughScorePopup');
     if (!popup) return;
 

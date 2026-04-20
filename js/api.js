@@ -65,10 +65,12 @@ async function saveProject(project) {
  */
 async function loadProjects(userId) {
   if (appState.currentUser) {
+    // No user_id filter here — RLS handles access control.
+    // After Feature 5 this returns both owned projects AND shared projects
+    // the user is a member of (via project_members RLS policy).
     const { data, error } = await _supabase
       .from('projects')
       .select('*')
-      .eq('user_id', appState.currentUser.id)
       .order('updated_at', { ascending: false });
 
     if (error) return { data: [], error: error.message };

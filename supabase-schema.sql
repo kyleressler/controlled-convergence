@@ -235,7 +235,168 @@ REVOKE EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) TO authenticated;
 
 
--- ── 6. TEST ACCOUNTS (manual setup — run separately) ─────────
+-- ── 6. PROJECT MEMBERS + PERMISSION LEVELS ───────────────────
+-- Tracks who has access to each project and at what role level.
+-- The project creator (projects.user_id) is always the implicit owner —
+-- they do NOT need a row here. This table is for invited collaborators only.
+--
+-- Roles:
+--   owner        — full edit (reserved for implicit owner via projects.user_id)
+--   scoped_editor — can only write to records assigned via tasks; view everything
+--   viewer       — read-only access to the entire project
+
+CREATE TABLE IF NOT EXISTS public.project_members (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id  TEXT NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role        TEXT NOT NULL CHECK (role IN ('owner', 'scoped_editor', 'viewer')),
+  invited_by  UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (project_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_members_project ON public.project_members (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user    ON public.project_members (user_id);
+
+ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
+
+-- Members can see their own membership rows
+CREATE POLICY "Members can view their own membership"
+  ON public.project_members FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Project owners can view all members of their projects
+CREATE POLICY "Owners can view all project members"
+  ON public.project_members FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_members.project_id
+        AND projects.user_id = auth.uid()
+    )
+  );
+
+-- Project owners can add members
+CREATE POLICY "Owners can add project members"
+  ON public.project_members FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_members.project_id
+        AND projects.user_id = auth.uid()
+    )
+  );
+
+-- Project owners can update member roles
+CREATE POLICY "Owners can update member roles"
+  ON public.project_members FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_members.project_id
+        AND projects.user_id = auth.uid()
+    )
+  );
+
+-- Project owners can remove members
+CREATE POLICY "Owners can remove project members"
+  ON public.project_members FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.projects
+      WHERE projects.id = project_members.project_id
+        AND projects.user_id = auth.uid()
+    )
+  );
+
+
+-- ── Update projects RLS to allow member access ────────────────
+-- Drop the old owner-only SELECT and UPDATE policies, replace with
+-- policies that also cover invited collaborators.
+
+DROP POLICY IF EXISTS "Users can view their own projects"   ON public.projects;
+DROP POLICY IF EXISTS "Users can update their own projects" ON public.projects;
+
+-- Owners AND members can view a project
+CREATE POLICY "Owners and members can view projects"
+  ON public.projects FOR SELECT
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.project_members
+      WHERE project_members.project_id = projects.id
+        AND project_members.user_id = auth.uid()
+    )
+  );
+
+-- Owners can update projects freely; scoped editors can update (app enforces field limits)
+CREATE POLICY "Owners and scoped editors can update projects"
+  ON public.projects FOR UPDATE
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.project_members
+      WHERE project_members.project_id = projects.id
+        AND project_members.user_id = auth.uid()
+        AND project_members.role = 'scoped_editor'
+    )
+  );
+
+
+-- ── Update tasks RLS so project members can see project tasks ─
+CREATE POLICY "Project members can view tasks"
+  ON public.tasks FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.project_members
+      WHERE project_members.project_id = tasks.project_id
+        AND project_members.user_id = auth.uid()
+    )
+  );
+
+-- Scoped editors can update task status (accept/complete their assigned tasks)
+CREATE POLICY "Scoped editors can update assigned tasks"
+  ON public.tasks FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.project_members
+      WHERE project_members.project_id = tasks.project_id
+        AND project_members.user_id = auth.uid()
+        AND project_members.role = 'scoped_editor'
+    )
+    AND auth.uid() = assignee_id
+  );
+
+
+-- ── Helper: get the current user's role for a project ─────────
+CREATE OR REPLACE FUNCTION public.get_my_project_role(p_project_id TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_is_owner BOOLEAN;
+  v_role     TEXT;
+BEGIN
+  -- Check if caller is the project owner
+  SELECT (user_id = auth.uid()) INTO v_is_owner
+    FROM public.projects WHERE id = p_project_id;
+  IF v_is_owner IS TRUE THEN RETURN 'owner'; END IF;
+
+  -- Check project_members table
+  SELECT role INTO v_role
+    FROM public.project_members
+    WHERE project_id = p_project_id AND user_id = auth.uid();
+  RETURN v_role;  -- NULL if not a member at all
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_my_project_role(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_my_project_role(TEXT) TO authenticated;
+
+
+-- ── 8. TEST ACCOUNTS (manual setup — run separately) ─────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

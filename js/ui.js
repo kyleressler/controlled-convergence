@@ -490,8 +490,9 @@
           </div>`;
         }
 
-        // ── Assign Review button (shown when no active or completed review task) ──
-        const showAssignReview = !activeReview && !completedReview;
+        // ── Assign Review button (owners only, and only when no active/completed review) ──
+        const _userIsOwner = typeof isOwner === 'function' ? isOwner() : true;
+        const showAssignReview = _userIsOwner && !activeReview && !completedReview;
         const assignReviewBtn = showAssignReview
           ? `<button class="req-assign-review-btn" onclick="event.stopPropagation();openReqReviewModal(${_rId})" title="Assign review task">Assign Review</button>`
           : '';

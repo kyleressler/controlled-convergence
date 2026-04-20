@@ -69,6 +69,16 @@ let _scorePopupConcept = null;
 let _scorePopupReq = null;
 let pughAdvBackup = {};
 
+// ── Permission / Role ────────────────────────────────────────
+// The current user's role on the active project.
+// null = not determined yet or no project loaded
+// 'owner' | 'scoped_editor' | 'viewer'
+let currentProjectRole = null;
+
+// Scoring tasks assigned TO the current user for the active project.
+// Used by scoped editors to know which cells they're allowed to score.
+let myAssignedScoringTasks = [];
+
 // ── Tasks ────────────────────────────────────────────────────
 // Active scoring tasks for the current project (pending or accepted).
 // Populated by loadActiveScoringTasksForProject() whenever a project loads.
