@@ -20,7 +20,10 @@ async function saveProject(project) {
       .from('projects')
       .upsert({
         id:          project.id,
-        user_id:     appState.currentUser.id,
+        // Preserve the original owner. A scoped_editor saving someone else's project
+        // must NOT overwrite user_id — that would silently transfer ownership.
+        // Fall back to currentUser.id only for brand-new projects (user_id not yet set).
+        user_id:     project.user_id || appState.currentUser.id,
         name:        project.name,
         owner:       project.owner || '',
         description: project.description || '',

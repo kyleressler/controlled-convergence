@@ -519,7 +519,7 @@
     var statusClass = 'task-status-' + effectiveStatus;
     var statusLabel = effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1);
     var title       = task.title || _taskTypeLabel(task.task_type);
-    var projName    = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+    var projName    = _resolveProjectName(task);
     var projectHint = task.project_id ? ('<span>' + _escHtml(projName) + '</span>') : '';
     var expiryHint  = task.expires_at ? ('<span>Expires ' + _relativeDate(task.expires_at) + '</span>') : '';
     var dateHint    = task.created_at ? ('<span>' + _relativeDate(task.created_at) + '</span>') : '';
@@ -612,7 +612,7 @@
   function openTaskDetailModal(task, role) {
     var title      = task.title || _taskTypeLabel(task.task_type);
     var detail     = document.getElementById('taskDetailBody');
-    var projName   = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+    var projName   = _resolveProjectName(task);
     var statusText = (task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1);
 
     var rows = [
@@ -762,7 +762,7 @@
     byMe.forEach(function(task) {
       if (seen[task.id]) return;
       seen[task.id] = true;
-      var proj      = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+      var proj      = _resolveProjectName(task);
       var recipient = task.assignee_email || 'someone';
       entries.push({
         date: task.created_at,
@@ -784,7 +784,7 @@
     toMe.forEach(function(task) {
       if (seen[task.id]) return; // already counted (e.g. self-assigned)
       seen[task.id] = true;
-      var proj = (task.payload && task.payload.projectName) || _shortId(task.project_id);
+      var proj = _resolveProjectName(task);
       entries.push({
         date: task.created_at,
         icon: 'inbox',
@@ -942,6 +942,19 @@
   function _taskTypeLabel(type) {
     var map = { scoring: 'Scoring request', req_review: 'Requirement review', collab_invite: 'Project invitation' };
     return map[type] || type || 'Task';
+  }
+
+  // Resolve a human-readable project name for a task.
+  // Prefers the payload.projectName field (set since the May 2026 update),
+  // then falls back to looking up the project in savedProjects (covers old tasks
+  // created before projectName was added), then falls back to a short ID suffix.
+  function _resolveProjectName(task) {
+    if (task.payload && task.payload.projectName) return task.payload.projectName;
+    if (task.project_id) {
+      var found = savedProjects.find(function(p) { return p.id === task.project_id; });
+      if (found && found.name) return found.name;
+    }
+    return task.project_id ? _shortId(task.project_id) : '—';
   }
 
   function _shortId(id) {
