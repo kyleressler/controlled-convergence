@@ -1121,6 +1121,14 @@
       instructions: instructions
     };
 
+    // Ensure the project exists in Supabase before inserting the task (FK requirement)
+    var { error: projSaveErr } = await saveProject(activeProject);
+    if (projSaveErr) {
+      if (errEl) { errEl.textContent = 'Could not save project before assigning task: ' + projSaveErr; errEl.style.display = ''; }
+      if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
+      return;
+    }
+
     var { error } = await _supabase.from('tasks').insert({
       project_id:     activeProject.id,
       assigner_id:    appState.currentUser.id,
@@ -1394,6 +1402,14 @@
     } catch(e) { /* function may not exist yet — safe to ignore */ }
 
     var payload = { requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
+
+    // Ensure the project exists in Supabase before inserting the task (FK requirement)
+    var { error: projSaveErr } = await saveProject(activeProject);
+    if (projSaveErr) {
+      if (errEl) { errEl.textContent = 'Could not save project before assigning task: ' + projSaveErr; errEl.style.display = ''; }
+      if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
+      return;
+    }
 
     var { error } = await _supabase.from('tasks').insert({
       project_id:     activeProject.id,

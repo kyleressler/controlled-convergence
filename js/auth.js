@@ -92,6 +92,9 @@ async function initAuth() {
     const user = await _buildUserFromSession(session.user);
     appState.currentUser = user;
     userTier = user.tier || 'free';
+    // Update UI immediately — don't wait for onAuthStateChange to fire.
+    // Without this, there's a visible "logged out" flash on every page refresh.
+    _onAuthStateUpdated();
   }
 
   // Subscribe to auth state changes (login, logout, token refresh)
@@ -146,6 +149,11 @@ function _onAuthStateUpdated() {
   if (typeof _refreshTasksNavBtn    === 'function') _refreshTasksNavBtn();
   _refreshLogoutButton();
   _refreshSidebarProfile();
+  // Close the auth modal if a user just signed in — handles the case where
+  // submitAuthLogin/Signup fails to reach closeAuthModal() due to an error.
+  if (appState.currentUser && typeof closeAuthModal === 'function') {
+    closeAuthModal();
+  }
 
   // Feature 8: link any tasks that were created for this email before they
   // had an account. Fire-and-forget — errors are non-fatal.
