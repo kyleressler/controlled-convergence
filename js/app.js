@@ -306,11 +306,11 @@
 
   async function handleLogout() {
     if (!appState.currentUser) return;
-    const { error } = await logout();
-    if (error) { alert('Logout error: ' + error); return; }
-    // Force a full page reload after logout. This is the most reliable
-    // way to clear all in-memory and cached state across all browsers,
-    // including Safari on iOS which can silently restore sessions otherwise.
+    // Best-effort server-side sign-out. If the JWT has already expired Supabase
+    // may return an error, but logout() still clears localStorage and wipes
+    // appState.currentUser — so the user is logged out locally regardless.
+    // Never block the reload on a signOut error.
+    await logout();
     window.location.reload();
   }
 
@@ -512,11 +512,16 @@
     card.className = 'task-card';
     card.dataset.taskId = task.id;
 
-    var statusClass = 'task-status-' + (task.status || 'pending');
-    var statusLabel = (task.status || 'pending').charAt(0).toUpperCase() + (task.status || 'pending').slice(1);
+    // Determine if task has expired client-side (expired_at past, still pending in DB)
+    var isExpired = task.status === 'pending' && task.expires_at && new Date(task.expires_at) < new Date();
+    var effectiveStatus = isExpired ? 'expired' : (task.status || 'pending');
+
+    var statusClass = 'task-status-' + effectiveStatus;
+    var statusLabel = effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1);
     var title       = task.title || _taskTypeLabel(task.task_type);
     var projName    = (task.payload && task.payload.projectName) || _shortId(task.project_id);
     var projectHint = task.project_id ? ('<span>' + _escHtml(projName) + '</span>') : '';
+    var expiryHint  = task.expires_at ? ('<span>Expires ' + _relativeDate(task.expires_at) + '</span>') : '';
     var dateHint    = task.created_at ? ('<span>' + _relativeDate(task.created_at) + '</span>') : '';
 
     // Top row: title + status chip
@@ -526,10 +531,10 @@
                   + '<span class="task-status ' + statusClass + '">' + statusLabel + '</span>';
     card.appendChild(top);
 
-    // Meta row: project id + date
+    // Meta row: project name + expiry (if set) + date
     var meta = document.createElement('div');
     meta.className = 'task-card-meta';
-    meta.innerHTML = projectHint + dateHint;
+    meta.innerHTML = projectHint + expiryHint + dateHint;
     card.appendChild(meta);
 
     // Action buttons
@@ -544,53 +549,48 @@
     actions.appendChild(detailBtn);
 
     if (role === 'assigner') {
-      // Send follow-up reminder (mailto)
-      if (task.status === 'pending') {
+      // Send follow-up reminder (mailto) — only for active pending tasks
+      if (task.status === 'pending' && !isExpired) {
         var reminderBtn = document.createElement('button');
         reminderBtn.className = 'task-action-btn';
         reminderBtn.textContent = 'Send reminder';
         reminderBtn.onclick = function() { _taskSendReminder(task); };
         actions.appendChild(reminderBtn);
       }
-
-      // Revoke / delete (only if not completed)
-      if (task.status !== 'completed') {
-        var revokeBtn = document.createElement('button');
-        revokeBtn.className = 'task-action-btn danger';
-        revokeBtn.textContent = task.status === 'pending' ? 'Revoke' : 'Delete';
-        revokeBtn.onclick = function() { _taskRevoke(task.id); };
-        actions.appendChild(revokeBtn);
-      }
+      // Revoke (pending) / Remove (finished/expired) — always available to assigner
+      var revokeBtn = document.createElement('button');
+      revokeBtn.className = 'task-action-btn danger';
+      revokeBtn.textContent = (task.status === 'pending') ? 'Revoke' : 'Remove';
+      revokeBtn.onclick = function() { _taskRevoke(task.id); };
+      actions.appendChild(revokeBtn);
     }
 
-    if (role === 'assignee' && task.status === 'pending') {
+    // Assignee actions — only show when task is active (not expired)
+    if (role === 'assignee' && task.status === 'pending' && !isExpired) {
       if (task.task_type === 'req_review') {
-        // Req review: skip Accept step — go straight to Approve or Decline
         var approveBtn = document.createElement('button');
         approveBtn.className = 'task-action-btn';
         approveBtn.textContent = 'Approve';
         approveBtn.onclick = function() { openApprovalModal(task.id); };
         actions.appendChild(approveBtn);
       } else if (task.task_type === 'collab_invite') {
-        // Project invite: Accept triggers the secure accept function
         var acceptInviteBtn = document.createElement('button');
         acceptInviteBtn.className = 'task-action-btn';
         acceptInviteBtn.textContent = 'Accept';
         acceptInviteBtn.onclick = function() { acceptCollabInvite(task.id); };
         actions.appendChild(acceptInviteBtn);
       } else {
-        // All other task types: standard Accept
         var acceptBtn = document.createElement('button');
         acceptBtn.className = 'task-action-btn';
         acceptBtn.textContent = 'Accept';
         acceptBtn.onclick = function() { _taskUpdateStatus(task.id, 'accepted'); };
         actions.appendChild(acceptBtn);
       }
-
+      // Decline — opens modal requiring a reason
       var declineBtn = document.createElement('button');
       declineBtn.className = 'task-action-btn danger';
       declineBtn.textContent = 'Decline';
-      declineBtn.onclick = function() { _taskUpdateStatus(task.id, 'declined'); };
+      declineBtn.onclick = function() { openDeclineModal(task.id); };
       actions.appendChild(declineBtn);
     }
 
@@ -664,6 +664,14 @@
         var inviteRole = p.role ? (p.role.charAt(0).toUpperCase() + p.role.slice(1).replace(/_/g, ' ')) : 'Viewer';
         html += '<div style="font-size:13px;color:var(--text);line-height:1.7">'
               + 'You\'ve been invited to collaborate as <strong>' + _escHtml(inviteRole) + '</strong>.'
+              + '</div>';
+      }
+
+      // Show decline reason if task was declined
+      if (task.status === 'declined' && p.declineReason) {
+        html += '<div>'
+              + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--danger,#ef4444);margin-bottom:5px">Decline reason</div>'
+              + '<div style="font-size:13px;color:var(--text);line-height:1.55;font-style:italic">&ldquo;' + _escHtml(p.declineReason) + '&rdquo;</div>'
               + '</div>';
       }
 
@@ -825,6 +833,78 @@
 
   function closeTaskHistoryModal() {
     document.getElementById('taskHistoryModal').classList.remove('open');
+  }
+
+  // ── DECLINE MODAL ───────────────────────────────────────────
+  var _declineTask = null;
+
+  function openDeclineModal(taskId) {
+    // Find the full task object from the currently rendered tasks so we can merge payload
+    _declineTask = null;
+    var allCards = document.querySelectorAll('.task-card');
+    // We store taskId on the card dataset — find matching task from the rendered panel
+    // Instead, we look it up after fetching in submitDecline. Store ID for now.
+    _declineTask = { id: taskId, _payloadUnknown: true };
+    var commentEl = document.getElementById('declineComment');
+    if (commentEl) commentEl.value = '';
+    var errEl = document.getElementById('declineError');
+    if (errEl) errEl.style.display = 'none';
+    document.getElementById('declineModal').classList.add('open');
+    setTimeout(function() { if (commentEl) commentEl.focus(); }, 50);
+  }
+
+  function closeDeclineModal() {
+    document.getElementById('declineModal').classList.remove('open');
+    _declineTask = null;
+  }
+
+  async function submitDecline() {
+    var errEl  = document.getElementById('declineError');
+    var btn    = document.getElementById('declineSubmitBtn');
+    var reason = (document.getElementById('declineComment')?.value || '').trim();
+    if (errEl) errEl.style.display = 'none';
+
+    if (!reason) {
+      if (errEl) { errEl.textContent = 'Please provide a reason for declining.'; errEl.style.display = ''; }
+      return;
+    }
+    if (!appState.currentUser || !_declineTask) return;
+
+    if (btn) { btn.textContent = 'Declining…'; btn.disabled = true; }
+
+    // Fetch current payload so we can merge (preserves projectName, requirementText, etc.)
+    var currentPayload = {};
+    var { data: taskRow } = await _supabase.from('tasks').select('payload').eq('id', _declineTask.id).single();
+    if (taskRow && taskRow.payload) currentPayload = taskRow.payload;
+
+    var mergedPayload = Object.assign({}, currentPayload, {
+      declineReason: reason,
+      declinedAt:    new Date().toISOString()
+    });
+
+    var { error } = await _supabase
+      .from('tasks')
+      .update({ status: 'declined', payload: mergedPayload })
+      .eq('id', _declineTask.id);
+
+    if (btn) { btn.textContent = 'Decline'; btn.disabled = false; }
+
+    if (error) {
+      if (errEl) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = ''; }
+      return;
+    }
+
+    closeDeclineModal();
+    renderTasksPanel();
+  }
+
+  // Manual refresh button in tasks panel
+  function refreshTasksPanel() {
+    var btn = document.getElementById('tasksRefreshBtn');
+    if (btn) { btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none'; }
+    renderTasksPanel().then(function() {
+      if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    });
   }
 
   // Update a task's status (accept / decline / complete).
@@ -1316,6 +1396,9 @@
       assigneeId = resolvedId || null;
     } catch(e) {}
 
+    var expiresAtVal = document.getElementById('reqReviewExpiry')?.value || '';
+    var expiresAt = expiresAtVal ? new Date(expiresAtVal).toISOString() : null;
+
     var payload = {
       projectName:     activeProject ? activeProject.name : '',
       requirementId:   String(_reviewTaskTargetReqId),
@@ -1323,42 +1406,48 @@
       instructions:    instructions
     };
 
-    // Ensure the project exists in Supabase before inserting the task (FK requirement)
-    var { error: projSaveErr } = await saveProject(activeProject);
-    if (projSaveErr) {
-      if (errEl) { errEl.textContent = 'Could not save project before assigning task: ' + projSaveErr; errEl.style.display = ''; }
+    try {
+      // Ensure the project exists in Supabase before inserting the task (FK requirement)
+      var { error: projSaveErr } = await saveProject(activeProject);
+      if (projSaveErr) {
+        if (errEl) { errEl.textContent = 'Could not save project: ' + projSaveErr; errEl.style.display = ''; }
+        return;
+      }
+
+      var taskRow = {
+        project_id:     activeProject.id,
+        assigner_id:    appState.currentUser.id,
+        assignee_id:    assigneeId,
+        assignee_email: assigneeEmail,
+        task_type:      'req_review',
+        status:         'pending',
+        title:          title,
+        payload:        payload
+      };
+      if (expiresAt) taskRow.expires_at = expiresAt;
+
+      var { error } = await _supabase.from('tasks').insert(taskRow);
+
+      if (error) {
+        if (errEl) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = ''; }
+        return;
+      }
+
+      closeReqReviewModal();
+      await loadReqReviewTasksForProject(activeProject.id);
+      if (!assigneeId) {
+        _showMailtoModal({
+          toEmail:    assigneeEmail,
+          hasAccount: false,
+          subject:    'Action needed: requirement review for "' + (activeProject ? activeProject.name : 'a project') + '"',
+          body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has asked you to review a requirement in Controlled Convergence.'
+        });
+      }
+    } catch(e) {
+      console.error('[submitReqReviewTask] unexpected error:', e);
+      if (errEl) { errEl.textContent = 'Unexpected error: ' + e.message; errEl.style.display = ''; }
+    } finally {
       if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
-      return;
-    }
-
-    var { error } = await _supabase.from('tasks').insert({
-      project_id:     activeProject.id,
-      assigner_id:    appState.currentUser.id,
-      assignee_id:    assigneeId,
-      assignee_email: assigneeEmail,
-      task_type:      'req_review',
-      status:         'pending',
-      title:          title,
-      payload:        payload
-    });
-
-    if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
-
-    if (error) {
-      if (errEl) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = ''; }
-      return;
-    }
-
-    closeReqReviewModal();
-    await loadReqReviewTasksForProject(activeProject.id);
-    // Feature 8: if assignee has no account, prompt the owner to email them
-    if (!assigneeId) {
-      _showMailtoModal({
-        toEmail:    assigneeEmail,
-        hasAccount: false,
-        subject:    'Action needed: requirement review for "' + (activeProject ? activeProject.name : 'a project') + '"',
-        body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has asked you to review a requirement in Controlled Convergence.'
-      });
     }
   }
 
@@ -1584,66 +1673,72 @@
       if (errEl) { errEl.textContent = 'Select at least one concept.'; errEl.style.display = ''; }
       return;
     }
-    // Determine scope label for the payload
     var allConceptIds = pughConcepts.slice(1).map(function(c) { return String(c.id); });
     var scope = (conceptIds.length === allConceptIds.length) ? 'all' : 'selected';
 
-    // Build a human-readable title
     var assigneeName = document.getElementById('scoringTaskAssignee')?.selectedOptions[0]?.dataset.name || assigneeEmail;
     var title = 'Score ' + reqIds.length + ' requirement' + (reqIds.length > 1 ? 's' : '')
               + ' (' + (scope === 'all' ? 'all concepts' : conceptIds.length + ' concept' + (conceptIds.length > 1 ? 's' : '')) + ')'
               + ' — ' + assigneeName;
 
+    // Optional expiry date
+    var expiresAtVal = document.getElementById('scoringTaskExpiry')?.value || '';
+    var expiresAt = expiresAtVal ? new Date(expiresAtVal).toISOString() : null;
+
     if (btn) { btn.textContent = 'Assigning…'; btn.disabled = true; }
 
-    // Resolve email to Supabase user ID (if they have an account)
-    var assigneeId = null;
     try {
-      var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: assigneeEmail });
-      assigneeId = resolvedId || null;
-    } catch(e) { /* function may not exist yet — safe to ignore */ }
+      // Resolve email to Supabase user ID (if they have an account)
+      var assigneeId = null;
+      try {
+        var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: assigneeEmail });
+        assigneeId = resolvedId || null;
+      } catch(e) { /* RPC may not exist yet — safe to ignore */ }
 
-    var payload = { projectName: activeProject ? activeProject.name : '', requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
+      var payload = { projectName: activeProject ? activeProject.name : '', requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
 
-    // Ensure the project exists in Supabase before inserting the task (FK requirement)
-    var { error: projSaveErr } = await saveProject(activeProject);
-    if (projSaveErr) {
-      if (errEl) { errEl.textContent = 'Could not save project before assigning task: ' + projSaveErr; errEl.style.display = ''; }
+      // Ensure project exists in Supabase (FK requirement)
+      var { error: projSaveErr } = await saveProject(activeProject);
+      if (projSaveErr) {
+        if (errEl) { errEl.textContent = 'Could not save project: ' + projSaveErr; errEl.style.display = ''; }
+        return;
+      }
+
+      var taskRow = {
+        project_id:     activeProject.id,
+        assigner_id:    appState.currentUser.id,
+        assignee_id:    assigneeId,
+        assignee_email: assigneeEmail,
+        task_type:      'scoring',
+        status:         'pending',
+        title:          title,
+        payload:        payload
+      };
+      if (expiresAt) taskRow.expires_at = expiresAt;
+
+      var { error } = await _supabase.from('tasks').insert(taskRow);
+
+      if (error) {
+        if (errEl) { errEl.textContent = 'Error creating task: ' + error.message; errEl.style.display = ''; }
+        return;
+      }
+
+      closeScoringTaskModal();
+      await loadActiveScoringTasksForProject(activeProject.id);
+      _refreshTasksNavBtn();
+      if (!assigneeId) {
+        _showMailtoModal({
+          toEmail:    assigneeEmail,
+          hasAccount: false,
+          subject:    'Action needed: concept scoring task for "' + (activeProject ? activeProject.name : 'a project') + '"',
+          body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has assigned you a concept scoring task in Controlled Convergence.'
+        });
+      }
+    } catch(e) {
+      console.error('[submitScoringTask] unexpected error:', e);
+      if (errEl) { errEl.textContent = 'Unexpected error: ' + e.message; errEl.style.display = ''; }
+    } finally {
       if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
-      return;
-    }
-
-    var { error } = await _supabase.from('tasks').insert({
-      project_id:     activeProject.id,
-      assigner_id:    appState.currentUser.id,
-      assignee_id:    assigneeId,
-      assignee_email: assigneeEmail,
-      task_type:      'scoring',
-      status:         'pending',
-      title:          title,
-      payload:        payload
-    });
-
-    if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
-
-    if (error) {
-      if (errEl) { errEl.textContent = 'Error creating task: ' + error.message; errEl.style.display = ''; }
-      return;
-    }
-
-    closeScoringTaskModal();
-    // Reload active tasks so badges appear immediately
-    await loadActiveScoringTasksForProject(activeProject.id);
-    // Refresh Tasks panel badge count
-    _refreshTasksNavBtn();
-    // Feature 8: if assignee has no account, prompt the owner to email them
-    if (!assigneeId) {
-      _showMailtoModal({
-        toEmail:    assigneeEmail,
-        hasAccount: false,
-        subject:    'Action needed: concept scoring task for "' + (activeProject ? activeProject.name : 'a project') + '"',
-        body:       (appState.currentUser ? appState.currentUser.name || appState.currentUser.email : 'Someone') + ' has assigned you a concept scoring task in Controlled Convergence.'
-      });
     }
   }
 
@@ -3750,6 +3845,7 @@ ${sections}
     descInput.value = '';
     renderIlityGrid();
     populateReqForms();
+    _autoSaveNow();
   }
 
   function deselectAllIlities() {
@@ -3819,6 +3915,7 @@ ${sections}
     if (contactEmailInput) contactEmailInput.value = '';
     renderStakGrid();
     populateReqForms();
+    _autoSaveNow();
   }
 
   // ── CARD DRAG-TO-REORDER ──
@@ -4336,10 +4433,11 @@ ${sections}
       renderStakGrid(); populateReqForms();
     }
     closeEditModal();
+    _autoSaveNow();
   }
 
   function deleteFromModal() {
-    if (!confirm('Delete this item? Requirements referencing it will lose this association.')) return;
+    if (!confirm('Delete this item? Requirements referencing it will lose this association. This cannot be undone.')) return;
     if (_modalType === 'ility') {
       const idx = customIlities.findIndex(i => i.id === _modalId);
       if (idx !== -1) {
@@ -4361,6 +4459,7 @@ ${sections}
       renderStakGrid(); populateReqForms();
     }
     closeEditModal();
+    _autoSaveNow();
   }
 
   // ── REQUIREMENT EDIT IN PLACE ──
@@ -4705,6 +4804,18 @@ ${sections}
     else if (h === '#basic')  { setMode('basic'); }
   })();
 
+  // ── IMMEDIATE SAVE HELPER ──
+  // Call after any state mutation that doesn't already trigger a nav-save.
+  // No-op when there's no active project or the user isn't signed in.
+  function _autoSaveNow() {
+    if (!activeProject) return;
+    if (!appState.currentUser && userTier === 'free') return;
+    const snap = snapshotCurrentState(activeProject);
+    const idx = savedProjects.findIndex(p => p.id === snap.id);
+    if (idx >= 0) savedProjects[idx] = snap;
+    saveProject(snap).catch(err => console.warn('[immediate-save] failed', err));
+  }
+
   // ── AUTO-SAVE: every 60 seconds if there is an active project ──
   setInterval(function() {
     if (activeProject) {
@@ -4972,12 +5083,14 @@ ${sections}
     pughConcepts.push({ id: ++pughConceptCounter, name, customFieldValues: customFieldValues || {} });
     renderConceptCards();
     renderPughMatrix();
+    _autoSaveNow();
   }
 
   function deletePughConcept(id) {
     if (!confirm('Delete this concept and all its scores? This cannot be undone.')) return;
     pughConcepts = pughConcepts.filter(c => c.id !== id);
     Object.keys(pughScores).forEach(k => { if (k.startsWith(id + '_')) delete pughScores[k]; });
+    _autoSaveNow();
     if (scoringConceptId === id) exitScoringView();
     renderConceptCards();
     renderPughMatrix();

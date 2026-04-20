@@ -1816,9 +1816,14 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
       Tasks
     </div>
-    <button class="tasks-panel-close" onclick="closeTasksPanel()" title="Close">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="tasks-panel-close" id="tasksRefreshBtn" onclick="refreshTasksPanel()" title="Refresh tasks" style="color:var(--text-muted)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </button>
+      <button class="tasks-panel-close" onclick="closeTasksPanel()" title="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
   </div>
 
   <div class="tasks-panel-history-row">
@@ -1899,6 +1904,13 @@
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Instructions <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
         <textarea id="reqReviewInstructions" class="add-custom-input" rows="3" placeholder="Any context or guidance for the reviewer…" style="width:100%;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+
+      <!-- Optional expiry date -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Expiry date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input type="date" id="reqReviewExpiry" class="add-custom-input" style="width:100%;box-sizing:border-box" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">After this date, the task will show as expired and cannot be acted on.</div>
       </div>
 
       <div id="reqReviewError" style="color:var(--danger);font-size:12px;display:none"></div>
@@ -2011,6 +2023,13 @@
         </div>
       </div>
 
+      <!-- Optional expiry date -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Expiry date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <input type="date" id="scoringTaskExpiry" class="add-custom-input" style="width:100%;box-sizing:border-box" />
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">After this date, the task will show as expired and cannot be acted on.</div>
+      </div>
+
       <div id="scoringTaskError" style="color:var(--danger);font-size:12px;display:none"></div>
 
     </div>
@@ -2018,6 +2037,25 @@
     <div class="modal-footer">
       <button class="btn btn-primary" id="scoringTaskSubmitBtn" onclick="submitScoringTask()">Assign Task</button>
       <button class="btn btn-secondary" onclick="closeScoringTaskModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DECLINE TASK MODAL ── -->
+<div class="modal-overlay" id="declineModal" onclick="if(event.target===this)closeDeclineModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Decline Task</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.6">Please provide a reason so the assigner knows why you're declining.</div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Reason <span style="color:var(--danger)">*</span></div>
+        <textarea id="declineComment" class="add-custom-input" rows="3" placeholder="e.g. I don't have enough context to review this requirement…" style="width:100%;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+      <div id="declineError" style="color:var(--danger);font-size:12px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="declineSubmitBtn" onclick="submitDecline()" style="background:var(--danger,#ef4444);border-color:var(--danger,#ef4444)">Decline</button>
+      <button class="btn btn-secondary" onclick="closeDeclineModal()">Cancel</button>
     </div>
   </div>
 </div>
