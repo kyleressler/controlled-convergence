@@ -69,6 +69,16 @@ let _scorePopupConcept = null;
 let _scorePopupReq = null;
 let pughAdvBackup = {};
 
+// ── Tasks ────────────────────────────────────────────────────
+// Active scoring tasks for the current project (pending or accepted).
+// Populated by loadActiveScoringTasksForProject() whenever a project loads.
+let activeScoringTasks = [];
+
+// All req_review tasks for the current project (pending, accepted, completed).
+// Pending/accepted → shows "Review pending" badge on req card.
+// Completed → shows permanent approval record on req card.
+let reqReviewTasks = [];
+
 // ── App mode ─────────────────────────────────────────────────
 let appMode = 'full'; // 'full' | 'basic'
 let _lastFullPage = 'home';

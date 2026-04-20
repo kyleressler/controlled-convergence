@@ -210,7 +210,32 @@ CREATE TRIGGER on_task_updated
   FOR EACH ROW EXECUTE FUNCTION public.handle_task_updated();
 
 
--- ── 5. TEST ACCOUNTS (manual setup — run separately) ─────────
+-- ── 5. HELPER FUNCTIONS ──────────────────────────────────────
+
+-- Look up a Supabase user UUID by email address.
+-- Used when assigning tasks: lets the frontend resolve an email to a user ID
+-- without needing admin access to auth.users.
+-- SECURITY DEFINER runs as the function owner (postgres), not the calling user.
+CREATE OR REPLACE FUNCTION public.get_user_id_by_email(lookup_email TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  found_id UUID;
+BEGIN
+  SELECT id INTO found_id FROM auth.users WHERE email = lookup_email LIMIT 1;
+  RETURN found_id;
+END;
+$$;
+
+-- Grant execute to authenticated users only
+REVOKE EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) TO authenticated;
+
+
+-- ── 6. TEST ACCOUNTS (manual setup — run separately) ─────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

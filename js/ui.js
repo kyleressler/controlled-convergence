@@ -454,17 +454,62 @@
         const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}</div>` : '';
 
         const _rId = typeof r.id === 'number' ? r.id : `'${r.id}'`;
+
+        // ── Scoring task badge ──
+        const hasScoringTask = (typeof reqHasActiveScoringTask === 'function') && reqHasActiveScoringTask(r.id);
+        const scoringBadge = hasScoringTask
+          ? `<span class="task-active-badge">⏳ Scoring task active</span>`
+          : '';
+
+        // ── Review task badge ──
+        const activeReview = (typeof getActiveReqReviewTask === 'function') && getActiveReqReviewTask(r.id);
+        const reviewBadge = activeReview
+          ? `<span class="task-active-badge" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.35);color:#6366f1">👁 Review pending</span>`
+          : '';
+
+        const badgeRow = (scoringBadge || reviewBadge)
+          ? `<div class="task-active-badge-row" style="display:flex;gap:6px;flex-wrap:wrap">${scoringBadge}${reviewBadge}</div>`
+          : '';
+
+        // ── Approval record (permanent, shown after task is completed) ──
+        const completedReview = (typeof getCompletedReqReviewTask === 'function') && getCompletedReqReviewTask(r.id);
+        let approvalRecord = '';
+        if (completedReview && completedReview.payload?.approval) {
+          const apv = completedReview.payload.approval;
+          const dateStr = apv.approvedAt ? new Date(apv.approvedAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '—';
+          const commentSection = apv.comment && !apv.commentHidden
+            ? `<span class="req-approval-comment">"${escHtml(apv.comment)}"</span>
+               <button class="task-action-btn" style="font-size:10px;padding:1px 6px" onclick="event.stopPropagation();toggleApprovalCommentVisibility('${completedReview.id}',true)">Hide</button>`
+            : apv.comment && apv.commentHidden
+            ? `<button class="task-action-btn" style="font-size:10px;padding:1px 6px" onclick="event.stopPropagation();toggleApprovalCommentVisibility('${completedReview.id}',false)">Show comment</button>`
+            : '';
+          approvalRecord = `<div class="req-approval-record">
+            <span class="req-approval-check">✓</span>
+            <span>Approved by <strong>${escHtml(apv.approverName || '—')}</strong> · ${dateStr}</span>
+            ${commentSection}
+          </div>`;
+        }
+
+        // ── Assign Review button (shown when no active or completed review task) ──
+        const showAssignReview = !activeReview && !completedReview;
+        const assignReviewBtn = showAssignReview
+          ? `<button class="req-assign-review-btn" onclick="event.stopPropagation();openReqReviewModal(${_rId})" title="Assign review task">Assign Review</button>`
+          : '';
+
         return `
         <div class="req-item" ondblclick="editRequirement(${_rId})" title="Double-click to edit" style="cursor:default">
           <div class="req-item-header">
             ${r.format !== 'agile' && r.type ? `<span class="req-type-badge badge-${r.type}">${typeLabel}</span>` : ''}
             <span class="req-item-text">${displayText}</span>
             <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
+              ${assignReviewBtn}
               <button class="req-item-edit" onclick="event.stopPropagation();editRequirement(${_rId})" title="Edit">Edit</button>
               <button class="req-item-delete" onclick="event.stopPropagation();deleteRequirement(${_rId})" title="Delete">×</button>
             </div>
           </div>
           ${tagsRow}
+          ${badgeRow}
+          ${approvalRecord}
         </div>`;
       }).join('');
       list.appendChild(empty);
@@ -1205,10 +1250,19 @@
         `<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger)"
            onclick="event.stopPropagation();deletePughConcept(${_cId})">Delete</button>`;
 
+      // Show a badge if an active scoring task covers this concept
+      const hasConceptTask = !isBaseline
+        && (typeof conceptHasActiveScoringTask === 'function')
+        && conceptHasActiveScoringTask(c.id);
+      const conceptTaskBadge = hasConceptTask
+        ? `<div style="margin-top:4px"><span class="task-active-badge">⏳ Scoring task active</span></div>`
+        : '';
+
       return `<div class="concept-card${isBaseline ? ' datum-card' : ''}" style="${tintStyle}" onclick="startScoringConcept(${_cId})">
         ${badge}
         <div class="concept-card-name">${c.name}</div>
         <div class="concept-card-meta">${meta}</div>
+        ${conceptTaskBadge}
         <div class="concept-card-actions" onclick="event.stopPropagation()">
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
             onclick="showConceptSummary(${_cId})">Summary</button>

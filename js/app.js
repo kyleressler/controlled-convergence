@@ -552,18 +552,36 @@
     }
 
     if (role === 'assignee' && task.status === 'pending') {
-      // Assignee can accept or decline pending tasks
-      var acceptBtn = document.createElement('button');
-      acceptBtn.className = 'task-action-btn';
-      acceptBtn.textContent = 'Accept';
-      acceptBtn.onclick = function() { _taskUpdateStatus(task.id, 'accepted'); };
-      actions.appendChild(acceptBtn);
+      if (task.task_type === 'req_review') {
+        // Req review: skip Accept step — go straight to Approve or Decline
+        var approveBtn = document.createElement('button');
+        approveBtn.className = 'task-action-btn';
+        approveBtn.textContent = 'Approve';
+        approveBtn.onclick = function() { openApprovalModal(task.id); };
+        actions.appendChild(approveBtn);
+      } else {
+        // All other task types: standard Accept
+        var acceptBtn = document.createElement('button');
+        acceptBtn.className = 'task-action-btn';
+        acceptBtn.textContent = 'Accept';
+        acceptBtn.onclick = function() { _taskUpdateStatus(task.id, 'accepted'); };
+        actions.appendChild(acceptBtn);
+      }
 
       var declineBtn = document.createElement('button');
       declineBtn.className = 'task-action-btn danger';
       declineBtn.textContent = 'Decline';
       declineBtn.onclick = function() { _taskUpdateStatus(task.id, 'declined'); };
       actions.appendChild(declineBtn);
+    }
+
+    // Accepted req_review tasks also show the Approve button
+    if (role === 'assignee' && task.status === 'accepted' && task.task_type === 'req_review') {
+      var approveBtn2 = document.createElement('button');
+      approveBtn2.className = 'task-action-btn';
+      approveBtn2.textContent = 'Approve';
+      approveBtn2.onclick = function() { openApprovalModal(task.id); };
+      actions.appendChild(approveBtn2);
     }
 
     card.appendChild(actions);
@@ -690,6 +708,435 @@
       .then(function(res) {
         _updateTasksBadge(res.data || []);
       });
+  }
+
+  // ── REQ REVIEW TASK ASSIGNER ─────────────────────────────────
+
+  var _reviewTaskTargetReqId = null; // req ID currently being assigned
+  var _approvalTaskId = null;        // task ID currently being approved
+
+  // Load all req_review tasks for the current project.
+  // Includes pending, accepted, and completed so we can show both badges
+  // and permanent approval records.
+  async function loadReqReviewTasksForProject(projectId) {
+    if (!projectId || !appState.currentUser) { reqReviewTasks = []; return; }
+    var uid = appState.currentUser.id;
+    // Fetch tasks where user is assigner OR assignee
+    var { data: asAssigner } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('task_type', 'req_review')
+      .in('status', ['pending', 'accepted', 'completed'])
+      .eq('assigner_id', uid);
+    var { data: asAssignee } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('task_type', 'req_review')
+      .in('status', ['pending', 'accepted', 'completed'])
+      .eq('assignee_id', uid);
+    // Merge, deduplicate by id
+    var all = [...(asAssigner || []), ...(asAssignee || [])];
+    var seen = new Set();
+    reqReviewTasks = all.filter(function(t) {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id); return true;
+    });
+    if (typeof renderRequirements === 'function') renderRequirements();
+  }
+
+  // Open the review task creation modal for a given requirement.
+  function openReqReviewModal(reqId) {
+    _reviewTaskTargetReqId = reqId;
+
+    // Find requirement text to display
+    var req = requirements.find(function(r) { return String(r.id) === String(reqId); });
+    var reqText = req ? (req.text || String(req.id)) : String(reqId);
+    var el = document.getElementById('reqReviewReqText');
+    if (el) el.textContent = reqText;
+
+    // Populate assignee dropdown
+    var allStakeholders = [
+      ...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []),
+      ...customStakeholders
+    ].filter(function(s) { return selectedStakeholders.has(s.id) && s.contactEmail && s.contactEmail.trim(); });
+
+    var assigneeEl = document.getElementById('reqReviewAssignee');
+    if (assigneeEl) {
+      assigneeEl.innerHTML = '<option value="">— select a stakeholder —</option>'
+        + allStakeholders.map(function(s) {
+            var label = s.contactName ? (s.contactName + (s.contactTitle ? ' — ' + s.contactTitle : '')) : s.name;
+            return '<option value="' + _escHtml(s.contactEmail) + '" data-name="' + _escHtml(label) + '">'
+                 + _escHtml(label) + ' &lt;' + _escHtml(s.contactEmail) + '&gt;</option>';
+          }).join('');
+    }
+    var noteEl = document.getElementById('reqReviewAssigneeNote');
+    if (noteEl) {
+      if (allStakeholders.length === 0) {
+        noteEl.textContent = 'No stakeholders with email addresses found. Add contact emails on the Stakeholders page.';
+        noteEl.style.display = '';
+      } else { noteEl.style.display = 'none'; }
+    }
+
+    // Clear fields
+    var instrEl = document.getElementById('reqReviewInstructions');
+    if (instrEl) instrEl.value = '';
+    var errEl = document.getElementById('reqReviewError');
+    if (errEl) errEl.style.display = 'none';
+
+    document.getElementById('reqReviewTaskModal').classList.add('open');
+  }
+
+  function closeReqReviewModal() {
+    document.getElementById('reqReviewTaskModal').classList.remove('open');
+    _reviewTaskTargetReqId = null;
+  }
+
+  // Create the req_review task in Supabase.
+  async function submitReqReviewTask() {
+    var errEl = document.getElementById('reqReviewError');
+    var btn   = document.getElementById('reqReviewSubmitBtn');
+    if (errEl) errEl.style.display = 'none';
+
+    if (!appState.currentUser) {
+      if (errEl) { errEl.textContent = 'Sign in to assign tasks.'; errEl.style.display = ''; }
+      return;
+    }
+    var assigneeEmail = document.getElementById('reqReviewAssignee')?.value || '';
+    if (!assigneeEmail) {
+      if (errEl) { errEl.textContent = 'Please select an assignee.'; errEl.style.display = ''; }
+      return;
+    }
+
+    var req = requirements.find(function(r) { return String(r.id) === String(_reviewTaskTargetReqId); });
+    var reqText = req ? (req.text || String(req.id)) : String(_reviewTaskTargetReqId);
+    var instructions = (document.getElementById('reqReviewInstructions')?.value || '').trim();
+    var assigneeName = document.getElementById('reqReviewAssignee')?.selectedOptions[0]?.dataset.name || assigneeEmail;
+    var title = 'Review: ' + (reqText.length > 60 ? reqText.slice(0, 60) + '…' : reqText) + ' — ' + assigneeName;
+
+    if (btn) { btn.textContent = 'Assigning…'; btn.disabled = true; }
+
+    // Resolve email to UUID
+    var assigneeId = null;
+    try {
+      var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: assigneeEmail });
+      assigneeId = resolvedId || null;
+    } catch(e) {}
+
+    var payload = {
+      requirementId: String(_reviewTaskTargetReqId),
+      requirementText: reqText,
+      instructions: instructions
+    };
+
+    var { error } = await _supabase.from('tasks').insert({
+      project_id:     activeProject.id,
+      assigner_id:    appState.currentUser.id,
+      assignee_id:    assigneeId,
+      assignee_email: assigneeEmail,
+      task_type:      'req_review',
+      status:         'pending',
+      title:          title,
+      payload:        payload
+    });
+
+    if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
+
+    if (error) {
+      if (errEl) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = ''; }
+      return;
+    }
+
+    closeReqReviewModal();
+    await loadReqReviewTasksForProject(activeProject.id);
+  }
+
+  // ── Approval flow (assignee completes a req_review task) ──
+
+  function openApprovalModal(taskId) {
+    _approvalTaskId = taskId;
+    var task = reqReviewTasks.find(function(t) { return t.id === taskId; });
+    var reqText = task?.payload?.requirementText || task?.title || 'Requirement';
+    var el = document.getElementById('approvalReqText');
+    if (el) el.textContent = reqText;
+    var commentEl = document.getElementById('approvalComment');
+    if (commentEl) commentEl.value = '';
+    var errEl = document.getElementById('approvalError');
+    if (errEl) errEl.style.display = 'none';
+    document.getElementById('approvalModal').classList.add('open');
+  }
+
+  function closeApprovalModal() {
+    document.getElementById('approvalModal').classList.remove('open');
+    _approvalTaskId = null;
+  }
+
+  async function submitApproval() {
+    var errEl = document.getElementById('approvalError');
+    var btn   = document.getElementById('approvalSubmitBtn');
+    if (errEl) errEl.style.display = 'none';
+    if (!appState.currentUser) {
+      if (errEl) { errEl.textContent = 'Sign in to approve.'; errEl.style.display = ''; }
+      return;
+    }
+
+    var comment = (document.getElementById('approvalComment')?.value || '').trim();
+    var approval = {
+      approverName: appState.currentUser.name || appState.currentUser.email,
+      approvedAt:   new Date().toISOString(),
+      comment:      comment,
+      commentHidden: false
+    };
+
+    // Fetch current task to merge payload
+    var task = reqReviewTasks.find(function(t) { return t.id === _approvalTaskId; });
+    var updatedPayload = Object.assign({}, task?.payload || {}, { approval: approval });
+
+    if (btn) { btn.textContent = 'Approving…'; btn.disabled = true; }
+
+    var { error } = await _supabase
+      .from('tasks')
+      .update({ status: 'completed', payload: updatedPayload })
+      .eq('id', _approvalTaskId);
+
+    if (btn) { btn.textContent = 'Approve'; btn.disabled = false; }
+    if (error) {
+      if (errEl) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = ''; }
+      return;
+    }
+
+    closeApprovalModal();
+    if (activeProject) await loadReqReviewTasksForProject(activeProject.id);
+    // Also refresh Tasks panel if open
+    if (_tasksPanelOpen) renderTasksPanel();
+  }
+
+  // Toggle visibility of the approval comment (project owner action).
+  async function toggleApprovalCommentVisibility(taskId, hide) {
+    var task = reqReviewTasks.find(function(t) { return t.id === taskId; });
+    if (!task || !task.payload?.approval) return;
+    var updatedPayload = Object.assign({}, task.payload, {
+      approval: Object.assign({}, task.payload.approval, { commentHidden: hide })
+    });
+    await _supabase.from('tasks').update({ payload: updatedPayload }).eq('id', taskId);
+    if (activeProject) await loadReqReviewTasksForProject(activeProject.id);
+  }
+
+  // ── Req review badge/approval helpers (used by ui.js) ──
+
+  // Returns the active (pending/accepted) review task for a requirement, if any.
+  function getActiveReqReviewTask(reqId) {
+    return reqReviewTasks.find(function(t) {
+      return String(t.payload?.requirementId) === String(reqId)
+          && (t.status === 'pending' || t.status === 'accepted');
+    }) || null;
+  }
+
+  // Returns the completed (approved) review task for a requirement, if any.
+  function getCompletedReqReviewTask(reqId) {
+    return reqReviewTasks.find(function(t) {
+      return String(t.payload?.requirementId) === String(reqId)
+          && t.status === 'completed';
+    }) || null;
+  }
+
+  // ── SCORING TASK ASSIGNER ─────────────────────────────────────
+
+  // Load all non-expired scoring tasks for the active project.
+  // Stores results in activeScoringTasks (global from state.js).
+  // Called when a project loads and after task creation/deletion.
+  async function loadActiveScoringTasksForProject(projectId) {
+    if (!projectId || !appState.currentUser) {
+      activeScoringTasks = [];
+      return;
+    }
+    // Fetch tasks this user assigned for this project that are still active
+    var { data } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('task_type', 'scoring')
+      .in('status', ['pending', 'accepted'])
+      .eq('assigner_id', appState.currentUser.id);
+    activeScoringTasks = data || [];
+    // Re-render cards so badges appear/disappear correctly
+    if (typeof renderConceptCards === 'function') renderConceptCards();
+    if (typeof renderRequirements === 'function') renderRequirements();
+  }
+
+  // Open the scoring task assignment modal and populate it.
+  function openScoringTaskModal() {
+    if (!activeProject) { alert('Load a project first.'); return; }
+
+    // Populate assignee dropdown from stakeholders with contactEmail
+    var allStakeholders = [
+      ...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []),
+      ...customStakeholders
+    ].filter(function(s) { return selectedStakeholders.has(s.id) && s.contactEmail && s.contactEmail.trim(); });
+
+    var assigneeEl = document.getElementById('scoringTaskAssignee');
+    if (assigneeEl) {
+      assigneeEl.innerHTML = '<option value="">— select a stakeholder —</option>'
+        + allStakeholders.map(function(s) {
+            var label = s.contactName ? (s.contactName + (s.contactTitle ? ' — ' + s.contactTitle : '')) : s.name;
+            return '<option value="' + _escHtml(s.contactEmail) + '" data-name="' + _escHtml(label) + '">'
+                 + _escHtml(label) + ' &lt;' + _escHtml(s.contactEmail) + '&gt;</option>';
+          }).join('');
+    }
+    var noteEl = document.getElementById('scoringTaskAssigneeNote');
+    if (noteEl) {
+      if (allStakeholders.length === 0) {
+        noteEl.textContent = 'No stakeholders with email addresses found. Add contact emails on the Stakeholders page.';
+        noteEl.style.display = '';
+      } else {
+        noteEl.style.display = 'none';
+      }
+    }
+
+    // Populate requirements list
+    var reqListEl = document.getElementById('scoringTaskReqList');
+    if (reqListEl) {
+      if (requirements.length === 0) {
+        reqListEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic">No requirements loaded.</div>';
+      } else {
+        reqListEl.innerHTML = requirements.map(function(r) {
+          var text = r.text || r.id;
+          var truncated = text.length > 80 ? text.slice(0, 80) + '…' : text;
+          return '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--text);line-height:1.45">'
+               + '<input type="checkbox" class="scoring-task-req-check" value="' + _escHtml(String(r.id)) + '" checked style="margin-top:2px;flex-shrink:0;accent-color:var(--accent)">'
+               + '<span>' + _escHtml(truncated) + '</span></label>';
+        }).join('');
+      }
+    }
+
+    // Populate concept checklist (skip datum at index 0)
+    var nonDatumConcepts = pughConcepts.slice(1);
+    var checksEl = document.getElementById('scoringTaskConceptChecks');
+    if (checksEl) {
+      checksEl.innerHTML = nonDatumConcepts.length === 0
+        ? '<div style="font-size:12px;color:var(--text-muted);font-style:italic">No concepts added yet.</div>'
+        : nonDatumConcepts.map(function(c) {
+            return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text)">'
+                 + '<input type="checkbox" class="scoring-task-concept-check" value="' + _escHtml(String(c.id)) + '" checked style="accent-color:var(--accent)">'
+                 + '<span>' + _escHtml(c.name) + '</span></label>';
+          }).join('');
+    }
+
+    // Clear error
+    var errEl = document.getElementById('scoringTaskError');
+    if (errEl) errEl.style.display = 'none';
+
+    document.getElementById('scoringTaskModal').classList.add('open');
+  }
+
+  function closeScoringTaskModal() {
+    document.getElementById('scoringTaskModal').classList.remove('open');
+  }
+
+  // Select or deselect all requirement checkboxes.
+  function scoringTaskSelectAllReqs(checked) {
+    document.querySelectorAll('.scoring-task-req-check').forEach(function(cb) { cb.checked = checked; });
+  }
+
+  // Select or deselect all concept checkboxes.
+  function scoringTaskSelectAllConcepts(checked) {
+    document.querySelectorAll('.scoring-task-concept-check').forEach(function(cb) { cb.checked = checked; });
+  }
+
+  // Build and save the scoring task to Supabase.
+  async function submitScoringTask() {
+    var errEl  = document.getElementById('scoringTaskError');
+    var btn    = document.getElementById('scoringTaskSubmitBtn');
+    if (errEl) errEl.style.display = 'none';
+
+    if (!appState.currentUser) {
+      if (errEl) { errEl.textContent = 'Sign in to assign tasks.'; errEl.style.display = ''; }
+      return;
+    }
+
+    var assigneeEmail = document.getElementById('scoringTaskAssignee')?.value || '';
+    if (!assigneeEmail) {
+      if (errEl) { errEl.textContent = 'Please select an assignee.'; errEl.style.display = ''; }
+      return;
+    }
+
+    // Gather selected requirements
+    var reqIds = Array.from(document.querySelectorAll('.scoring-task-req-check:checked')).map(function(cb) { return cb.value; });
+    if (reqIds.length === 0) {
+      if (errEl) { errEl.textContent = 'Select at least one requirement.'; errEl.style.display = ''; }
+      return;
+    }
+
+    // Gather selected concepts
+    var conceptIds = Array.from(document.querySelectorAll('.scoring-task-concept-check:checked')).map(function(cb) { return cb.value; });
+    if (conceptIds.length === 0) {
+      if (errEl) { errEl.textContent = 'Select at least one concept.'; errEl.style.display = ''; }
+      return;
+    }
+    // Determine scope label for the payload
+    var allConceptIds = pughConcepts.slice(1).map(function(c) { return String(c.id); });
+    var scope = (conceptIds.length === allConceptIds.length) ? 'all' : 'selected';
+
+    // Build a human-readable title
+    var assigneeName = document.getElementById('scoringTaskAssignee')?.selectedOptions[0]?.dataset.name || assigneeEmail;
+    var title = 'Score ' + reqIds.length + ' requirement' + (reqIds.length > 1 ? 's' : '')
+              + ' (' + (scope === 'all' ? 'all concepts' : conceptIds.length + ' concept' + (conceptIds.length > 1 ? 's' : '')) + ')'
+              + ' — ' + assigneeName;
+
+    if (btn) { btn.textContent = 'Assigning…'; btn.disabled = true; }
+
+    // Resolve email to Supabase user ID (if they have an account)
+    var assigneeId = null;
+    try {
+      var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: assigneeEmail });
+      assigneeId = resolvedId || null;
+    } catch(e) { /* function may not exist yet — safe to ignore */ }
+
+    var payload = { requirementIds: reqIds, conceptScope: scope, conceptIds: conceptIds };
+
+    var { error } = await _supabase.from('tasks').insert({
+      project_id:     activeProject.id,
+      assigner_id:    appState.currentUser.id,
+      assignee_id:    assigneeId,
+      assignee_email: assigneeEmail,
+      task_type:      'scoring',
+      status:         'pending',
+      title:          title,
+      payload:        payload
+    });
+
+    if (btn) { btn.textContent = 'Assign Task'; btn.disabled = false; }
+
+    if (error) {
+      if (errEl) { errEl.textContent = 'Error creating task: ' + error.message; errEl.style.display = ''; }
+      return;
+    }
+
+    closeScoringTaskModal();
+    // Reload active tasks so badges appear immediately
+    await loadActiveScoringTasksForProject(activeProject.id);
+    // Refresh Tasks panel badge count
+    _refreshTasksNavBtn();
+  }
+
+  // ── Badge helpers (used by ui.js renderRequirements / renderConceptCards) ──
+
+  // Returns true if any active scoring task covers the given requirement ID.
+  function reqHasActiveScoringTask(reqId) {
+    return activeScoringTasks.some(function(t) {
+      return t.payload && t.payload.requirementIds && t.payload.requirementIds.includes(String(reqId));
+    });
+  }
+
+  // Returns true if any active scoring task covers the given concept ID.
+  function conceptHasActiveScoringTask(conceptId) {
+    return activeScoringTasks.some(function(t) {
+      if (!t.payload) return false;
+      var scope = t.payload.conceptScope;
+      if (scope === 'all') return true;
+      return t.payload.conceptIds && t.payload.conceptIds.includes(String(conceptId));
+    });
   }
 
   // ── PROJECT DATA EXPORT / UPLOAD ──
@@ -2036,6 +2483,15 @@ ${sections}
 
     // Persist active project ID for refresh restore
     try { localStorage.setItem('cc_activeProjectId', id); } catch(e) {}
+
+    // Load active scoring tasks for this project so badges appear on cards
+    if (typeof loadActiveScoringTasksForProject === 'function') {
+      loadActiveScoringTasksForProject(id);
+    }
+    // Load req review tasks (badges + approval records)
+    if (typeof loadReqReviewTasksForProject === 'function') {
+      loadReqReviewTasksForProject(id);
+    }
   }
 
   function deleteProject(id) {

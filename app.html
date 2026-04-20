@@ -1011,8 +1011,12 @@
       onkeydown="if(event.key==='Enter')addPughConcept()">
     <button class="btn btn-primary" onclick="addPughConcept()">Add Concept</button>
     <button class="btn btn-ghost" id="scorSettingsBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="toggleScoringSettings()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Concept Settings
+    </button>
+    <button class="btn btn-ghost" id="assignScoringTaskBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="openScoringTaskModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      Assign Scoring Task
     </button>
   </div>
 
@@ -1738,6 +1742,122 @@
     <div id="taskDetailBody" style="overflow-y:auto;flex:1;font-size:13px;color:var(--text-muted);line-height:1.7"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeTaskDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REQ REVIEW TASK MODAL ── -->
+<div class="modal-overlay" id="reqReviewTaskModal" onclick="if(event.target===this)closeReqReviewModal()">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title">Assign Review Task</div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Requirement being reviewed (read-only) -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Requirement</div>
+        <div id="reqReviewReqText" style="font-size:13px;color:var(--text);background:var(--bg,rgba(0,0,0,0.04));border:1px solid var(--border);border-radius:8px;padding:10px 12px;line-height:1.55"></div>
+      </div>
+
+      <!-- Assignee -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Assign to</div>
+        <select id="reqReviewAssignee" class="add-custom-input" style="width:100%">
+          <option value="">— select a stakeholder —</option>
+        </select>
+        <div id="reqReviewAssigneeNote" style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;display:none"></div>
+      </div>
+
+      <!-- Optional instructions -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Instructions <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea id="reqReviewInstructions" class="add-custom-input" rows="3" placeholder="Any context or guidance for the reviewer…" style="width:100%;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+
+      <div id="reqReviewError" style="color:var(--danger);font-size:12px;display:none"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="reqReviewSubmitBtn" onclick="submitReqReviewTask()">Assign Task</button>
+      <button class="btn btn-secondary" onclick="closeReqReviewModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APPROVAL MODAL (assignee completes a review task) ── -->
+<div class="modal-overlay" id="approvalModal" onclick="if(event.target===this)closeApprovalModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Approve Requirement</div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div id="approvalReqText" style="font-size:13px;color:var(--text);background:var(--bg,rgba(0,0,0,0.04));border:1px solid var(--border);border-radius:8px;padding:10px 12px;line-height:1.55"></div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Comment <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea id="approvalComment" class="add-custom-input" rows="3" placeholder="Notes, conditions, or observations…" style="width:100%;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+
+      <div id="approvalError" style="color:var(--danger);font-size:12px;display:none"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="approvalSubmitBtn" onclick="submitApproval()">Approve</button>
+      <button class="btn btn-secondary" onclick="closeApprovalModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCORING TASK MODAL ── -->
+<div class="modal-overlay" id="scoringTaskModal" onclick="if(event.target===this)closeScoringTaskModal()">
+  <div class="modal-box" style="max-width:540px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-title">Assign Scoring Task</div>
+
+    <div style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:18px;padding-right:4px">
+
+      <!-- Assignee -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Assign to</div>
+        <select id="scoringTaskAssignee" class="add-custom-input" style="width:100%">
+          <option value="">— select a stakeholder —</option>
+        </select>
+        <div id="scoringTaskAssigneeNote" style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;display:none"></div>
+      </div>
+
+      <!-- Requirements -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Requirements to score</div>
+          <div style="display:flex;gap:8px">
+            <button class="task-action-btn" onclick="scoringTaskSelectAllReqs(true)" style="font-size:11px">All</button>
+            <button class="task-action-btn" onclick="scoringTaskSelectAllReqs(false)" style="font-size:11px">None</button>
+          </div>
+        </div>
+        <div id="scoringTaskReqList" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic">No requirements loaded.</div>
+        </div>
+      </div>
+
+      <!-- Concept(s) to Score -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Concept(s) to Score</div>
+          <div style="display:flex;gap:8px">
+            <button class="task-action-btn" onclick="scoringTaskSelectAllConcepts(true)" style="font-size:11px">All</button>
+            <button class="task-action-btn" onclick="scoringTaskSelectAllConcepts(false)" style="font-size:11px">None</button>
+          </div>
+        </div>
+        <div id="scoringTaskConceptChecks" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic">No concepts added yet.</div>
+        </div>
+      </div>
+
+      <div id="scoringTaskError" style="color:var(--danger);font-size:12px;display:none"></div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="scoringTaskSubmitBtn" onclick="submitScoringTask()">Assign Task</button>
+      <button class="btn btn-secondary" onclick="closeScoringTaskModal()">Cancel</button>
     </div>
   </div>
 </div>
