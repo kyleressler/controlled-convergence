@@ -181,9 +181,9 @@
     const note = document.getElementById('projTierNote');
     if (!note) return;
     if (userTier === 'free') {
-      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to save up to 3 projects.';
+      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to save up to 5 projects.';
     } else if (userTier === 'account') {
-      note.textContent = 'Account tier: ' + savedProjects.length + ' of 3 projects saved. Upgrade to Pro for up to 50 projects.';
+      note.textContent = 'Account tier: ' + savedProjects.length + ' of 5 projects saved. Upgrade to Pro for unlimited projects.';
     } else {
       note.textContent = 'Pro tier: Up to 50 projects. Collaboration features coming soon.';
     }
@@ -257,9 +257,9 @@
     const msg = document.getElementById('projTierMsg');
     if (!msg) return;
     if (userTier === 'free') {
-      msg.innerHTML = '<strong>Free tier:</strong> Your work is not automatically saved. Use <em>Export Project Data</em> in the sidebar to download a JSON file you can re-upload in a future session. Creating a free account unlocks saving up to 3 projects — no credit card required.';
+      msg.innerHTML = '<strong>Free tier:</strong> Your work is not automatically saved. Use <em>Export Project Data</em> in the sidebar to download a JSON file you can re-upload in a future session. Creating a free account unlocks saving up to 5 projects — no credit card required.';
     } else if (userTier === 'account') {
-      msg.innerHTML = '<strong>Account tier:</strong> You can save up to 3 projects. You\'re using ' + savedProjects.length + ' of 3. Upgrade to Pro for up to 50 projects and future collaboration features.';
+      msg.innerHTML = '<strong>Account tier:</strong> You can save up to 5 projects. You\'re using ' + savedProjects.length + ' of 5. Upgrade to Pro for unlimited projects and future collaboration features.';
     } else {
       msg.innerHTML = '<strong>Pro tier:</strong> Up to 50 saved projects. Collaboration features — inviting team members to review and contribute — are on the roadmap.';
     }
@@ -1742,7 +1742,7 @@
     // Read theme colors so chart bars match the Pugh Matrix cells exactly
     const _sRgb   = getThemeRgb('--success-rgb') || '5,122,85';
     const _dRgb   = getThemeRgb('--danger-rgb')  || '200,30,30';
-    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1a1a18';
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a18';
 
     const ctx = canvas.getContext('2d');
     window._pughChart = new Chart(ctx, {
@@ -1834,7 +1834,9 @@
 
   /** Read a CSS custom-property RGB triplet (e.g. "5,122,85") from the current theme. */
   function getThemeRgb(varName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    // Read from document.body so that body.theme-dark overrides are picked up.
+    // document.documentElement only sees :root values and misses class-based theme overrides.
+    return getComputedStyle(document.body).getPropertyValue(varName).trim();
   }
 
   function esc(s) {
@@ -2016,7 +2018,7 @@
     // Read theme colors so chart bars match the Pugh Matrix cells exactly
     const _sRgb    = getThemeRgb('--success-rgb') || '5,122,85';
     const _dRgb    = getThemeRgb('--danger-rgb')  || '200,30,30';
-    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#1a1a18';
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a18';
 
     const ctx = canvas.getContext('2d');
     window._qsChart = new Chart(ctx, {

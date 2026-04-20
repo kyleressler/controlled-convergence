@@ -46,6 +46,7 @@
       font-size: 14px;
       line-height: 1.5;
       min-height: 100vh;
+      color-scheme: light; /* tells browser to render native form elements in light mode */
     }
 
     /* ── THEME: DARK ── */
@@ -79,6 +80,7 @@
       --kw-by: #38bdf8;
       --kw-using: #34d399;
       --kw-while: #fbbf24;
+      color-scheme: dark; /* tells browser to render selects, inputs, scrollbars in dark mode */
     }
 
     /* ── THEME: ENGINEERING ── */
@@ -2340,11 +2342,18 @@ body.cc-role-scoped-editor [onclick*="deletePughConcept"] {
   border-radius: 4px;
   flex-shrink: 0;
 }
-.task-status-pending  { background: rgba(251,191,36,0.15);  color: #fbbf24; }
-.task-status-accepted { background: rgba(34,197,94,0.15);   color: #22c55e; }
-.task-status-declined { background: rgba(239,68,68,0.15);   color: #ef4444; }
+/* Task status badge colors — text is darkened so they're readable in light/engineering mode.
+   Dark mode overrides below restore the brighter palette against dark surfaces. */
+.task-status-pending  { background: rgba(251,191,36,0.15);  color: #92400e; }
+.task-status-accepted { background: rgba(34,197,94,0.15);   color: #166534; }
+.task-status-declined { background: rgba(239,68,68,0.15);   color: #991b1b; }
 .task-status-completed{ background: rgba(125,211,211,0.15); color: var(--accent); }
-.task-status-expired  { background: rgba(148,163,184,0.1);  color: #94a3b8; }
+.task-status-expired  { background: rgba(148,163,184,0.1);  color: #334155; }
+/* Dark mode: restore bright badge colors (high contrast on dark surfaces) */
+body.theme-dark .task-status-pending  { color: #fbbf24; }
+body.theme-dark .task-status-accepted { color: #34d399; }
+body.theme-dark .task-status-declined { color: #f87171; }
+body.theme-dark .task-status-expired  { color: #94a3b8; }
 
 /* Panel scroll: split into two vertically scrollable halves */
 .tasks-panel-body {

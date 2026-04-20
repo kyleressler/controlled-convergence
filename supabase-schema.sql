@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   email      TEXT,
   name       TEXT,
   tier       TEXT NOT NULL DEFAULT 'free'
-               CHECK (tier IN ('free', 'member', 'pro', 'admin')),
+               CHECK (tier IN ('free', 'account', 'pro', 'admin')),
   theme      TEXT NOT NULL DEFAULT 'engineering'
                CHECK (theme IN ('engineering', 'light', 'dark')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -338,7 +338,7 @@ CREATE POLICY "Owners and editors can update projects"
       SELECT 1 FROM public.project_members
       WHERE project_members.project_id = projects.id
         AND project_members.user_id = auth.uid()
-        AND project_members.role IN ('editor', 'scoped_editor')
+        AND project_members.role IN ('scoped_editor')
     )
   );
 
@@ -479,7 +479,7 @@ GRANT  EXECUTE ON FUNCTION public.link_pending_tasks_to_user() TO authenticated;
 -- manually set their tiers here:
 --
 -- UPDATE public.user_profiles SET tier = 'free'   WHERE email = 'free@test.cc';
--- UPDATE public.user_profiles SET tier = 'member' WHERE email = 'member@test.cc';
+-- UPDATE public.user_profiles SET tier = 'account' WHERE email = 'member@test.cc';
 -- UPDATE public.user_profiles SET tier = 'pro'    WHERE email = 'pro@test.cc';
 --
 -- To create admin-level access (shows DEV tier toggle in production):

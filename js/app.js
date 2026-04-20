@@ -2616,7 +2616,7 @@ ${sections}
     'coaching': { title: 'AI Coaching is a Pro Feature', body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.', cta: 'Upgrade to Pro' },
     'weighted-pair': { title: 'Weighted Pairwise is an Account Feature', body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.', cta: 'Create Free Account' },
     'export-report': { title: 'Report Export is a Pro Feature', body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.', cta: 'Upgrade to Pro' },
-    'account-project-limit': { title: 'Project Limit Reached', body: 'Account users can save up to 3 projects. Delete a project to make room, or upgrade to Pro for up to 50 projects.', cta: 'Upgrade to Pro' },
+    'account-project-limit': { title: 'Project Limit Reached', body: 'Account users can save up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.', cta: 'Upgrade to Pro' },
     'templates': { title: 'Templates is a Pro Feature', body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
     'pugh-settings': { title: 'Matrix Settings require an Account', body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
     'account-contact-name': { title: 'Contact Name is an Account Feature', body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
@@ -2682,7 +2682,7 @@ ${sections}
       input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
-    if (userTier === 'account' && savedProjects.length >= 3) {
+    if (userTier === 'account' && savedProjects.length >= 5) {
       showUpgradePrompt('account-project-limit');
       return;
     }
