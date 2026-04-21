@@ -296,12 +296,49 @@
     gate.style.display = (userTier === 'free') ? '' : 'none';
   }
 
+  // ── PRO UPGRADE ──────────────────────────────────────────────
+  //
+  // STRIPE_TODO: This is the single entry point for all "Upgrade to Pro" actions
+  // in the app — the upgrade modal CTA and the sidebar button both call this.
+  //
+  // When Stripe is ready, implement the body of this function:
+  //
+  //   1. Guard: user must be signed in first.
+  //      if (!appState.currentUser) { openAuthModal('signup'); return; }
+  //
+  //   2. Call the Netlify function to create a Stripe Checkout session:
+  //      POST /.netlify/functions/create-checkout-session
+  //      Headers: { 'Content-Type': 'application/json' }
+  //      Body:    { userId: appState.currentUser.id, email: appState.currentUser.email }
+  //        - userId is sent as client_reference_id so the webhook can find the
+  //          right Supabase user to upgrade after payment completes.
+  //        - email pre-fills the Stripe checkout form for a smoother experience.
+  //
+  //   3. Redirect to the Stripe-hosted checkout page:
+  //      const { url } = await res.json();
+  //      window.location.href = url;
+  //
+  //   4. After payment, Stripe fires to /.netlify/functions/stripe-webhook,
+  //      which sets user_profiles.tier = 'pro' in Supabase using the service
+  //      role key. No frontend success-page handling needed — the tier updates
+  //      automatically on the next auth state refresh when the user returns.
+  //
+  //   5. Stripe needs two env vars in Netlify:
+  //      STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+  //      Supabase webhook function needs: SUPABASE_SERVICE_ROLE_KEY
+  //
+  function handleProUpgrade() {
+    closeUpgradeModal();
+    // STRIPE_TODO: replace this placeholder with the implementation above.
+  }
+
   function handleAccountCTA() {
     if (!appState.currentUser) {
       openAuthModal('signup');
     } else if (userTier === 'account') {
-      alert('Pro upgrade coming soon! Export your project data to share or back up your work.');
+      handleProUpgrade(); // STRIPE_TODO: wired — see handleProUpgrade() above for details
     }
+    // Pro/admin users: button is hidden by updateAccountStatus(), this branch never runs
   }
 
   async function handleLogout() {
@@ -2975,30 +3012,43 @@ ${sections}
     document.querySelectorAll('.pair-forced-card').forEach(el => el.classList.remove('fr-dragging', 'fr-drag-over'));
   }
 
+  // action: 'signup' → opens the free account signup modal
+  // action: 'pro'    → calls handleProUpgrade() — see that function for STRIPE_TODO details
+  // action: 'none'   → closes the modal only (fallback)
   const upgradeMessages = {
-    'free-custom-ility': { title: 'Sign Up to Add Custom Ilities', body: 'Creating a free account lets you add up to 10 custom ilities and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
-    'free-custom-stak': { title: 'Sign Up to Add Custom Stakeholders', body: 'Creating a free account lets you add up to 10 custom stakeholders and save your project. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
-    'account-ility-limit': { title: 'Ility Limit Reached', body: 'Account users can add up to 10 custom ilities. Delete one to make room, or upgrade to Pro for unlimited ilities.', cta: 'Upgrade to Pro' },
-    'account-stak-limit': { title: 'Stakeholder Limit Reached', body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.', cta: 'Upgrade to Pro' },
-    'coaching': { title: 'AI Coaching is a Pro Feature', body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.', cta: 'Upgrade to Pro' },
-    'weighted-pair': { title: 'Weighted Pairwise is an Account Feature', body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.', cta: 'Create Free Account' },
-    'export-report': { title: 'Report Export is a Pro Feature', body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.', cta: 'Upgrade to Pro' },
-    'account-project-limit': { title: 'Project Limit Reached', body: 'Account users can save up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.', cta: 'Upgrade to Pro' },
-    'templates': { title: 'Templates is a Pro Feature', body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.', cta: 'Upgrade to Pro' },
-    'pugh-settings': { title: 'Matrix Settings require an Account', body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.', cta: 'Create Free Account' },
-    'account-contact-name': { title: 'Contact Name is an Account Feature', body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.', cta: 'Create Free Account' },
-    'pro-contact-fields': { title: 'Contact Title & Email require Pro', body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in Requirements.', cta: 'Upgrade to Pro' },
-    'pro-scorer': { title: 'Responsible Scorer requires Pro', body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during Concept Scoring, keeping large teams focused on their section.', cta: 'Upgrade to Pro' },
-    'pair-subject-req': { title: 'Requirements Comparison is an Account Feature', body: 'Create a free Account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.', cta: 'Create Free Account' },
+    'free-custom-ility':    { title: 'Sign Up to Add Custom Ilities',           body: 'Creating a free account lets you add up to 10 custom ilities and save your project. It\'s free — just an email and you\'re in.',                                                                          cta: 'Create Free Account', action: 'signup' },
+    'free-custom-stak':     { title: 'Sign Up to Add Custom Stakeholders',       body: 'Creating a free account lets you add up to 10 custom stakeholders and save your project. It\'s free — just an email and you\'re in.',                                                                      cta: 'Create Free Account', action: 'signup' },
+    'weighted-pair':        { title: 'Weighted Pairwise is an Account Feature',  body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.',                                                                                          cta: 'Create Free Account', action: 'signup' },
+    'pugh-settings':        { title: 'Matrix Settings require an Account',       body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.',              cta: 'Create Free Account', action: 'signup' },
+    'account-contact-name': { title: 'Contact Name is an Account Feature',       body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.',                                                               cta: 'Create Free Account', action: 'signup' },
+    'pair-subject-req':     { title: 'Requirements Comparison is an Account Feature', body: 'Create a free Account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.',                                                                              cta: 'Create Free Account', action: 'signup' },
+    'account-ility-limit':  { title: 'Ility Limit Reached',                     body: 'Account users can add up to 10 custom ilities. Delete one to make room, or upgrade to Pro for unlimited ilities.',                                                                                        cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-stak-limit':   { title: 'Stakeholder Limit Reached',                body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.',                                                                              cta: 'Upgrade to Pro',      action: 'pro'    },
+    'coaching':             { title: 'AI Coaching is a Pro Feature',             body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.',                                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
+    'export-report':        { title: 'Report Export is a Pro Feature',           body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.',                                                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Account users can save up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.',                                                                                       cta: 'Upgrade to Pro',      action: 'pro'    },
+    'templates':            { title: 'Templates is a Pro Feature',              body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.',                                      cta: 'Upgrade to Pro',      action: 'pro'    },
+    'pro-contact-fields':   { title: 'Contact Title & Email require Pro',        body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in Requirements.',                                       cta: 'Upgrade to Pro',      action: 'pro'    },
+    'pro-scorer':           { title: 'Responsible Scorer requires Pro',          body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during Concept Scoring, keeping large teams focused on their section.',                          cta: 'Upgrade to Pro',      action: 'pro'    },
   };
 
   function showUpgradePrompt(type) {
-    const msg = upgradeMessages[type] || { title: 'Upgrade Required', body: 'This feature requires a higher account tier.', cta: 'Learn More' };
+    const msg = upgradeMessages[type] || { title: 'Upgrade Required', body: 'This feature requires a higher account tier.', cta: 'Learn More', action: 'none' };
     const overlay = document.getElementById('upgradeModal');
     if (overlay) {
       document.getElementById('upgradeModalTitle').textContent = msg.title;
-      document.getElementById('upgradeModalBody').textContent = msg.body;
-      document.getElementById('upgradeModalCta').textContent = msg.cta;
+      document.getElementById('upgradeModalBody').textContent  = msg.body;
+      const ctaBtn = document.getElementById('upgradeModalCta');
+      ctaBtn.textContent = msg.cta;
+      // Wire the CTA onclick based on the action declared in upgradeMessages.
+      // STRIPE_TODO: 'pro' action calls handleProUpgrade() — see that function for integration details.
+      if (msg.action === 'signup') {
+        ctaBtn.onclick = function() { closeUpgradeModal(); openAuthModal('signup'); };
+      } else if (msg.action === 'pro') {
+        ctaBtn.onclick = handleProUpgrade;
+      } else {
+        ctaBtn.onclick = closeUpgradeModal;
+      }
       overlay.classList.add('open');
     } else {
       alert(msg.title + '\n\n' + msg.body);

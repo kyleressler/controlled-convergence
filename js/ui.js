@@ -89,10 +89,16 @@
     badge.className   = 'account-tier-badge tier-' + userTier;
     badge.textContent = userTier === 'free' ? 'Free' : userTier === 'account' ? 'Account' : 'Pro';
 
-    // CTA button — only show when the user has no account yet (free tier, not signed in)
+    // CTA button — show for anonymous free users (signup) and signed-in account users (upgrade)
     if (!isSignedIn && userTier === 'free') {
       cta.textContent   = 'Create Free Account';
       cta.style.display = '';
+    } else if (isSignedIn && userTier === 'account') {
+      // STRIPE_TODO: Uncomment the two lines below once Stripe is live.
+      // handleProUpgrade() (called by handleAccountCTA) has the full integration details.
+      // cta.textContent   = 'Upgrade to Pro';
+      // cta.style.display = '';
+      cta.style.display = 'none'; // remove this line when uncommenting above
     } else {
       cta.style.display = 'none';
     }
