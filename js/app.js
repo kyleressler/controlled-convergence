@@ -928,6 +928,14 @@
       .eq('id', taskId);
     if (error) { console.warn('[tasks] update error', error.message); return; }
     renderTasksPanel();
+    // Refresh badge state on concept/req cards — completed/declined tasks
+    // should immediately clear their notification dots.
+    if (activeProject) {
+      loadActiveScoringTasksForProject(activeProject.id);
+      if (typeof loadReqReviewTasksForProject === 'function') {
+        loadReqReviewTasksForProject(activeProject.id);
+      }
+    }
   }
 
   // Revoke (or delete) a task the current user assigned.
