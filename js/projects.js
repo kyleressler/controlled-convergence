@@ -114,6 +114,23 @@ function snapshotCurrentState(existingProject) {
     stakeholders:     Array.from(selectedStakeholders),
     customStakeholders: (typeof customStakeholders !== 'undefined' ? customStakeholders : []).slice(),
     stakOrder:        stakOrder.slice(),
+    // Persist contact-field edits made to built-in stakeholders (STAKEHOLDERS array entries).
+    // Custom stakeholders already carry their full objects; this covers the built-ins.
+    stakeholderOverrides: (() => {
+      const overrides = {};
+      if (typeof STAKEHOLDERS !== 'undefined') {
+        STAKEHOLDERS.forEach(s => {
+          if (s.contactName || s.contactTitle || s.contactEmail) {
+            overrides[s.id] = {
+              contactName:  s.contactName  || '',
+              contactTitle: s.contactTitle || '',
+              contactEmail: s.contactEmail || ''
+            };
+          }
+        });
+      }
+      return overrides;
+    })(),
     requirements:     requirements.slice(),
     pairComparisons:  Object.assign({}, (typeof pairComparisons !== 'undefined' ? pairComparisons : {})),
     pairSubject:      (typeof pairSubject     !== 'undefined') ? pairSubject     : 'ilities',
@@ -172,6 +189,18 @@ function restoreProjectState(project) {
   selectedStakeholders = new Set(project.stakeholders || []);
   customStakeholders   = (project.customStakeholders || []).slice();
   stakOrder            = (project.stakOrder || []).slice();
+
+  // Apply saved contact-field overrides back onto built-in STAKEHOLDERS entries.
+  // Always run this (even when overrides is empty) to clear stale data from a previous project.
+  if (typeof STAKEHOLDERS !== 'undefined') {
+    const overrides = project.stakeholderOverrides || {};
+    STAKEHOLDERS.forEach(s => {
+      const ov = overrides[s.id];
+      s.contactName  = ov ? (ov.contactName  || '') : '';
+      s.contactTitle = ov ? (ov.contactTitle || '') : '';
+      s.contactEmail = ov ? (ov.contactEmail || '') : '';
+    });
+  }
 
   // Requirements
   requirements  = (project.requirements || []).slice();
