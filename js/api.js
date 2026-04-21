@@ -75,12 +75,13 @@ async function saveProject(project) {
       // Supabase upsert is an INSERT + ON CONFLICT DO UPDATE, so the INSERT RLS check
       // fires first — which blocks any user whose id doesn't match user_id.
       // Plain UPDATE bypasses that; the "Owners and editors can update projects" policy allows it.
-      ({ data, error } = await _supabase
+      // Do NOT use .select().single() here — viewers are RLS-blocked (0 rows), and .single()
+      // would throw PGRST116. A viewer save is a graceful no-op at the DB level.
+      ({ error } = await _supabase
         .from('projects')
         .update(payload)
-        .eq('id', project.id)
-        .select()
-        .single());
+        .eq('id', project.id));
+      data = null;
     }
 
     if (error) {

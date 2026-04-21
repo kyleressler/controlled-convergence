@@ -3360,11 +3360,10 @@ ${sections}
 
   // Step 3: final "Yes" — execute the chosen delete method
   async function confirmFinalDelete() {
-    closeDeleteConfirmModal();
+    // Capture IDs BEFORE closeDeleteConfirmModal() clears them
     var id = _pendingDeleteId;
     var method = _pendingDeleteMethod;
-    _pendingDeleteId     = null;
-    _pendingDeleteMethod = null;
+    closeDeleteConfirmModal();
     if (!id) return;
 
     if (method === '48h') {
@@ -3415,9 +3414,9 @@ ${sections}
   }
 
   async function confirmRemoveCollab() {
-    closeRemoveCollabModal();
+    // Capture ID BEFORE closeRemoveCollabModal() clears it
     var id = _pendingRemoveId;
-    _pendingRemoveId = null;
+    closeRemoveCollabModal();
     if (!id) return;
     await _executeRemoveCollab(id);
   }
@@ -3470,9 +3469,9 @@ ${sections}
   }
 
   async function confirmCancelDelete() {
-    closeCancelDeleteModal();
+    // Capture ID BEFORE closeCancelDeleteModal() clears it
     var id = _pendingCancelId;
-    _pendingCancelId = null;
+    closeCancelDeleteModal();
     if (!id) return;
     var { error } = await cancelScheduledDelete(id);
     if (error) { alert('Could not cancel deletion: ' + error); return; }
