@@ -1234,8 +1234,21 @@
     // Which concept ID should have the inline scoring view open beneath it?
     const inlineId = scoringConceptId || (datumDefActive ? (pughConcepts[0]?.id ?? null) : null);
 
-    wrap.innerHTML = pughConcepts.map((c, i) => {
-      const isBaseline = i === 0;
+    // "My Assigned Tasks" mode: restrict visible concepts to those in the user's task payloads.
+    // The datum/baseline card (index 0) is always hidden in this mode — the assignee only scores.
+    let visibleConcepts = pughConcepts;
+    if (scorerFilter === '__my_tasks__' && typeof _getAssignedConceptIds === 'function') {
+      const { allConcepts, ids } = _getAssignedConceptIds();
+      visibleConcepts = pughConcepts.filter((c, i) => {
+        if (i === 0) return false; // never show datum card in my-tasks mode
+        return allConcepts || ids.has(String(c.id));
+      });
+    }
+
+    wrap.innerHTML = visibleConcepts.map((c) => {
+      // Use global index (position in full pughConcepts array) for datum check + badge numbers
+      const globalIdx  = pughConcepts.indexOf(c);
+      const isBaseline = globalIdx === 0;
       const reqs   = requirements;
       const total  = reqs.length;
       const scored = reqs.filter(r => pughScores[c.id + '_' + r.id] !== undefined).length;
@@ -1268,7 +1281,7 @@
 
       const badge = isBaseline
         ? `<span class="concept-datum-badge">Datum</span>`
-        : `<span class="concept-num-badge">${i}</span>`;
+        : `<span class="concept-num-badge">${globalIdx}</span>`;
 
       const _cId = typeof c.id === 'number' ? c.id : `'${c.id}'`;
       const deleteBtn = isBaseline ? '' :
@@ -1298,10 +1311,11 @@
       </div>`;
     }).join('');
 
-    // Re-attach the scoring view: inline after the active card, or parked after the wrap
+    // Re-attach the scoring view: inline after the active card, or parked after the wrap.
+    // Use visibleConcepts index since wrap.children maps to visibleConcepts (not pughConcepts).
     if (inlineId && scorView) {
-      const activeIdx  = pughConcepts.findIndex(c => c.id === inlineId);
-      const cards      = wrap.children; // direct children = concept cards in order
+      const activeIdx  = visibleConcepts.findIndex(c => c.id === inlineId);
+      const cards      = wrap.children; // direct children = visible concept cards in order
       const targetCard = (activeIdx >= 0) ? cards[activeIdx] : null;
       if (targetCard) {
         if (targetCard.nextSibling) {

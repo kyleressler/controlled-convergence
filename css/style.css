@@ -1465,6 +1465,14 @@
       outline: none;
     }
     .modal-input:focus { border-color: var(--accent); }
+    /* Read-only contact fields on shared projects — visible but not editable */
+    .modal-input-readonly {
+      background: var(--bg-secondary, #f5f5f5);
+      color: var(--text-muted);
+      cursor: default;
+      border-style: dashed;
+    }
+    .modal-input-readonly:focus { border-color: var(--border); }
     .modal-footer {
       display: flex;
       gap: 8px;

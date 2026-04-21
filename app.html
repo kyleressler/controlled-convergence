@@ -1456,21 +1456,24 @@
     </div>
     <!-- Contact fields — only shown when editing a stakeholder -->
     <div id="modalContactFields" style="display:none;border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">Contact Info <span style="font-weight:400;text-transform:none;letter-spacing:0">(private — never shared)</span></div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">
+        Contact Info
+        <span id="modalContactReadonlyNote" style="display:none;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)"> — view only on your plan</span>
+      </div>
       <div class="modal-field">
         <div class="modal-label" style="display:flex;align-items:center;gap:6px">Contact Name <span class="account-badge-inline">ACCOUNT+</span></div>
         <input class="modal-input" id="modalContactName" type="text" placeholder="e.g. Jane Smith"
-          onfocus="if(userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
+          onfocus="if(!this.readOnly && userTier==='free'){this.blur();showUpgradePrompt('account-contact-name');}">
       </div>
       <div class="modal-field">
         <div class="modal-label" style="display:flex;align-items:center;gap:6px">Title <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
         <input class="modal-input" id="modalContactTitle" type="text" placeholder="e.g. Senior Tractor Operator"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(!this.readOnly && (userTier==='free'||userTier==='account')){this.blur();showUpgradePrompt('pro-contact-fields');}">
       </div>
       <div class="modal-field">
         <div class="modal-label" style="display:flex;align-items:center;gap:6px">Email <span class="pro-badge-inline" style="margin-left:0">PRO</span></div>
         <input class="modal-input" id="modalContactEmail" type="email" placeholder="e.g. jane@company.com"
-          onfocus="if(userTier==='free'||userTier==='account'){this.blur();showUpgradePrompt('pro-contact-fields');}">
+          onfocus="if(!this.readOnly && (userTier==='free'||userTier==='account')){this.blur();showUpgradePrompt('pro-contact-fields');}">
       </div>
     </div>
     <div class="modal-footer">

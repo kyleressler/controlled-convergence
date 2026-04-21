@@ -1067,23 +1067,23 @@
       if (role) currentProjectRole = role;
     } catch(e) { /* function not yet deployed — default to owner */ }
 
-    // If scoped editor, load their assigned scoring tasks so we know what they can score
-    if (currentProjectRole === 'scoped_editor') {
-      var { data: assigned } = await _supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('task_type', 'scoring')
-        .eq('assignee_id', appState.currentUser.id)
-        .in('status', ['pending', 'accepted']);
-      myAssignedScoringTasks = assigned || [];
-    }
+    // Always load assigned scoring tasks for this user — needed to power the
+    // "My Assigned Tasks" filter for any role (not just scoped_editor).
+    var { data: assigned } = await _supabase
+      .from('tasks')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('task_type', 'scoring')
+      .eq('assignee_id', appState.currentUser.id)
+      .in('status', ['pending', 'accepted']);
+    myAssignedScoringTasks = assigned || [];
 
     _applyRoleClasses();
     // Re-render key pages so role-based controls show/hide correctly
-    if (typeof renderRequirements === 'function') renderRequirements();
-    if (typeof renderConceptCards === 'function') renderConceptCards();
-    if (typeof renderProjPage     === 'function') renderProjPage();
+    if (typeof renderRequirements           === 'function') renderRequirements();
+    if (typeof renderConceptCards           === 'function') renderConceptCards();
+    if (typeof renderScorerFilterDropdown   === 'function') renderScorerFilterDropdown();
+    if (typeof renderProjPage               === 'function') renderProjPage();
   }
 
   // Apply/remove CSS role classes on the body element.
@@ -4408,9 +4408,38 @@ ${sections}
     if (contactSection) {
       if (type === 'stak') {
         contactSection.style.display = '';
-        document.getElementById('modalContactName').value  = item.contactName  || '';
-        document.getElementById('modalContactTitle').value = item.contactTitle || '';
-        document.getElementById('modalContactEmail').value = item.contactEmail || '';
+
+        const cnInput  = document.getElementById('modalContactName');
+        const ctInput  = document.getElementById('modalContactTitle');
+        const ceInput  = document.getElementById('modalContactEmail');
+        const roNote   = document.getElementById('modalContactReadonlyNote');
+
+        // Always show existing data regardless of tier.
+        // Set readOnly on fields the user's tier doesn't allow editing,
+        // so they can read the value but can't change it.
+        if (cnInput) {
+          cnInput.value    = item.contactName  || '';
+          const canEdit    = userTier === 'account' || userTier === 'pro';
+          cnInput.readOnly = !canEdit;
+          cnInput.classList.toggle('modal-input-readonly', !canEdit);
+        }
+        if (ctInput) {
+          ctInput.value    = item.contactTitle || '';
+          const canEdit    = userTier === 'pro';
+          ctInput.readOnly = !canEdit;
+          ctInput.classList.toggle('modal-input-readonly', !canEdit);
+        }
+        if (ceInput) {
+          ceInput.value    = item.contactEmail || '';
+          const canEdit    = userTier === 'pro';
+          ceInput.readOnly = !canEdit;
+          ceInput.classList.toggle('modal-input-readonly', !canEdit);
+        }
+
+        // Show "view only" note if any field is restricted on this plan
+        if (roNote) {
+          roNote.style.display = userTier === 'pro' ? 'none' : '';
+        }
       } else {
         contactSection.style.display = 'none';
       }
@@ -4437,13 +4466,19 @@ ${sections}
       else if (custom) { custom.name = name; custom.desc = desc; }
       renderIlityGrid(); populateReqForms();
     } else if (_modalType === 'stak') {
-      // Contact fields — enforce tier before saving
+      // Locate existing item so we can preserve contact fields the user can't edit.
+      // This prevents lower-tier users from accidentally wiping Pro-entered contact data
+      // when they save an unrelated change (e.g. updating the stakeholder description).
+      const existing = [...STAKEHOLDERS, ...customStakeholders].find(s => s.id === _modalId);
       const contactName  = (userTier === 'account' || userTier === 'pro')
-        ? (document.getElementById('modalContactName')?.value.trim()  || '') : '';
+        ? (document.getElementById('modalContactName')?.value.trim()  || '')
+        : (existing?.contactName  || '');   // preserve — user can't edit this field
       const contactTitle = (userTier === 'pro')
-        ? (document.getElementById('modalContactTitle')?.value.trim() || '') : '';
+        ? (document.getElementById('modalContactTitle')?.value.trim() || '')
+        : (existing?.contactTitle || '');   // preserve — user can't edit this field
       const contactEmail = (userTier === 'pro')
-        ? (document.getElementById('modalContactEmail')?.value.trim() || '') : '';
+        ? (document.getElementById('modalContactEmail')?.value.trim() || '')
+        : (existing?.contactEmail || '');   // preserve — user can't edit this field
       const builtin = STAKEHOLDERS.find(s => s.id === _modalId);
       const custom = customStakeholders.find(s => s.id === _modalId);
       if (builtin) { builtin.name = name; builtin.desc = desc; builtin.contactName = contactName; builtin.contactTitle = contactTitle; builtin.contactEmail = contactEmail; }
@@ -4792,6 +4827,17 @@ ${sections}
       if (scorePopup && scorePopup.classList.contains('open') && !scorePopup.contains(e.target)) {
         closeScorePopup();
       }
+      // Close inline scoring view when clicking outside the concept cards / scoring view area
+      if ((scoringConceptId || datumDefActive) && _currentPage === 'scor') {
+        const scorView  = document.getElementById('scorScoringView');
+        const scorCards = document.getElementById('scorConceptCards');
+        if (scorView && scorCards &&
+            !scorView.contains(e.target) &&
+            !scorCards.contains(e.target)) {
+          if (datumDefActive) exitDatumDef();
+          else exitScoringView();
+        }
+      }
     });
   });
 
@@ -5102,7 +5148,14 @@ ${sections}
     if (!sel) return;
     const scorerIds = [...new Set(requirements.map(r => r.scorer).filter(s => s && s.trim()))];
     const allStakeholders = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])];
+
+    // "My Assigned Tasks" appears first if the current user has active scoring tasks
+    const myTasksOption = (myAssignedScoringTasks && myAssignedScoringTasks.length > 0)
+      ? `<option value="__my_tasks__" ${scorerFilter === '__my_tasks__' ? 'selected' : ''}>⚡ My Assigned Tasks</option>`
+      : '';
+
     sel.innerHTML = '<option value="">All Requirements</option>' +
+      myTasksOption +
       scorerIds.map(id => {
         const s = allStakeholders.find(st => st.id === id);
         const label = s ? (s.contactName ? s.name + ' — ' + s.contactName : s.name) : id;
@@ -5225,9 +5278,13 @@ ${sections}
     if (typeof isViewOnly === 'function' && isViewOnly()) return;
     const isDatum = pughConcepts[0]?.id === id;
     if (isDatum) {
+      // Toggle datum def view
+      if (datumDefActive) { exitDatumDef(); return; }
       startDatumDef();
       return;
     }
+    // Toggle: clicking the already-open card closes the scoring view
+    if (scoringConceptId === id) { exitScoringView(); return; }
     scoringConceptId = id;
     scoringReqIndex  = 0;
     document.getElementById('scorEmptyState').style.display = 'none';
@@ -5407,7 +5464,34 @@ ${sections}
   // The scorer filter only affects scoring view display — never Pugh calculations.
   function getFilteredReqs() {
     if (!scorerFilter) return requirements;
+
+    // "My Assigned Tasks" mode: only show requirements covered by the user's task payloads
+    if (scorerFilter === '__my_tasks__') {
+      const assignedReqIds = new Set();
+      (myAssignedScoringTasks || []).forEach(t => {
+        if (t.payload && Array.isArray(t.payload.requirementIds)) {
+          t.payload.requirementIds.forEach(id => assignedReqIds.add(String(id)));
+        }
+      });
+      return requirements.filter(r => assignedReqIds.has(String(r.id)));
+    }
+
     return requirements.filter(r => r.scorer === scorerFilter);
+  }
+
+  // Returns the set of concept IDs the current user is assigned to score.
+  // Used by renderConceptCards when in "__my_tasks__" filter mode.
+  function _getAssignedConceptIds() {
+    const ids = new Set();
+    let allConcepts = false;
+    (myAssignedScoringTasks || []).forEach(t => {
+      if (!t.payload) return;
+      if (t.payload.conceptScope === 'all') { allConcepts = true; return; }
+      if (Array.isArray(t.payload.conceptIds)) {
+        t.payload.conceptIds.forEach(id => ids.add(String(id)));
+      }
+    });
+    return { allConcepts, ids };
   }
 
   // ── SCOR: CONCEPT SUMMARY ──
