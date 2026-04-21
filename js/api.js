@@ -17,19 +17,46 @@ async function saveProject(project) {
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
 
-    // Shared content payload — same shape regardless of owner vs. collaborator
+    // Shared content payload — same shape regardless of owner vs. collaborator.
+    // data is a JSONB column; everything that restoreProjectState reads must live here.
     const payload = {
       name:        project.name,
       owner:       project.owner || '',
       description: project.description || '',
-      data:        {
-        goal:         project.goal,
-        ilities:      project.ilities,
-        stakeholders: project.stakeholders,
-        requirements: project.requirements,
-        concepts:     project.concepts,
-        matrix:       project.matrix,
-        pughSettings: project.pughSettings
+      data: {
+        // Goal
+        goal:               project.goal,
+        goalMode:           project.goalMode,
+        currentPage:        project.currentPage,
+        reqFormat:          project.reqFormat,
+        // Ilities
+        ilities:            project.ilities,
+        customIlities:      project.customIlities,
+        ilityOrder:         project.ilityOrder,
+        // Stakeholders
+        stakeholders:       project.stakeholders,
+        customStakeholders: project.customStakeholders,
+        stakOrder:          project.stakOrder,
+        stakeholderOverrides: project.stakeholderOverrides,
+        // Requirements
+        requirements:       project.requirements,
+        // Pairwise
+        pairComparisons:    project.pairComparisons,
+        pairSubject:        project.pairSubject,
+        pairMethod:         project.pairMethod,
+        pairMode:           project.pairMode,
+        forcedRankOrder:    project.forcedRankOrder,
+        // Pugh / scoring
+        concepts:           project.concepts,
+        matrix:             project.matrix,
+        pughSettings:       project.pughSettings,
+        datumPerformance:   project.datumPerformance,
+        conceptPerformance: project.conceptPerformance,
+        conceptNotes:       project.conceptNotes,
+        conceptCustomFields: project.conceptCustomFields,
+        scorerFilter:       project.scorerFilter,
+        // Convergence
+        convergence:        project.convergence,
       },
       updated_at:  new Date().toISOString()
     };
