@@ -131,14 +131,18 @@ async function loadProjects(userId) {
     }
 
     // Normalize Supabase rows back to the project model shape
+    const currentUserId = appState.currentUser?.id;
     const projects = (data || []).map(row => ({
-      id:          row.id,
-      user_id:     row.user_id,
-      name:        row.name,
-      owner:       row.owner || '',
-      description: row.description || '',
-      created_at:  row.created_at,
-      updated_at:  row.updated_at,
+      id:                  row.id,
+      user_id:             row.user_id,
+      name:                row.name,
+      owner:               row.owner || '',
+      description:         row.description || '',
+      created_at:          row.created_at,
+      updated_at:          row.updated_at,
+      scheduled_delete_at: row.scheduled_delete_at || null,
+      // is_owner: true when this user created the project; false = collaborator
+      is_owner:            row.user_id === currentUserId,
       // Spread the JSONB data column back to the top level
       ...(row.data || {})
     }));
@@ -153,22 +157,93 @@ async function loadProjects(userId) {
 }
 
 /**
- * Delete a project by id.
+ * Immediately delete a project by id (owner only).
+ * Renamed from deleteProject to avoid shadowing by app.js UI handler.
  * @param {string} projectId
  * @returns {Promise<{error: string|null}>}
  */
-async function deleteProject(projectId) {
+async function deleteProjectAPI(projectId) {
   if (appState.currentUser) {
     const { error } = await _supabase
       .from('projects')
       .delete()
       .eq('id', projectId)
-      .eq('user_id', appState.currentUser.id); // extra safety
+      .eq('user_id', appState.currentUser.id); // extra safety: owner only
 
     if (error) return { error: error.message };
   }
 
   // Update in-memory array regardless
+  savedProjects = savedProjects.filter(p => p.id !== projectId);
+  appState.projects = savedProjects.slice();
+  return { error: null };
+}
+
+/**
+ * Schedule a project for deletion 48 hours from now.
+ * Sets scheduled_delete_at; pg_cron does the actual delete.
+ * @param {string} projectId
+ * @returns {Promise<{scheduled_delete_at: string|null, error: string|null}>}
+ */
+async function scheduleProjectDelete(projectId) {
+  const deleteAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  if (appState.currentUser) {
+    const { error } = await _supabase
+      .from('projects')
+      .update({ scheduled_delete_at: deleteAt })
+      .eq('id', projectId)
+      .eq('user_id', appState.currentUser.id);
+
+    if (error) return { scheduled_delete_at: null, error: error.message };
+  }
+
+  // Update in-memory
+  const idx = savedProjects.findIndex(p => p.id === projectId);
+  if (idx >= 0) savedProjects[idx] = { ...savedProjects[idx], scheduled_delete_at: deleteAt };
+  appState.projects = savedProjects.slice();
+  return { scheduled_delete_at: deleteAt, error: null };
+}
+
+/**
+ * Cancel a scheduled deletion — clears scheduled_delete_at.
+ * @param {string} projectId
+ * @returns {Promise<{error: string|null}>}
+ */
+async function cancelScheduledDelete(projectId) {
+  if (appState.currentUser) {
+    const { error } = await _supabase
+      .from('projects')
+      .update({ scheduled_delete_at: null })
+      .eq('id', projectId)
+      .eq('user_id', appState.currentUser.id);
+
+    if (error) return { error: error.message };
+  }
+
+  const idx = savedProjects.findIndex(p => p.id === projectId);
+  if (idx >= 0) savedProjects[idx] = { ...savedProjects[idx], scheduled_delete_at: null };
+  appState.projects = savedProjects.slice();
+  return { error: null };
+}
+
+/**
+ * Remove the current user from a project's collaborators (leave project).
+ * Deletes their project_members row; does NOT delete the project itself.
+ * @param {string} projectId
+ * @returns {Promise<{error: string|null}>}
+ */
+async function removeCollabProjectAPI(projectId) {
+  if (appState.currentUser) {
+    const { error } = await _supabase
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', appState.currentUser.id);
+
+    if (error) return { error: error.message };
+  }
+
+  // Remove from in-memory list
   savedProjects = savedProjects.filter(p => p.id !== projectId);
   appState.projects = savedProjects.slice();
   return { error: null };

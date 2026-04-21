@@ -1219,6 +1219,11 @@
   var _inviteTargetProjectId = null; // project ID the invite modal is open for
 
   function openInviteModal(projectId) {
+    // Inviting collaborators is a Pro-only feature (account tier sees the button but is gated here)
+    if (userTier !== 'pro' && userTier !== 'admin') {
+      showUpgradePrompt('invite-collab');
+      return;
+    }
     _inviteTargetProjectId = projectId;
     // Show project name in the modal header
     var proj = savedProjects.find(function(p) { return p.id === projectId; });
@@ -1339,9 +1344,20 @@
 
   // Accept a collab_invite task by calling the SECURITY DEFINER function.
   async function acceptCollabInvite(taskId) {
+    // Check collaboration limit before calling the server
+    const collabCount = savedProjects.filter(p => p.is_owner === false).length;
+    const check = canAcceptCollabInvite(appState.currentUser, collabCount);
+    if (!check.allowed) {
+      showUpgradePrompt('account-collab-limit');
+      return;
+    }
+
     var { data, error } = await _supabase.rpc('accept_project_invite', { p_task_id: taskId });
     if (error || (data && data.error)) {
-      alert('Could not accept invite: ' + (error ? error.message : data.error));
+      const errMsg = data && data.error === 'collab_limit_reached'
+        ? 'You\'re at your collaborating limit. Remove a project from your collaborating list or upgrade to Pro.'
+        : (error ? error.message : data.error);
+      alert('Could not accept invite: ' + errMsg);
       return;
     }
     // Reload the user's project list so the shared project appears
@@ -3026,7 +3042,9 @@ ${sections}
     'account-stak-limit':   { title: 'Stakeholder Limit Reached',                body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.',                                                                              cta: 'Upgrade to Pro',      action: 'pro'    },
     'coaching':             { title: 'AI Coaching is a Pro Feature',             body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.',                                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
     'export-report':        { title: 'Report Export is a Pro Feature',           body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.',                                                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
-    'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Account users can save up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.',                                                                                       cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Account users can own up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.',                                                                                       cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-collab-limit': { title: 'Collaborating Limit Reached',             body: 'Account users can collaborate on up to 5 projects. Remove a project from your collaborating list to make room, or upgrade to Pro for unlimited.',                                                             cta: 'Upgrade to Pro',      action: 'pro'    },
+    'invite-collab':        { title: 'Inviting Collaborators requires Pro',     body: 'Upgrade to Pro to invite collaborators to your projects. The people you invite do not need Pro — only the project owner does.',                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
     'templates':            { title: 'Templates is a Pro Feature',              body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.',                                      cta: 'Upgrade to Pro',      action: 'pro'    },
     'pro-contact-fields':   { title: 'Contact Title & Email require Pro',        body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in Requirements.',                                       cta: 'Upgrade to Pro',      action: 'pro'    },
     'pro-scorer':           { title: 'Responsible Scorer requires Pro',          body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during Concept Scoring, keeping large teams focused on their section.',                          cta: 'Upgrade to Pro',      action: 'pro'    },
@@ -3099,7 +3117,8 @@ ${sections}
       input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
-    if (userTier === 'account' && savedProjects.length >= 5) {
+    const ownedCount = savedProjects.filter(p => p.is_owner !== false).length;
+    if (userTier === 'account' && ownedCount >= PROJECT_LIMITS.account) {
       showUpgradePrompt('account-project-limit');
       return;
     }
@@ -3228,12 +3247,193 @@ ${sections}
     }
   }
 
+  // ── PROJECT DELETE / REMOVE MODAL STATE ──────────────────────
+  var _pendingDeleteId      = null; // project id pending owner deletion
+  var _pendingDeleteMethod  = null; // 'now' | '48h'
+  var _pendingRemoveId      = null; // project id pending collab self-removal
+  var _pendingCancelId      = null; // project id pending cancel-delete
+
+  // Called when owner clicks × on an owned project card
   function deleteProject(id) {
-    if (!confirm('Delete this project? This cannot be undone.')) return;
-    savedProjects = savedProjects.filter(p => p.id !== id);
-    if (activeProject && activeProject.id === id) { activeProject = null; updateNavProjectName(); if (typeof _clearProjectRole === 'function') _clearProjectRole(); }
-    // api.saveProject() — async persistence (replace when Supabase is live)
-    saveProject(activeProject).catch(e => console.warn('save failed', e));
+    var proj = savedProjects.find(function(p) { return p.id === id; });
+    if (!proj) return;
+
+    // If the project is already scheduled for deletion, open the cancel modal instead
+    if (proj.scheduled_delete_at) {
+      openCancelDeleteModal(id);
+      return;
+    }
+
+    _pendingDeleteId = id;
+    var modal = document.getElementById('deleteProjectModal');
+    if (modal) {
+      modal.classList.add('open');
+    } else {
+      // Fallback if modal HTML missing
+      if (!confirm('Delete this project? This cannot be undone.')) return;
+      _executeOwnerDeleteNow(id);
+    }
+  }
+
+  function closeOwnerDeleteModal() {
+    var modal = document.getElementById('deleteProjectModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  // Step 1 → Step 2: user clicked "Confirm Delete"
+  function openDeleteMethodModal() {
+    closeOwnerDeleteModal();
+    // Show or hide the "Upgrade to Pro" button depending on tier
+    var upgradeBtn = document.getElementById('deleteMethodUpgradeBtn');
+    if (upgradeBtn) upgradeBtn.style.display = (userTier === 'account') ? '' : 'none';
+    var modal = document.getElementById('deleteMethodModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeDeleteMethodModal() {
+    var modal = document.getElementById('deleteMethodModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  // Step 2 → Step 3: user chose a delete method
+  function selectDeleteMethod(method) {
+    _pendingDeleteMethod = method; // 'now' | '48h'
+    closeDeleteMethodModal();
+    var label = document.getElementById('deleteConfirmMethodLabel');
+    if (label) {
+      label.textContent = method === '48h'
+        ? 'Lock Project and Permanently Delete in 48 Hours'
+        : 'Permanently Delete Now';
+    }
+    var modal = document.getElementById('deleteConfirmModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeDeleteConfirmModal() {
+    var modal = document.getElementById('deleteConfirmModal');
+    if (modal) modal.classList.remove('open');
+    _pendingDeleteId     = null;
+    _pendingDeleteMethod = null;
+  }
+
+  // Step 3: final "Yes" — execute the chosen delete method
+  async function confirmFinalDelete() {
+    closeDeleteConfirmModal();
+    var id = _pendingDeleteId;
+    var method = _pendingDeleteMethod;
+    _pendingDeleteId     = null;
+    _pendingDeleteMethod = null;
+    if (!id) return;
+
+    if (method === '48h') {
+      await _executeOwnerDelete48h(id);
+    } else {
+      await _executeOwnerDeleteNow(id);
+    }
+  }
+
+  // Immediate permanent delete
+  async function _executeOwnerDeleteNow(id) {
+    var { error } = await deleteProjectAPI(id);
+    if (error) { alert('Could not delete project: ' + error); return; }
+    if (activeProject && activeProject.id === id) {
+      activeProject = null;
+      appState.currentProject = null;
+      try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
+      updateNavProjectName();
+      if (typeof _clearProjectRole === 'function') _clearProjectRole();
+    }
+    renderProjPage();
+  }
+
+  // Schedule deletion in 48 hours
+  async function _executeOwnerDelete48h(id) {
+    var { error } = await scheduleProjectDelete(id);
+    if (error) { alert('Could not schedule deletion: ' + error); return; }
+    renderProjPage();
+  }
+
+  // ── COLLABORATOR REMOVE MODAL ─────────────────────────────────
+  // Called when collaborator clicks × on a collaborating project card
+  function removeCollabProject(id) {
+    _pendingRemoveId = id;
+    var modal = document.getElementById('removeCollabModal');
+    if (modal) {
+      modal.classList.add('open');
+    } else {
+      if (!confirm('Remove this project from your collaborating list?')) return;
+      _executeRemoveCollab(id);
+    }
+  }
+
+  function closeRemoveCollabModal() {
+    var modal = document.getElementById('removeCollabModal');
+    if (modal) modal.classList.remove('open');
+    _pendingRemoveId = null;
+  }
+
+  async function confirmRemoveCollab() {
+    closeRemoveCollabModal();
+    var id = _pendingRemoveId;
+    _pendingRemoveId = null;
+    if (!id) return;
+    await _executeRemoveCollab(id);
+  }
+
+  async function _executeRemoveCollab(id) {
+    var { error } = await removeCollabProjectAPI(id);
+    if (error) { alert('Could not remove project: ' + error); return; }
+    if (activeProject && activeProject.id === id) {
+      activeProject = null;
+      appState.currentProject = null;
+      try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
+      updateNavProjectName();
+      if (typeof _clearProjectRole === 'function') _clearProjectRole();
+    }
+    renderProjPage();
+  }
+
+  // ── LOCK MODAL ────────────────────────────────────────────────
+  // Shown when a user tries to interact with a project in a locked list
+  function openLockModal(listType) {
+    var titleEl = document.getElementById('lockModalTitle');
+    var bodyEl  = document.getElementById('lockModalBody');
+    if (listType === 'owned') {
+      if (titleEl) titleEl.textContent = 'Projects (Owned) List Locked';
+      if (bodyEl)  bodyEl.textContent  = 'Your Projects (Owned) list is locked because your current tier (Account) only supports 5 projects. To unlock, upgrade to Pro or delete excess projects.';
+    } else {
+      if (titleEl) titleEl.textContent = 'Projects (Collaborating) List Locked';
+      if (bodyEl)  bodyEl.textContent  = 'Your Projects (Collaborating) list is locked because your current tier (Account) only supports 5 projects. To unlock, upgrade to Pro or remove excess projects.';
+    }
+    var modal = document.getElementById('lockModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeLockModal() {
+    var modal = document.getElementById('lockModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  // ── CANCEL SCHEDULED DELETE MODAL ────────────────────────────
+  function openCancelDeleteModal(id) {
+    _pendingCancelId = id;
+    var modal = document.getElementById('cancelDeleteModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeCancelDeleteModal() {
+    var modal = document.getElementById('cancelDeleteModal');
+    if (modal) modal.classList.remove('open');
+    _pendingCancelId = null;
+  }
+
+  async function confirmCancelDelete() {
+    closeCancelDeleteModal();
+    var id = _pendingCancelId;
+    _pendingCancelId = null;
+    if (!id) return;
+    var { error } = await cancelScheduledDelete(id);
+    if (error) { alert('Could not cancel deletion: ' + error); return; }
     renderProjPage();
   }
 

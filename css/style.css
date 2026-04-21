@@ -918,6 +918,13 @@
     }
     .btn-secondary:hover { background: var(--bg); }
 
+    .btn-danger {
+      background: var(--danger, #ef4444);
+      color: #fff;
+      border-color: var(--danger, #ef4444);
+    }
+    .btn-danger:not(:disabled):hover { filter: brightness(0.88); }
+
     .btn-ghost {
       background: none;
       color: var(--text-muted);
@@ -1993,7 +2000,46 @@ body.theme-engineering .sidebar-brand {
 .proj-item-meta { font-size: 11px; color: var(--text-light); }
 .proj-item-delete { background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 18px; padding: 0 4px; line-height: 1; }
 .proj-item-delete:hover { color: var(--danger); }
+.proj-item-scheduled { margin-bottom: 8px; }
+.proj-item-locked { pointer-events: auto; }
 .proj-save-note { font-size: 12px; color: var(--text-light); padding: 12px 0; text-align: center; }
+
+/* ── Project Manager section headers ── */
+.proj-section-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.proj-section-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.proj-lock-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.proj-empty-state {
+  text-align: center;
+  padding: 18px 24px;
+  color: var(--text-light);
+  font-size: 13px;
+  line-height: 1.55;
+}
 
 /* ── TEMPLATE TOGGLE TRACK ── */
 .tmpl-toggle-track {

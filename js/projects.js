@@ -3,10 +3,18 @@
 // ============================================================
 
 // ── Tier limits ───────────────────────────────────────────────
+// Owned projects (projects this user created)
 const PROJECT_LIMITS = {
-  free:   1,   // free users: 1 saved project
-  account: 5,  // account tier: 5 projects
-  pro:    Infinity  // pro: unlimited
+  free:    0,        // free = not logged in; cannot own saved projects
+  account: 5,        // account tier: up to 5 owned projects
+  pro:     Infinity  // pro: unlimited
+};
+
+// Collaborating projects (projects this user was invited to)
+const COLLAB_LIMITS = {
+  free:    0,        // free = not logged in; cannot collaborate
+  account: 5,        // account tier: up to 5 collaborating projects
+  pro:     Infinity  // pro: unlimited
 };
 
 /**
@@ -24,6 +32,8 @@ function createProjectModel({ name, description = '', owner = '', userId = null 
   return {
     id: 'proj_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     user_id: userId || (appState.currentUser ? appState.currentUser.id : null),
+    is_owner: true,  // newly created projects are always owned by the creating user
+    scheduled_delete_at: null,
     name: name || 'Untitled Project',
     description,
     owner,
@@ -76,6 +86,28 @@ function canCreateProject(user, currentCount) {
   };
 
   return { allowed: false, reason: messages[tier] || 'Project limit reached.' };
+}
+
+/**
+ * Check whether a user is allowed to accept one more collaboration invite.
+ *
+ * @param {object|null} user         — appState.currentUser
+ * @param {number}      currentCount — number of projects the user currently collaborates on
+ * @returns {{ allowed: boolean, reason: string|null }}
+ */
+function canAcceptCollabInvite(user, currentCount) {
+  const tier  = (user && user.tier) || userTier || 'free';
+  const limit = COLLAB_LIMITS[tier] !== undefined ? COLLAB_LIMITS[tier] : 0;
+
+  if (currentCount < limit) return { allowed: true, reason: null };
+
+  const messages = {
+    free:    'You need an Account to collaborate on projects.',
+    account: 'You\'re at your collaborating limit. Remove a project from your collaborator list or upgrade to Pro for unlimited.',
+    pro:     null // unlimited — should never reach this
+  };
+
+  return { allowed: false, reason: messages[tier] || 'Collaboration limit reached.' };
 }
 
 /**

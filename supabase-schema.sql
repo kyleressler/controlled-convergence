@@ -71,9 +71,13 @@ CREATE TABLE IF NOT EXISTS public.projects (
   owner       TEXT,
   description TEXT,
   data        JSONB,                         -- { goal, ilities, stakeholders, requirements, concepts, matrix, pughSettings }
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  scheduled_delete_at  TIMESTAMPTZ          -- set when owner schedules 48-hour deletion; NULL = active
 );
+
+-- Safe to run on existing deployments: adds column if not already present
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS scheduled_delete_at TIMESTAMPTZ;
 
 -- Index for fast user project lookups
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON public.projects (user_id);
@@ -399,6 +403,12 @@ CREATE POLICY "Owners can remove project members"
   ON public.project_members FOR DELETE
   USING (public.user_is_project_owner(project_id));
 
+-- Collaborators can remove themselves (leave a project)
+DROP POLICY IF EXISTS "Members can remove themselves" ON public.project_members;
+CREATE POLICY "Members can remove themselves"
+  ON public.project_members FOR DELETE
+  USING (auth.uid() = user_id);
+
 
 -- ── Update tasks RLS so project members can see project tasks ─
 CREATE POLICY "Project members can view tasks"
@@ -466,16 +476,19 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_task       public.tasks%ROWTYPE;
-  v_project_id TEXT;
-  v_role       TEXT;
+  v_task         public.tasks%ROWTYPE;
+  v_project_id   TEXT;
+  v_role         TEXT;
+  v_user_tier    TEXT;
+  v_collab_count INTEGER;
+  v_collab_limit INTEGER;
 BEGIN
   -- Fetch and validate the task
   SELECT * INTO v_task FROM public.tasks WHERE id = p_task_id;
-  IF NOT FOUND                         THEN RETURN jsonb_build_object('error', 'Task not found'); END IF;
+  IF NOT FOUND                           THEN RETURN jsonb_build_object('error', 'Task not found'); END IF;
   IF v_task.task_type <> 'collab_invite' THEN RETURN jsonb_build_object('error', 'Not an invite task'); END IF;
-  IF v_task.assignee_id <> auth.uid() THEN RETURN jsonb_build_object('error', 'Not authorized'); END IF;
-  IF v_task.status <> 'pending'       THEN RETURN jsonb_build_object('error', 'Invite is no longer pending'); END IF;
+  IF v_task.assignee_id <> auth.uid()   THEN RETURN jsonb_build_object('error', 'Not authorized'); END IF;
+  IF v_task.status <> 'pending'         THEN RETURN jsonb_build_object('error', 'Invite is no longer pending'); END IF;
 
   -- Pull project_id and role out of the task payload
   v_project_id := v_task.payload->>'project_id';
@@ -483,6 +496,25 @@ BEGIN
   IF v_project_id IS NULL OR v_role IS NULL THEN
     RETURN jsonb_build_object('error', 'Invalid invite payload');
   END IF;
+
+  -- ── Collaboration limit check ────────────────────────────────
+  -- Look up the invitee's tier to determine their collab limit.
+  SELECT tier INTO v_user_tier FROM public.user_profiles WHERE id = auth.uid();
+  IF v_user_tier = 'pro' OR v_user_tier = 'admin' THEN
+    v_collab_limit := 2147483647; -- effectively unlimited
+  ELSE
+    v_collab_limit := 5; -- account tier: up to 5 collaborating projects
+  END IF;
+
+  -- Count projects the invitee is already a collaborator on.
+  SELECT COUNT(*) INTO v_collab_count
+    FROM public.project_members
+    WHERE user_id = auth.uid();
+
+  IF v_collab_count >= v_collab_limit THEN
+    RETURN jsonb_build_object('error', 'collab_limit_reached');
+  END IF;
+  -- ─────────────────────────────────────────────────────────────
 
   -- Add to project_members (upsert — safe to re-accept)
   INSERT INTO public.project_members (project_id, user_id, role, invited_by)
@@ -565,7 +597,33 @@ REVOKE EXECUTE ON FUNCTION public.grant_task_project_access(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.grant_task_project_access(UUID) TO authenticated;
 
 
--- ── 10. TEST ACCOUNTS (manual setup — run separately) ──────────
+-- ── 10. SCHEDULED DELETION (pg_cron) ────────────────────────────
+-- Projects with scheduled_delete_at set are permanently deleted once that
+-- timestamp has passed. An hourly pg_cron job handles the actual deletion.
+-- ON DELETE CASCADE on project_members.project_id ensures collaborator rows
+-- are cleaned up automatically when the project row is removed.
+--
+-- Enable pg_cron (free on all Supabase plans; safe to run if already enabled):
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Remove any existing version of the job before (re)creating it
+SELECT cron.unschedule('delete-scheduled-projects') WHERE EXISTS (
+  SELECT 1 FROM cron.job WHERE jobname = 'delete-scheduled-projects'
+);
+
+-- Run every hour on the hour; deletes projects whose scheduled time has passed
+SELECT cron.schedule(
+  'delete-scheduled-projects',
+  '0 * * * *',
+  $$
+    DELETE FROM public.projects
+    WHERE scheduled_delete_at IS NOT NULL
+      AND scheduled_delete_at <= NOW();
+  $$
+);
+
+
+-- ── 12. TEST ACCOUNTS (manual setup — run separately) ──────────
 -- After creating test user accounts via the Supabase Auth UI or signup flow,
 -- manually set their tiers here:
 --

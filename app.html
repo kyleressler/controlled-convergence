@@ -2106,6 +2106,97 @@
   </div>
 </div>
 
+<!-- ── DELETE PROJECT MODAL — Step 1: Warning ── -->
+<div class="modal-overlay" id="deleteProjectModal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Delete Project?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      Are you sure you want to delete this project? This is a permanent action that cannot be undone.
+      We recommend exporting your project data before deleting.
+      <strong style="display:block;margin-top:10px">If you are the project owner, deletion will delete the project for all collaborators too.</strong>
+    </div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch">
+      <button class="btn btn-danger" onclick="openDeleteMethodModal()" style="width:100%">Confirm Delete</button>
+      <button class="btn btn-secondary" onclick="closeOwnerDeleteModal();exportProjectData()" style="width:100%">Export Project Data</button>
+      <button class="btn btn-secondary" onclick="closeOwnerDeleteModal()" style="width:100%">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DELETE PROJECT MODAL — Step 2: Choose deletion method ── -->
+<div class="modal-overlay" id="deleteMethodModal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">How would you like to delete?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      Choose when this project is permanently deleted. Either option will lock the project immediately for you and all collaborators.
+    </div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch">
+      <button class="btn btn-danger" onclick="selectDeleteMethod('48h')" style="width:100%">Lock Project and Permanently Delete in 48 Hours</button>
+      <button class="btn btn-danger" onclick="selectDeleteMethod('now')" style="width:100%;background:#7f1d1d;border-color:#7f1d1d">Permanently Delete Now</button>
+      <button id="deleteMethodUpgradeBtn" class="btn btn-secondary" onclick="closeDeleteMethodModal();handleProUpgrade()" style="width:100%">Upgrade to Pro for Unlimited Project Storage</button>
+      <button class="btn btn-secondary" onclick="closeDeleteMethodModal()" style="width:100%">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DELETE PROJECT MODAL — Step 3: Final confirmation ── -->
+<div class="modal-overlay" id="deleteConfirmModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Are You Sure?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:6px">
+      Selected: <strong id="deleteConfirmMethodLabel"></strong>
+    </div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      If you are the project owner this project will be deleted for all collaborators too. This cannot be undone.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="confirmFinalDelete()">Yes, Proceed</button>
+      <button class="btn btn-secondary" onclick="closeDeleteConfirmModal()">No, Go Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REMOVE COLLABORATING PROJECT MODAL ── -->
+<div class="modal-overlay" id="removeCollabModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Remove from Collaborating List?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      You will lose access to this project. This does not delete the project — it only removes you as a collaborator.
+      The project owner and other collaborators are not affected.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="confirmRemoveCollab()">Yes, Remove It</button>
+      <button class="btn btn-secondary" onclick="closeRemoveCollabModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOCK EXPLANATION MODAL ── -->
+<div class="modal-overlay" id="lockModal" onclick="if(event.target===this)closeLockModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title" id="lockModalTitle">Project List Locked</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px" id="lockModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeLockModal();handleProUpgrade()">Upgrade to Pro</button>
+      <button class="btn btn-secondary" onclick="closeLockModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CANCEL SCHEDULED DELETION MODAL ── -->
+<div class="modal-overlay" id="cancelDeleteModal" onclick="if(event.target===this)closeCancelDeleteModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Cancel Scheduled Deletion?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      This project is scheduled to be permanently deleted. Click <strong>Yes, Cancel Deletion</strong> to restore it to your project list.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmCancelDelete()">Yes, Cancel Deletion</button>
+      <button class="btn btn-secondary" onclick="closeCancelDeleteModal()">No, Keep Scheduled</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── UPGRADE MODAL ── -->
 <div class="modal-overlay" id="upgradeModal">
   <div class="modal-box">

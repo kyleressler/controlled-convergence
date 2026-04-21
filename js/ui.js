@@ -189,79 +189,215 @@
   function updateProjTierNote() {
     const note = document.getElementById('projTierNote');
     if (!note) return;
-    if (userTier === 'free') {
-      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to save up to 5 projects.';
+    if (!appState.currentUser) {
+      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to own up to 5 projects and collaborate on up to 5 more.';
     } else if (userTier === 'account') {
-      note.textContent = 'Account tier: ' + savedProjects.length + ' of 5 projects saved. Upgrade to Pro for unlimited projects.';
+      const ownedCount = savedProjects.filter(p => p.is_owner !== false).length;
+      const collabCount = savedProjects.filter(p => p.is_owner === false).length;
+      note.textContent = 'Account tier: ' + ownedCount + ' of 5 owned · ' + collabCount + ' of 5 collaborating. Upgrade to Pro for unlimited.';
     } else {
-      note.textContent = 'Pro tier: Up to 50 projects. Collaboration features coming soon.';
+      note.textContent = 'Pro tier: Unlimited owned and collaborating projects.';
     }
+  }
+
+  // ── Helpers for project card rendering ───────────────────────
+
+  function _projDateStr(p) {
+    const d = p.createdAt || p.created_at;
+    return d ? new Date(d).toLocaleDateString() : '';
+  }
+
+  function _projDeleteTimeStr(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      + ' at ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  // Render a single card in the Projects (Owned) section
+  function _renderOwnedCard(p, locked) {
+    const isActive = activeProject && activeProject.id === p.id;
+    const isScheduled = !!p.scheduled_delete_at;
+
+    // ── Scheduled-for-deletion state ──────────────────────────
+    if (isScheduled) {
+      const deleteTimeStr = _projDeleteTimeStr(p.scheduled_delete_at);
+      return `
+      <div class="proj-item proj-item-scheduled" style="border-color:var(--danger,#ef4444);background:rgba(239,68,68,0.06)">
+        <div style="flex:1;min-width:0">
+          <div class="proj-item-name" style="color:var(--danger,#ef4444)">${p.name}</div>
+          <div style="font-size:12px;color:var(--danger,#ef4444);margin-top:3px;line-height:1.45">
+            Scheduled to delete on ${deleteTimeStr}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();exportProjectData()" title="Export project data">Export</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--success,#16a34a)" onclick="event.stopPropagation();openCancelDeleteModal('${p.id}')" title="Cancel scheduled deletion">Cancel Delete</button>
+        </div>
+      </div>`;
+    }
+
+    // ── Locked state ──────────────────────────────────────────
+    if (locked) {
+      return `
+      <div class="proj-item proj-item-locked" onclick="openLockModal('owned')" style="cursor:pointer;opacity:0.7">
+        <div style="flex:1;min-width:0">
+          <div class="proj-item-name">${p.name}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${_projDateStr(p)}${p.owner ? ' · ' + p.owner : ''}</div>
+        </div>
+        <span style="font-size:11px;color:var(--text-muted);padding:4px 8px">🔒 Locked</span>
+      </div>`;
+    }
+
+    // ── Normal state ──────────────────────────────────────────
+    const activeBorder = isActive
+      ? `border-color:var(--accent);background:rgba(${getThemeRgb('--accent-rgb')||'26,86,219'},0.06);`
+      : '';
+    const activeIndicator = isActive
+      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-right:6px">● Active</span>`
+      : '';
+    const activateBtn = isActive
+      ? ''
+      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
+
+    // Invite button — visible to all logged-in non-free tiers; Pro gate fires inside openInviteModal()
+    const inviteBtn = (isActive && userTier !== 'free' && appState.currentUser)
+      ? `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`
+      : '';
+
+    // Collaborator chips on active card
+    let collabHtml = '';
+    if (isActive && typeof projectCollaborators !== 'undefined' && projectCollaborators.length > 0) {
+      const chips = projectCollaborators.map(m => {
+        const roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+        return `<span class="proj-collab-chip">${roleLabel}</span>`;
+      }).join('');
+      collabHtml = `<div class="proj-collab-list"><span class="proj-collab-label">Collaborators:</span>${chips}</div>`;
+    }
+
+    return `
+    <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">
+      <div style="flex:1;min-width:0">
+        <div class="proj-item-name">${activeIndicator}${p.name}</div>
+        ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
+        <div class="proj-item-meta">${_projDateStr(p)}${p.owner ? ' · ' + p.owner : ''}</div>
+        ${collabHtml}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        ${activateBtn}
+        ${inviteBtn}
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProject('${p.id}')" title="Edit project">Edit</button>
+        <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>
+      </div>
+    </div>`;
+  }
+
+  // Render a single card in the Projects (Collaborating) section
+  function _renderCollabCard(p, locked) {
+    const isActive = activeProject && activeProject.id === p.id;
+    const isScheduled = !!p.scheduled_delete_at;
+
+    // ── Scheduled-for-deletion state (owner deleted, collaborator warned) ──
+    if (isScheduled) {
+      const deleteTimeStr = _projDeleteTimeStr(p.scheduled_delete_at);
+      return `
+      <div class="proj-item proj-item-scheduled" style="border-color:var(--danger,#ef4444);background:rgba(239,68,68,0.06)">
+        <div style="flex:1;min-width:0">
+          <div class="proj-item-name" style="color:var(--danger,#ef4444)">${p.name}</div>
+          <div style="font-size:12px;color:var(--danger,#ef4444);margin-top:3px;line-height:1.45">
+            The owner has scheduled this project for deletion on ${deleteTimeStr}. Contact the owner directly if you think this is in error.
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // ── Locked state ──────────────────────────────────────────
+    if (locked) {
+      return `
+      <div class="proj-item proj-item-locked" onclick="openLockModal('collab')" style="cursor:pointer;opacity:0.7">
+        <div style="flex:1;min-width:0">
+          <div class="proj-item-name">${p.name}</div>
+          <div style="font-size:12px;color:var(--text-light);margin-top:2px">${_projDateStr(p)}</div>
+        </div>
+        <span style="font-size:11px;color:var(--text-muted);padding:4px 8px">🔒 Locked</span>
+      </div>`;
+    }
+
+    // ── Normal state ──────────────────────────────────────────
+    const activeBorder = isActive
+      ? `border-color:var(--accent);background:rgba(${getThemeRgb('--accent-rgb')||'26,86,219'},0.06);`
+      : '';
+    const activeIndicator = isActive
+      ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-right:6px">● Active</span>`
+      : '';
+    const activateBtn = isActive
+      ? ''
+      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
+
+    return `
+    <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">
+      <div style="flex:1;min-width:0">
+        <div class="proj-item-name">${activeIndicator}${p.name}</div>
+        ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
+        <div class="proj-item-meta">${_projDateStr(p)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        ${activateBtn}
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();removeCollabProject('${p.id}')" title="Remove from collaborating list">Remove</button>
+      </div>
+    </div>`;
   }
 
   function renderProjList() {
     const list = document.getElementById('projList');
     const note = document.getElementById('projSaveNote');
     if (!list) return;
-    // Anonymous free-tier visitors see the sign-up prompt instead of an empty list.
-    // Logged-in users (even on free tier) always see their project list.
-    if (userTier === 'free' && !appState.currentUser) {
+
+    // Unauthenticated free-tier visitors: show sign-up prompt
+    if (!appState.currentUser) {
       list.innerHTML = '';
       if (note) note.innerHTML = '<button class="btn btn-primary" style="margin-top:4px" onclick="handleAccountCTA()">Create a Free Account</button>';
       return;
     }
     if (note) note.innerHTML = '';
-    if (savedProjects.length === 0) {
-      list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-light);font-size:13px">No saved projects yet. Create one above.</div>';
-      return;
+
+    // Split into owned vs. collaborating
+    const ownedProjects = savedProjects.filter(p => p.is_owner !== false);
+    const collabProjects = savedProjects.filter(p => p.is_owner === false);
+
+    // Determine lock states (over-limit for account tier)
+    const ownedLimit = (typeof PROJECT_LIMITS !== 'undefined' && PROJECT_LIMITS[userTier] !== undefined)
+      ? PROJECT_LIMITS[userTier] : Infinity;
+    const collabLimit = (typeof COLLAB_LIMITS !== 'undefined' && COLLAB_LIMITS[userTier] !== undefined)
+      ? COLLAB_LIMITS[userTier] : Infinity;
+    const ownedLocked = isFinite(ownedLimit) && ownedProjects.length > ownedLimit;
+    const collabLocked = isFinite(collabLimit) && collabProjects.length > collabLimit;
+
+    let html = '';
+
+    // ── Projects (Owned) section ──────────────────────────────
+    html += `<div class="proj-section-header">Projects (Owned) <span class="proj-section-count">${ownedProjects.length}${isFinite(ownedLimit) ? ' / ' + ownedLimit : ''}</span></div>`;
+    if (ownedLocked) {
+      html += `<div class="proj-lock-banner">⚠️ Your owned projects list is over the limit for your current tier. Upgrade to Pro or delete excess projects to unlock.</div>`;
     }
-    list.innerHTML = savedProjects.map(p => {
-      const isActive = activeProject && activeProject.id === p.id;
-      const activeBorder = isActive
-        ? `border-color:var(--accent);background:rgba(${getThemeRgb('--accent-rgb')||'26,86,219'},0.06);`
-        : '';
-      const activeIndicator = isActive
-        ? `<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--accent);margin-right:6px">● Active</span>`
-        : '';
-      const activateBtn = isActive
-        ? '' // already active — no Activate button needed
-        : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
-      // Date display — handle both createdAt and created_at field names
-      const dateStr = (p.createdAt || p.created_at)
-        ? new Date(p.createdAt || p.created_at).toLocaleDateString()
-        : '';
+    if (ownedProjects.length === 0) {
+      html += `<div class="proj-empty-state">No owned projects yet. Create one above.</div>`;
+    } else {
+      html += ownedProjects.map(p => _renderOwnedCard(p, ownedLocked)).join('');
+    }
 
-      // Invite button — shown on the active project card for non-free tiers.
-      // Auth + ownership is enforced at submit time inside submitInvite().
-      const inviteBtn = (isActive && userTier !== 'free')
-        ? `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`
-        : '';
+    // ── Projects (Collaborating) section ──────────────────────
+    html += `<div class="proj-section-header" style="margin-top:24px">Projects (Collaborating) <span class="proj-section-count">${collabProjects.length}${isFinite(collabLimit) ? ' / ' + collabLimit : ''}</span></div>`;
+    if (collabLocked) {
+      html += `<div class="proj-lock-banner">⚠️ Your collaborating projects list is over the limit for your current tier. Upgrade to Pro or remove excess projects to unlock.</div>`;
+    }
+    if (collabProjects.length === 0) {
+      html += `<div class="proj-empty-state" style="color:var(--text-light)">No collaborating projects yet. You'll appear here when a Pro user invites you to their project.</div>`;
+    } else {
+      html += collabProjects.map(p => _renderCollabCard(p, collabLocked)).join('');
+    }
 
-      // Collaborator chips (only show when this card is the active project, so the list is loaded)
-      let collabHtml = '';
-      if (isActive && typeof projectCollaborators !== 'undefined' && projectCollaborators.length > 0) {
-        const chips = projectCollaborators.map(m => {
-          const roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
-          return `<span class="proj-collab-chip">${roleLabel}</span>`;
-        }).join('');
-        collabHtml = `<div class="proj-collab-list"><span class="proj-collab-label">Collaborators:</span>${chips}</div>`;
-      }
-
-      return `
-      <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate · Drag not needed">
-        <div style="flex:1;min-width:0">
-          <div class="proj-item-name">${activeIndicator}${p.name}</div>
-          ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
-          <div class="proj-item-meta">${dateStr}${p.owner ? ' · ' + p.owner : ''}</div>
-          ${collabHtml}
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-          ${activateBtn}
-          ${inviteBtn}
-          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProject('${p.id}')" title="Edit project name">Edit</button>
-          <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>
-        </div>
-      </div>`;
-    }).join('');
+    list.innerHTML = html;
   }
 
   function updateProjAdvisor() {
@@ -270,7 +406,9 @@
     if (userTier === 'free') {
       msg.innerHTML = '<strong>Free tier:</strong> Your work is not automatically saved. Use <em>Export Project Data</em> in the sidebar to download a JSON file you can re-upload in a future session. Creating a free account unlocks saving up to 5 projects — no credit card required.';
     } else if (userTier === 'account') {
-      msg.innerHTML = '<strong>Account tier:</strong> You can save up to 5 projects. You\'re using ' + savedProjects.length + ' of 5. Upgrade to Pro for unlimited projects and future collaboration features.';
+      const ownedCount = savedProjects.filter(p => p.is_owner !== false).length;
+      const collabCount = savedProjects.filter(p => p.is_owner === false).length;
+      msg.innerHTML = '<strong>Account tier:</strong> Own up to 5 projects (' + ownedCount + ' of 5 used) and collaborate on up to 5 more (' + collabCount + ' of 5 used). Upgrade to Pro for unlimited owned and collaborating projects.';
     } else {
       msg.innerHTML = '<strong>Pro tier:</strong> Up to 50 saved projects. Collaboration features — inviting team members to review and contribute — are on the roadmap.';
     }
