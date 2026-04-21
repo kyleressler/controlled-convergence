@@ -583,13 +583,14 @@
         acceptInviteBtn.onclick = function() { acceptCollabInvite(task.id); };
         actions.appendChild(acceptInviteBtn);
       } else {
-        var acceptBtn = document.createElement('button');
-        acceptBtn.className = 'task-action-btn';
-        acceptBtn.textContent = 'Accept';
-        acceptBtn.onclick = function() { _taskUpdateStatus(task.id, 'accepted'); };
-        actions.appendChild(acceptBtn);
+        // Scoring task: "Complete" signals the work is done, not just acknowledged
+        var completeBtn = document.createElement('button');
+        completeBtn.className = 'task-action-btn';
+        completeBtn.textContent = 'Complete';
+        completeBtn.onclick = function() { _taskUpdateStatus(task.id, 'completed'); };
+        actions.appendChild(completeBtn);
       }
-      // Decline — opens modal requiring a reason
+      // Decline — opens modal requiring a reason (all task types)
       var declineBtn = document.createElement('button');
       declineBtn.className = 'task-action-btn danger';
       declineBtn.textContent = 'Decline';
@@ -597,13 +598,22 @@
       actions.appendChild(declineBtn);
     }
 
-    // Accepted req_review tasks also show the Approve button
+    // Accepted req_review tasks: Approve button persists until actually approved
     if (role === 'assignee' && task.status === 'accepted' && task.task_type === 'req_review') {
       var approveBtn2 = document.createElement('button');
       approveBtn2.className = 'task-action-btn';
       approveBtn2.textContent = 'Approve';
       approveBtn2.onclick = function() { openApprovalModal(task.id); };
       actions.appendChild(approveBtn2);
+    }
+
+    // Accepted scoring tasks: show Complete so the assignee can mark it done after scoring
+    if (role === 'assignee' && task.status === 'accepted' && task.task_type === 'scoring' && !isExpired) {
+      var completeBtn2 = document.createElement('button');
+      completeBtn2.className = 'task-action-btn';
+      completeBtn2.textContent = 'Complete';
+      completeBtn2.onclick = function() { _taskUpdateStatus(task.id, 'completed'); };
+      actions.appendChild(completeBtn2);
     }
 
     card.appendChild(actions);
@@ -2245,7 +2255,7 @@
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
-    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     const mCb = document.getElementById('toggleMTHUS');
     const masCb = document.getElementById('toggleMAS');
@@ -2825,11 +2835,17 @@ ${sections}
   }
 
   function handlePairMethodClick(method, btn) {
+    if (method === 'forcedrank' && userTier === 'free') {
+      showUpgradePrompt('forcedrank');
+      return;
+    }
     pairMethod = method;
     btn.closest('.pair-mode-toggle').querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     if (method === 'forcedrank') initForcedRankOrder();
     syncPairView();
+    // Keep Pugh matrix in sync when method changes (affects weight computation)
+    if (typeof renderPughMatrix === 'function') renderPughMatrix();
   }
 
   // Show/hide the correct content section based on all three toggle states.
@@ -3048,7 +3064,7 @@ ${sections}
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
-    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     goalMode = 'basic';
 
@@ -3670,6 +3686,9 @@ ${sections}
       structuredForm.style.display = 'none';
       if (basicBtn)     basicBtn.classList.add('active');
       if (structuredBtn) structuredBtn.classList.remove('active');
+      // Hide the live preview banner — it belongs to the structured form
+      const _pb = document.getElementById('previewBanner');
+      if (_pb) _pb.classList.remove('visible');
       // Pre-fill basic field with the TO content if it has something
       const toVal = document.getElementById('input-to')?.value || '';
       const basicEl = document.getElementById('input-goal-basic');
@@ -4586,6 +4605,8 @@ ${sections}
     btn.closest('.pair-mode-toggle').querySelectorAll('.pair-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     syncPairView();
+    // Keep Pugh matrix in sync — weighted toggle changes summary rows and chart
+    if (typeof renderPughMatrix === 'function') renderPughMatrix();
   }
 
   function initPairPairs() {
@@ -5051,7 +5072,7 @@ ${sections}
   // ── PUGH / SCOR STATE ──
   pughConcepts = [];   // [{id, name, customFieldValues}] — index 0 is always the Datum
   pughScores   = {};   // key: `${conceptId}_${reqId}` → '+' | '0' | '-' | number
-  pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
+  pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
   pughCollapsedIlities = new Set(); pughChartSort = 'order';
   pughConceptCounter = 0;
   scoringConceptId   = null;
@@ -5533,6 +5554,32 @@ ${sections}
 
     // Scoring mode
     html += `<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Scoring Mode: <strong>${modeLabel}</strong></div>`;
+
+    // Utility summary (non-datum only)
+    if (!isBaseline && requirements.length > 0) {
+      const isWeightedMode = (typeof pairMode !== 'undefined' ? pairMode : 'nonweighted') === 'weighted'
+                          && userTier !== 'free';
+      if (typeof calcConceptSummary === 'function') {
+        const _summSubj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+        const summ = calcConceptSummary(conceptId);
+        const maxPerReq = (pughSettings.advancedScoring && userTier !== 'free') ? 3 : 1;
+        const maxUtil   = requirements.length * maxPerReq;
+        const maxUtilW  = Math.round(requirements.reduce((s, r) => {
+          const wKey = _summSubj === 'requirements' ? String(r.id) : r.primary;
+          return s + maxPerReq * (window._pairWeights?.[wKey] || 1);
+        }, 0) * 10) / 10;
+        html += `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">`;
+        html += `<div style="font-size:12px"><span style="color:var(--text-muted)">+ Count: </span><strong style="color:var(--success)">+${summ.plusCount}</strong></div>`;
+        html += `<div style="font-size:12px"><span style="color:var(--text-muted)">− Count: </span><strong style="color:var(--danger)">−${summ.minusCount}</strong></div>`;
+        const netClr = summ.net > 0 ? 'var(--success)' : summ.net < 0 ? 'var(--danger)' : 'var(--text-muted)';
+        html += `<div style="font-size:12px"><span style="color:var(--text-muted)">Utility: </span><strong style="color:${netClr}">${summ.net > 0 ? '+' : ''}${summ.net} <span style="font-weight:400;opacity:0.65">(max ${maxUtil})</span></strong></div>`;
+        if (isWeightedMode) {
+          const wNetClr = summ.weightedNet > 0 ? 'var(--success)' : summ.weightedNet < 0 ? 'var(--danger)' : 'var(--text-muted)';
+          html += `<div style="font-size:12px"><span style="color:var(--text-muted)">Weighted Utility: </span><strong style="color:${wNetClr}">${summ.weightedNet > 0 ? '+' : ''}${summ.weightedNet} <span style="font-weight:400;opacity:0.65">(max ${maxUtilW})</span></strong></div>`;
+        }
+        html += `</div>`;
+      }
+    }
 
     // Requirements
     if (requirements.length > 0) {
@@ -6310,7 +6357,6 @@ ${sections}
       switchPage('basic', null);
     } else {
       // Entering Full Mode: set defaults for data that came from Basic Mode
-      reqFormat = 'incose'; // Basic Mode reqs are INCOSE; this takes effect on next REQS page visit
       goalMode = 'basic';   // Basic Mode goal maps to the Basic goal field
       // Return to last full-mode page (or HOME if first time)
       const returnPage = _lastFullPage || 'home';

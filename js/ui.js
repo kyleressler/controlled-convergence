@@ -1363,9 +1363,8 @@
     // Always recompute weights from saved pair state (handles load without visiting PAIR)
     recomputePairWeights();
 
-    // True only when the user has turned on weighted mode for ilities (Account/Pro only)
-    const isWeightedMode = (typeof pairMode    !== 'undefined' ? pairMode    : 'nonweighted') === 'weighted'
-                        && (typeof pairSubject !== 'undefined' ? pairSubject : 'ilities')     === 'ilities'
+    // True when the user has turned on weighted mode (Account/Pro only)
+    const isWeightedMode = (typeof pairMode !== 'undefined' ? pairMode : 'nonweighted') === 'weighted'
                         && userTier !== 'free';
 
     // Ordered ility groups (only those with selected ilities that have reqs)
@@ -1421,7 +1420,9 @@
       const reqs = reqsByIlity[il.id];
       if (!reqs || reqs.length === 0) return;
       const w = window._pairWeights?.[il.id];
-      const wStr = isWeightedMode ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
+      // Only show per-ility weight label when comparing ilities (not requirements)
+      const _ilSubj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
+      const wStr = (isWeightedMode && _ilSubj === 'ilities') ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
       const isCollapsed = pughCollapsedIlities.has(il.id);
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('${il.id}')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>${il.name}${wStr}</td></tr>`;
       if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol));
@@ -1504,9 +1505,12 @@
 
   function calcConceptSummary(conceptId) {
     let plusCount = 0, minusCount = 0, neuCount = 0, net = 0, weightedNet = 0;
+    const _subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
     requirements.forEach(req => {
       const score  = pughScores[conceptId + '_' + req.id];
-      const weight = window._pairWeights?.[req.primary] || 1;
+      // Weight key: req ID (string) when comparing requirements, ility ID when comparing ilities
+      const wKey   = _subj === 'requirements' ? String(req.id) : req.primary;
+      const weight = window._pairWeights?.[wKey] || 1;
       if (score === undefined || score === null) return;
       if (score === '+' || (typeof score === 'number' && score > 0)) {
         plusCount++;
@@ -1542,10 +1546,12 @@
     }
 
     // Max possible utility score: basic = 1 per req; advanced = 3 per req
+    const _sumSubj  = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
     const maxPerReq = (pughSettings.advancedScoring && userTier !== 'free') ? 3 : 1;
     const maxUtil   = requirements.length * maxPerReq;
     const maxUtilW  = Math.round(requirements.reduce((sum, r) => {
-      const w = window._pairWeights?.[r.primary] || 1;
+      const wKey = _sumSubj === 'requirements' ? String(r.id) : r.primary;
+      const w = window._pairWeights?.[wKey] || 1;
       return sum + maxPerReq * w;
     }, 0) * 10) / 10;
 
@@ -1630,25 +1636,33 @@
     const ids    = [...(typeof selectedIlities !== 'undefined' ? selectedIlities : [])];
     const weights = {};
 
-    if (mode === 'nonweighted' || subj !== 'ilities') {
-      // Non-weighted or comparing requirements — ilities all carry equal weight 1
+    if (mode === 'nonweighted') {
+      // Non-weighted — all ilities carry equal weight 1
       ids.forEach(id => { weights[id] = 1; });
       window._pairWeights = weights;
       return;
     }
 
+    // Weighted mode — compute weights for the active subject (ilities or requirements).
+    // When pairSubject === 'requirements', keys are requirement IDs (as strings).
+    // When pairSubject === 'ilities',      keys are ility IDs.
+    const weightIds = subj === 'requirements'
+      ? (typeof requirements !== 'undefined' ? requirements.map(r => String(r.id)) : [])
+      : ids;
+
     if (method === 'forcedrank') {
-      const order = (typeof forcedRankOrder !== 'undefined') ? forcedRankOrder : [];
+      const order = (typeof forcedRankOrder !== 'undefined') ? forcedRankOrder.map(String) : [];
       const n = order.length;
       order.forEach((id, i) => {
         weights[id] = n === 1 ? 5 : Math.max(1, Math.round(5 - (i / (n - 1)) * 4));
       });
-      ids.forEach(id => { if (weights[id] === undefined) weights[id] = 1; });
+      weightIds.forEach(id => { if (weights[String(id)] === undefined) weights[String(id)] = 1; });
       window._pairWeights = weights;
       return;
     }
 
-    // Weighted pairwise — derive from win counts (reuses app.js helpers if loaded)
+    // Weighted pairwise — derive from win counts (reuses app.js helpers if loaded).
+    // calcWinCounts already handles both pairSubject values.
     if (typeof calcWinCounts === 'function' && typeof assignWeights === 'function') {
       const wc = calcWinCounts();
       if (Object.keys(wc).length > 0) {
@@ -1658,7 +1672,7 @@
     }
 
     // Fallback: equal weights
-    ids.forEach(id => { weights[id] = 1; });
+    weightIds.forEach(id => { weights[String(id)] = 1; });
     window._pairWeights = weights;
   }
 
@@ -1684,10 +1698,10 @@
     const nonDatum = pughConcepts.slice(1);
 
     // Determine if we're in weighted mode (mirrors the same check in renderPughMatrix)
-    const isWeightedMode = (typeof pairMode    !== 'undefined' ? pairMode    : 'nonweighted') === 'weighted'
-                        && (typeof pairSubject !== 'undefined' ? pairSubject : 'ilities')     === 'ilities'
+    const isWeightedMode = (typeof pairMode !== 'undefined' ? pairMode : 'nonweighted') === 'weighted'
                         && userTier !== 'free';
 
+    const _chartSubj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
     const chartData = nonDatum.map((concept) => {
       let plusCount = 0;
       let minusCount = 0; // stored as negative so bars extend below zero
@@ -1700,7 +1714,8 @@
         const scoreNum = scoreToNum(score);
         if (scoreNum > 0) plusCount++;
         else if (scoreNum < 0) minusCount--; // negative = bar goes downward
-        const weight = window._pairWeights?.[req.primary] || 1;
+        const wKey   = _chartSubj === 'requirements' ? String(req.id) : req.primary;
+        const weight = window._pairWeights?.[wKey] || 1;
         utilityScore += scoreNum;
         utilityScoreWeighted += scoreNum * weight;
       });
@@ -1761,7 +1776,11 @@
     // Read theme colors so chart bars match the Pugh Matrix cells exactly
     const _sRgb   = getThemeRgb('--success-rgb') || '5,122,85';
     const _dRgb   = getThemeRgb('--danger-rgb')  || '200,30,30';
-    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a18';
+    // Hardcode text color by body theme class — getComputedStyle('--text') can return empty
+    // in some browsers when the property is only defined on :root rather than body.
+    const _isDark = document.body.classList.contains('theme-dark');
+    const _isEng  = document.body.classList.contains('theme-engineering');
+    const textColor = _isDark ? '#e8e8e6' : _isEng ? '#0e1e0e' : '#1a1a18';
 
     const ctx = canvas.getContext('2d');
     window._pughChart = new Chart(ctx, {
@@ -2037,7 +2056,9 @@
     // Read theme colors so chart bars match the Pugh Matrix cells exactly
     const _sRgb    = getThemeRgb('--success-rgb') || '5,122,85';
     const _dRgb    = getThemeRgb('--danger-rgb')  || '200,30,30';
-    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a18';
+    const _isDarkQS = document.body.classList.contains('theme-dark');
+    const _isEngQS  = document.body.classList.contains('theme-engineering');
+    const textColor = _isDarkQS ? '#e8e8e6' : _isEngQS ? '#0e1e0e' : '#1a1a18';
 
     const ctx = canvas.getContext('2d');
     window._qsChart = new Chart(ctx, {
