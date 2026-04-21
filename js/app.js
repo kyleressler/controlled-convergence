@@ -4827,15 +4827,21 @@ ${sections}
       if (scorePopup && scorePopup.classList.contains('open') && !scorePopup.contains(e.target)) {
         closeScorePopup();
       }
-      // Close inline scoring view when clicking outside the concept cards / scoring view area
+      // Close inline scoring view when clicking outside the concept cards / scoring view area.
+      // Use composedPath() instead of contains() — renderConceptCards() rebuilds innerHTML
+      // which detaches the original target from the DOM before this handler runs, so
+      // contains() would always return false and immediately close a view just opened.
+      // composedPath() captures the traversal path at dispatch time (before DOM mutations).
       if ((scoringConceptId || datumDefActive) && _currentPage === 'scor') {
         const scorView  = document.getElementById('scorScoringView');
         const scorCards = document.getElementById('scorConceptCards');
-        if (scorView && scorCards &&
-            !scorView.contains(e.target) &&
-            !scorCards.contains(e.target)) {
-          if (datumDefActive) exitDatumDef();
-          else exitScoringView();
+        if (scorView && scorCards) {
+          const path = e.composedPath ? e.composedPath() : [];
+          const clickedInsideScor = path.includes(scorCards) || path.includes(scorView);
+          if (!clickedInsideScor) {
+            if (datumDefActive) exitDatumDef();
+            else exitScoringView();
+          }
         }
       }
     });
