@@ -364,6 +364,16 @@ CREATE POLICY "Owners and editors can update projects"
   ON public.projects FOR UPDATE
   USING (auth.uid() = user_id OR public.user_can_edit_project(id));
 
+-- The original INSERT policy only allows user_id = auth.uid(), which blocks editors
+-- trying to upsert (upsert = INSERT + ON CONFLICT DO UPDATE — INSERT RLS fires first).
+-- Fix: also allow INSERT when the user is an editor on an existing project.
+-- Note: the client already routes non-owners through UPDATE instead of upsert,
+-- so this policy is a belt-and-suspenders safety net.
+DROP POLICY IF EXISTS "Users can insert their own projects" ON public.projects;
+CREATE POLICY "Owners and editors can insert or upsert projects"
+  ON public.projects FOR INSERT
+  WITH CHECK (auth.uid() = user_id OR public.user_can_edit_project(id));
+
 
 -- ── Fix project_members policies to use helper functions ───────
 -- The original policies joined back to projects, creating the same recursion.

@@ -143,14 +143,17 @@
   }
 
   function updateNavProjectName() {
-    const wrap = document.getElementById('navProjectName');
-    const text = document.getElementById('navProjectNameText');
+    const wrap     = document.getElementById('navProjectName');
+    const text     = document.getElementById('navProjectNameText');
+    const syncBtn  = document.getElementById('navSyncBtn');
     if (!wrap || !text) return;
     if (activeProject && activeProject.name) {
       text.textContent = activeProject.name;
       wrap.style.display = 'flex';
+      if (syncBtn) syncBtn.style.display = 'flex';
     } else {
       wrap.style.display = 'none';
+      if (syncBtn) syncBtn.style.display = 'none';
     }
   }
 

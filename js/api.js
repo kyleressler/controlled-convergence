@@ -15,35 +15,53 @@
  */
 async function saveProject(project) {
   if (appState.currentUser) {
-    // Supabase: upsert the full project row
-    const { data, error } = await _supabase
-      .from('projects')
-      .upsert({
-        id:          project.id,
-        // Preserve the original owner. A scoped_editor saving someone else's project
-        // must NOT overwrite user_id — that would silently transfer ownership.
-        // Fall back to currentUser.id only for brand-new projects (user_id not yet set).
-        user_id:     project.user_id || appState.currentUser.id,
-        name:        project.name,
-        owner:       project.owner || '',
-        description: project.description || '',
-        data:        {
-          goal:         project.goal,
-          ilities:      project.ilities,
-          stakeholders: project.stakeholders,
-          requirements: project.requirements,
-          concepts:     project.concepts,
-          matrix:       project.matrix,
-          pughSettings: project.pughSettings
-        },
-        created_at:  project.created_at,
-        updated_at:  new Date().toISOString()
-      })
-      .select()
-      .single();
+    const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
+
+    // Shared content payload — same shape regardless of owner vs. collaborator
+    const payload = {
+      name:        project.name,
+      owner:       project.owner || '',
+      description: project.description || '',
+      data:        {
+        goal:         project.goal,
+        ilities:      project.ilities,
+        stakeholders: project.stakeholders,
+        requirements: project.requirements,
+        concepts:     project.concepts,
+        matrix:       project.matrix,
+        pughSettings: project.pughSettings
+      },
+      updated_at:  new Date().toISOString()
+    };
+
+    let data, error;
+
+    if (isOwner) {
+      // Owner: upsert handles both first-save (INSERT) and subsequent saves (UPDATE).
+      ({ data, error } = await _supabase
+        .from('projects')
+        .upsert({ id: project.id, user_id: appState.currentUser.id, created_at: project.created_at, ...payload })
+        .select()
+        .single());
+    } else {
+      // Collaborator (editor / scoped_editor): UPDATE only.
+      // Supabase upsert is an INSERT + ON CONFLICT DO UPDATE, so the INSERT RLS check
+      // fires first — which blocks any user whose id doesn't match user_id.
+      // Plain UPDATE bypasses that; the "Owners and editors can update projects" policy allows it.
+      ({ data, error } = await _supabase
+        .from('projects')
+        .update(payload)
+        .eq('id', project.id)
+        .select()
+        .single());
+    }
 
     if (error) {
-      console.error('[saveProject] Supabase error:', error.message, '| code:', error.code, '| user:', appState.currentUser?.id, '| project:', project.id);
+      console.error('[saveProject] Supabase error:', error.message,
+                    '| code:', error.code,
+                    '| user:', appState.currentUser?.id,
+                    '| project:', project.id,
+                    '| isOwner:', isOwner);
       return { data: null, error: error.message };
     }
 

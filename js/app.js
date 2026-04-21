@@ -452,18 +452,21 @@
     if (!appState.currentUser) return;
     var uid = appState.currentUser.id;
 
-    // Fetch tasks assigned to me
+    // Fetch active tasks assigned to me (pending or accepted only)
+    // Resolved tasks (completed/declined/expired) live in Task History.
     var { data: toMe, error: errToMe } = await _supabase
       .from('tasks')
       .select('*')
       .eq('assignee_id', uid)
+      .in('status', ['pending', 'accepted'])
       .order('created_at', { ascending: false });
 
-    // Fetch tasks I assigned
+    // Fetch active tasks I assigned — same filter so the panel stays clean
     var { data: byMe, error: errByMe } = await _supabase
       .from('tasks')
       .select('*')
       .eq('assigner_id', uid)
+      .in('status', ['pending', 'accepted'])
       .order('created_at', { ascending: false });
 
     _renderTaskSection('tasksAssignedToMe', 'tasksAssignedToMeEmpty', toMe || [], 'assignee');
@@ -1219,7 +1222,7 @@
     } catch(e) { /* ignore if function not available */ }
 
     var proj = savedProjects.find(function(p) { return p.id === _inviteTargetProjectId; });
-    var roleLabel = role === 'scoped_editor' ? 'Editor' : 'Viewer';
+    var roleLabel = role === 'editor' ? 'Editor' : role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
     var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
 
     var { error } = await _supabase.from('tasks').insert({
@@ -4261,6 +4264,8 @@ ${sections}
       _completedPages.add(_currentPage);
     }
     _currentPage = pageId;
+    // Persist current page so a browser refresh can restore it
+    try { localStorage.setItem('cc_lastPage', pageId); } catch(e) {}
 
     // If the right sidebar is open, refresh its content for the new page
     if (document.getElementById('rightSidebar').classList.contains('open')) {
@@ -4829,6 +4834,99 @@ ${sections}
     saveProject(snap).catch(err => console.warn('[immediate-save] failed', err));
   }
 
+  // ── NAV SYNC: bidirectional sync for active project ──
+  // Pull if the server has newer changes (collaborator edited); push otherwise.
+  // Does NOT navigate away from the current page.
+  async function syncActiveProject() {
+    if (!activeProject) return;
+    const btn = document.getElementById('navSyncBtn');
+    if (btn) { btn.classList.remove('sync-ok', 'sync-pull'); btn.classList.add('spinning'); }
+
+    try {
+      if (!appState.currentUser) {
+        // Anonymous — nothing to sync; flash neutral OK
+        _showSyncResult(btn, 'sync-ok', 'No account — changes are local only');
+        return;
+      }
+
+      // ── Step 1: check server timestamp only (cheap HEAD-style query) ──
+      const { data: meta, error: metaErr } = await _supabase
+        .from('projects')
+        .select('id, updated_at')
+        .eq('id', activeProject.id)
+        .single();
+
+      if (metaErr || !meta) {
+        console.warn('[syncActiveProject] metadata fetch error:', metaErr && metaErr.message);
+        return;
+      }
+
+      // Use savedProjects entry for local timestamp — it's updated on every save,
+      // whereas activeProject.updated_at only reflects the load time.
+      const localEntry      = savedProjects.find(p => p.id === activeProject.id);
+      const localUpdatedAt  = (localEntry && localEntry.updated_at) || activeProject.updated_at || '';
+      const serverUpdatedAt = meta.updated_at || '';
+
+      if (serverUpdatedAt > localUpdatedAt) {
+        // ── Server is newer: a collaborator has changes — PULL ──
+        const { data: full, error: fullErr } = await _supabase
+          .from('projects')
+          .select('*')
+          .eq('id', activeProject.id)
+          .single();
+
+        if (fullErr || !full) {
+          console.warn('[syncActiveProject] full fetch error:', fullErr && fullErr.message);
+          return;
+        }
+
+        const fresh = {
+          id:          full.id,
+          user_id:     full.user_id,
+          name:        full.name,
+          owner:       full.owner || '',
+          description: full.description || '',
+          created_at:  full.created_at,
+          updated_at:  full.updated_at,
+          ...(full.data || {})
+        };
+
+        const idx = savedProjects.findIndex(p => p.id === fresh.id);
+        if (idx >= 0) savedProjects[idx] = fresh; else savedProjects.push(fresh);
+        appState.projects = savedProjects.slice();
+        loadProject(fresh.id);         // re-renders all pages in place
+        _showSyncResult(btn, 'sync-pull', 'Pulled latest from server');
+
+      } else {
+        // ── Local is same or newer: PUSH our current state ──
+        const snap = snapshotCurrentState(activeProject);
+        const { error: saveErr } = await saveProject(snap);
+        if (saveErr) {
+          console.warn('[syncActiveProject] push error:', saveErr);
+        } else {
+          // Keep savedProjects in sync with the snapshot we just pushed
+          const idx = savedProjects.findIndex(p => p.id === snap.id);
+          if (idx >= 0) savedProjects[idx] = snap;
+        }
+        _showSyncResult(btn, 'sync-ok', 'Saved to server');
+      }
+
+    } catch(e) {
+      console.error('[syncActiveProject] unexpected error:', e);
+    } finally {
+      if (btn) btn.classList.remove('spinning');
+    }
+  }
+
+  // Brief visual feedback on the sync button: adds a result class for 1.5 s then removes it.
+  function _showSyncResult(btn, cls, tipText) {
+    if (!btn) return;
+    btn.classList.add(cls);
+    const prev = btn.title;
+    btn.title = tipText;
+    setTimeout(() => { btn.classList.remove(cls); btn.title = prev; }, 1500);
+  }
+
   // ── AUTO-SAVE: every 60 seconds if there is an active project ──
   setInterval(function() {
     if (activeProject) {
@@ -4848,13 +4946,19 @@ ${sections}
       loadProjects(appState.currentUser.id).then(function(result) {
         if (!result.error) {
           renderProjList();
-          // Restore last active project from localStorage (refresh recovery)
+          // Restore last active project + page from localStorage (refresh recovery)
           try {
-            const lastId = localStorage.getItem('cc_activeProjectId');
+            const lastId   = localStorage.getItem('cc_activeProjectId');
+            const lastPage = localStorage.getItem('cc_lastPage');
             if (lastId) {
               const last = savedProjects.find(p => p.id === lastId);
               if (last) {
                 loadProject(lastId);
+                // Restore the page the user was on before refresh
+                if (lastPage && lastPage !== 'home' && lastPage !== 'proj') {
+                  const navBtn = document.querySelector('[data-page="' + lastPage + '"]');
+                  switchPage(lastPage, navBtn || null);
+                }
               }
             }
           } catch(e) {}

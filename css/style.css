@@ -339,6 +339,44 @@
   font-weight: 700;
   color: var(--text);
 }
+/* ── NAV SYNC BUTTON ── */
+.nav-sync-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-light);
+  color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 4px;
+  transition: background 0.15s, transform 0.3s;
+}
+.nav-sync-btn:hover {
+  background: var(--accent-border);
+}
+.nav-sync-btn.spinning svg {
+  animation: nav-spin 0.7s linear infinite;
+}
+@keyframes nav-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+/* Push succeeded (saved to server) */
+.nav-sync-btn.sync-ok {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+/* Pull succeeded (pulled newer version from server) */
+.nav-sync-btn.sync-pull {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
 /* ── ACCOUNT STATUS ── */
 .account-status-wrap { margin-bottom: 18px; }
 .account-tier-badge {
