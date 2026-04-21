@@ -1274,37 +1274,79 @@
 
     if (btnEl) { btnEl.textContent = 'Sending…'; btnEl.disabled = true; }
 
-    // Resolve email → Supabase user ID
+    // Hoist these so they're accessible after the try/catch (needed for closeModal + mailto flow)
     var assigneeId = null;
-    try {
-      var { data: resolvedId } = await _supabase.rpc('get_user_id_by_email', { lookup_email: email });
-      assigneeId = resolvedId || null;
-    } catch(e) { /* ignore if function not available */ }
-
     var proj = savedProjects.find(function(p) { return p.id === _inviteTargetProjectId; });
-    var roleLabel = role === 'editor' ? 'Editor' : role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
-    var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
 
-    var { error } = await _supabase.from('tasks').insert({
-      project_id:     _inviteTargetProjectId,
-      assigner_id:    appState.currentUser.id,
-      assignee_id:    assigneeId,
-      assignee_email: email,
-      task_type:      'collab_invite',
-      status:         'pending',
-      title:          title,
-      payload: {
-        project_id:   _inviteTargetProjectId,
-        project_name: proj ? proj.name : '',
-        role:         role,
-        invited_by_email: appState.currentUser.email
+    try {
+      // Resolve email → Supabase user ID (best-effort — null if user has no account)
+      try {
+        var { data: resolvedId, error: rpcErr } = await _supabase.rpc('get_user_id_by_email', { lookup_email: email });
+        if (rpcErr) {
+          console.warn('[submitInvite] get_user_id_by_email RPC error:', rpcErr.message, '| code:', rpcErr.code);
+        } else {
+          assigneeId = resolvedId || null;
+        }
+      } catch(e) {
+        console.warn('[submitInvite] get_user_id_by_email threw:', e);
       }
-    });
+      var roleLabel = role === 'editor' ? 'Editor' : role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+      var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
 
-    if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+      console.log('[submitInvite] inserting task | project_id:', _inviteTargetProjectId,
+                  '| assigner_id:', appState.currentUser.id,
+                  '| assignee_id:', assigneeId,
+                  '| assignee_email:', email);
 
-    if (error) {
-      if (errEl) { errEl.textContent = 'Error sending invite: ' + error.message; errEl.style.display = ''; }
+      var insertResult = await _supabase.from('tasks').insert({
+        project_id:     _inviteTargetProjectId,
+        assigner_id:    appState.currentUser.id,
+        assignee_id:    assigneeId,
+        assignee_email: email,
+        task_type:      'collab_invite',
+        status:         'pending',
+        title:          title,
+        payload: {
+          project_id:       _inviteTargetProjectId,
+          project_name:     proj ? proj.name : '',
+          role:             role,
+          invited_by_email: appState.currentUser.email
+        }
+      });
+
+      var error = insertResult.error;
+
+      if (error) {
+        console.error('[submitInvite] tasks insert failed | message:', error.message,
+                      '| code:', error.code,
+                      '| hint:', error.hint,
+                      '| details:', error.details,
+                      '| status:', insertResult.status);
+        if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+        if (errEl) {
+          var msg = error.message || 'Unknown error';
+          // Surface friendlier messages for common RLS/FK failures
+          if (error.code === '42501' || msg.toLowerCase().includes('policy')) {
+            msg = 'Permission denied — your session may have expired. Try signing out and back in.';
+          } else if (error.code === '23503') {
+            msg = 'Project not found in database. Save the project first and try again.';
+          }
+          errEl.textContent = 'Error sending invite: ' + msg;
+          errEl.style.display = '';
+        }
+        return;
+      }
+
+      if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+
+    } catch(e) {
+      // Network-level failure (fetch threw instead of returning { error })
+      console.error('[submitInvite] unexpected exception:', e);
+      if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+      if (errEl) {
+        errEl.textContent = 'Network error sending invite. Check your connection and try again.';
+        errEl.style.display = '';
+      }
       return;
     }
 
