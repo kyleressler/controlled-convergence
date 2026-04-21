@@ -4568,6 +4568,31 @@ ${sections}
   // ── PAGE SWITCHING ──
   _currentPage = 'home';
 
+  // ── Project list auto-refresh ─────────────────────────────────
+  var _projPollInterval = null;
+
+  // Pull fresh project data from Supabase then re-render. Safe to call any time.
+  async function _refreshProjPageFromServer() {
+    if (appState.currentUser) {
+      await loadProjects(appState.currentUser.id);
+    }
+    if (typeof renderProjPage === 'function') renderProjPage();
+  }
+
+  // Start 60-second background poll — only while Projects page is visible.
+  function _startProjPolling() {
+    _stopProjPolling();
+    if (!appState.currentUser) return;
+    _projPollInterval = setInterval(function() {
+      if (_currentPage !== 'proj') { _stopProjPolling(); return; }
+      _refreshProjPageFromServer();
+    }, 60000);
+  }
+
+  function _stopProjPolling() {
+    if (_projPollInterval) { clearInterval(_projPollInterval); _projPollInterval = null; }
+  }
+
   function switchPage(pageId, navBtn) {
     // Save current state before leaving (nav-save)
     if (activeProject && _currentPage && _currentPage !== pageId) {
@@ -4604,9 +4629,16 @@ ${sections}
     updateNavCompletion();
 
 
+    // Stop any running project poll when leaving the Projects page
+    if (pageId !== 'proj') { _stopProjPolling(); }
+
     // Page-specific init
     if (pageId === 'basic') { syncGuidedToQS(); } // sync full-mode state → Basic Mode display when entering basic
-    if (pageId === 'proj') { renderProjPage(); }
+    if (pageId === 'proj') {
+      // Pull fresh data from Supabase before rendering, then start background poll
+      _refreshProjPageFromServer();
+      _startProjPolling();
+    }
     if (pageId === 'tbus') {
       // Ensure the correct goal form (basic vs. structured) is visible, then focus it
       if (typeof switchGoalMode === 'function') switchGoalMode(goalMode);
