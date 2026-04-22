@@ -77,7 +77,7 @@ let currentProjectRole = null;
 
 // Collaborators (project_members rows) for the active project.
 // Populated by loadProjectCollaborators() when a project loads (owners only).
-// Each entry: { user_id, role, invited_by, created_at, email? }
+// Each entry: { user_id, role, invited_by, created_at, display_name }
 let projectCollaborators = [];
 
 // Scoring tasks assigned TO the current user for the active project.

@@ -1367,7 +1367,8 @@
   }
 
   // Load project_members for the given project so the owner can see collaborators.
-  // Joins user_profiles to get each collaborator's display name.
+  // Does a second pass to fetch display names from user_profiles (avoids relying
+  // on a FK join that may not be defined in the DB schema).
   // Only works when signed in; owners only (RLS enforces this).
   async function loadProjectCollaborators(projectId) {
     projectCollaborators = [];
@@ -1375,13 +1376,28 @@
 
     var { data, error } = await _supabase
       .from('project_members')
-      .select('user_id, role, invited_by, created_at, user_profiles(name)')
+      .select('user_id, role, invited_by, created_at')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
-    if (!error && data) {
+    if (error || !data) { renderProjList(); return; }
+
+    // Fetch display names in a second query — no FK constraint needed
+    if (data.length > 0) {
+      var userIds = data.map(function(m) { return m.user_id; });
+      var { data: profiles } = await _supabase
+        .from('user_profiles')
+        .select('id, name')
+        .in('id', userIds);
+      var nameMap = {};
+      if (profiles) profiles.forEach(function(p) { nameMap[p.id] = p.name || ''; });
+      projectCollaborators = data.map(function(m) {
+        return Object.assign({}, m, { display_name: nameMap[m.user_id] || '' });
+      });
+    } else {
       projectCollaborators = data;
     }
+
     renderProjList(); // Re-render so collaborator list updates
   }
 
@@ -1415,8 +1431,7 @@
     }
 
     listEl.innerHTML = projectCollaborators.map(function(m) {
-      var rawName = (m.user_profiles && m.user_profiles.name) ? m.user_profiles.name : '';
-      var displayName = rawName || 'Unknown';
+      var displayName = m.display_name || 'Unknown';
       var safeName = String(displayName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       var roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
       var isEditing = editingMemberId && editingMemberId === m.user_id;
@@ -1465,8 +1480,7 @@
   // Open the revoke confirmation modal for a given collaborator.
   function openRevokeConfirmModal(memberId) {
     var m = projectCollaborators.find(function(c) { return c.user_id === memberId; });
-    var rawName = (m && m.user_profiles && m.user_profiles.name) ? m.user_profiles.name : '';
-    var displayName = rawName || 'this collaborator';
+    var displayName = (m && m.display_name) ? m.display_name : 'this collaborator';
     _revokeTargetMemberId = memberId;
     var nameEl = document.getElementById('revokeCollabName');
     if (nameEl) nameEl.textContent = displayName;
