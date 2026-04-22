@@ -1367,8 +1367,8 @@
   }
 
   // Load project_members for the given project so the owner can see collaborators.
-  // Does a second pass to fetch display names from user_profiles (avoids relying
-  // on a FK join that may not be defined in the DB schema).
+  // Does a second pass against the tasks table to fetch the email address that was
+  // used when each collaborator was invited — that's the identifier the owner knows them by.
   // Only works when signed in; owners only (RLS enforces this).
   async function loadProjectCollaborators(projectId) {
     projectCollaborators = [];
@@ -1382,17 +1382,26 @@
 
     if (error || !data) { renderProjList(); return; }
 
-    // Fetch display names in a second query — no FK constraint needed
     if (data.length > 0) {
+      // Pull the invite email for each member from the tasks table.
+      // assignee_email is stored at invite time and is the address the owner recognises.
       var userIds = data.map(function(m) { return m.user_id; });
-      var { data: profiles } = await _supabase
-        .from('user_profiles')
-        .select('id, name')
-        .in('id', userIds);
-      var nameMap = {};
-      if (profiles) profiles.forEach(function(p) { nameMap[p.id] = p.name || ''; });
+      var { data: inviteTasks } = await _supabase
+        .from('tasks')
+        .select('assignee_id, assignee_email')
+        .eq('project_id', projectId)
+        .eq('task_type', 'collab_invite')
+        .in('assignee_id', userIds);
+
+      var emailMap = {};
+      if (inviteTasks) {
+        inviteTasks.forEach(function(t) {
+          if (t.assignee_id && t.assignee_email) emailMap[t.assignee_id] = t.assignee_email;
+        });
+      }
+
       projectCollaborators = data.map(function(m) {
-        return Object.assign({}, m, { display_name: nameMap[m.user_id] || '' });
+        return Object.assign({}, m, { display_name: emailMap[m.user_id] || '' });
       });
     } else {
       projectCollaborators = data;
