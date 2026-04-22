@@ -265,14 +265,12 @@
       ? `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`
       : '';
 
-    // Collaborator chips on active card
+    // Team Access button on active card — lets the owner see and manage collaborators
     let collabHtml = '';
-    if (isActive && typeof projectCollaborators !== 'undefined' && projectCollaborators.length > 0) {
-      const chips = projectCollaborators.map(m => {
-        const roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
-        return `<span class="proj-collab-chip">${roleLabel}</span>`;
-      }).join('');
-      collabHtml = `<div class="proj-collab-list"><span class="proj-collab-label">Collaborators:</span>${chips}</div>`;
+    if (isActive) {
+      const count = (typeof projectCollaborators !== 'undefined') ? projectCollaborators.length : 0;
+      const label = count > 0 ? `Team Access (${count})` : 'Team Access';
+      collabHtml = `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();openTeamAccessModal()" title="View and manage team access">${label}</button></div>`;
     }
 
     return `
@@ -621,6 +619,10 @@
         const hasTags = ilityTag || secondaryTags || stakeholderTags;
         const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}</div>` : '';
 
+        const sourceRow = r.source
+          ? `<div class="req-item-source"><span class="req-source-label">Source:</span> ${escHtml(r.source)}</div>`
+          : '';
+
         const _rId = typeof r.id === 'number' ? r.id : `'${r.id}'`;
 
         // ── Scoring task badge ──
@@ -677,6 +679,7 @@
             </div>
           </div>
           ${tagsRow}
+          ${sourceRow}
           ${badgeRow}
           ${approvalRecord}
         </div>`;

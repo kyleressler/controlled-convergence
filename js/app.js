@@ -1367,6 +1367,7 @@
   }
 
   // Load project_members for the given project so the owner can see collaborators.
+  // Joins user_profiles to get each collaborator's display name.
   // Only works when signed in; owners only (RLS enforces this).
   async function loadProjectCollaborators(projectId) {
     projectCollaborators = [];
@@ -1374,7 +1375,7 @@
 
     var { data, error } = await _supabase
       .from('project_members')
-      .select('user_id, role, invited_by, created_at')
+      .select('user_id, role, invited_by, created_at, user_profiles(name)')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
@@ -1382,6 +1383,123 @@
       projectCollaborators = data;
     }
     renderProjList(); // Re-render so collaborator list updates
+  }
+
+  // ── TEAM ACCESS MODAL ─────────────────────────────────────────
+
+  var _revokeTargetMemberId = null; // user_id of collaborator pending revoke
+
+  function openTeamAccessModal() {
+    if (!activeProject) return;
+    const titleEl = document.getElementById('teamAccessProjectName');
+    if (titleEl) titleEl.textContent = activeProject.name;
+    renderTeamAccessList();
+    var modal = document.getElementById('teamAccessModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeTeamAccessModal() {
+    var modal = document.getElementById('teamAccessModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  // Renders collaborator rows into the teamAccessList div.
+  // Pass editingMemberId to put that specific row into edit mode.
+  function renderTeamAccessList(editingMemberId) {
+    var listEl = document.getElementById('teamAccessList');
+    if (!listEl) return;
+
+    if (!projectCollaborators || projectCollaborators.length === 0) {
+      listEl.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">No collaborators yet. Use the <strong>+ Invite</strong> button to add team members.</div>';
+      return;
+    }
+
+    listEl.innerHTML = projectCollaborators.map(function(m) {
+      var rawName = (m.user_profiles && m.user_profiles.name) ? m.user_profiles.name : '';
+      var displayName = rawName || 'Unknown';
+      var safeName = String(displayName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      var roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+      var isEditing = editingMemberId && editingMemberId === m.user_id;
+
+      if (isEditing) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px;background:rgba(var(--accent-rgb,26,86,219),0.04)">'
+          + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
+          + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" onchange="updateCollabRole(\'' + m.user_id + '\', this.value)">'
+          +   '<option value="viewer"'        + (m.role === 'viewer'        ? ' selected' : '') + '>Viewer</option>'
+          +   '<option value="editor"'        + (m.role === 'editor'        ? ' selected' : '') + '>Editor</option>'
+          +   '<option value="scoped_editor"' + (m.role === 'scoped_editor' ? ' selected' : '') + '>Scoped Editor</option>'
+          + '</select>'
+          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;white-space:nowrap" onclick="renderTeamAccessList()">Done</button>'
+          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" onclick="openRevokeConfirmModal(\'' + m.user_id + '\')">Revoke</button>'
+          + '</div>';
+      }
+
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px">'
+        + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
+        + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
+        + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="renderTeamAccessList(\'' + m.user_id + '\')">Edit</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  // Update a collaborator's role in Supabase and reflect it locally.
+  async function updateCollabRole(memberId, newRole) {
+    if (!activeProject || !appState.currentUser) return;
+    var { error } = await _supabase
+      .from('project_members')
+      .update({ role: newRole })
+      .eq('user_id', memberId)
+      .eq('project_id', activeProject.id);
+
+    if (error) {
+      alert('Could not update role: ' + error.message);
+      return;
+    }
+    // Reflect locally
+    var m = projectCollaborators.find(function(c) { return c.user_id === memberId; });
+    if (m) m.role = newRole;
+    renderTeamAccessList(memberId); // stay in edit mode so user can see the change
+    renderProjList();
+  }
+
+  // Open the revoke confirmation modal for a given collaborator.
+  function openRevokeConfirmModal(memberId) {
+    var m = projectCollaborators.find(function(c) { return c.user_id === memberId; });
+    var rawName = (m && m.user_profiles && m.user_profiles.name) ? m.user_profiles.name : '';
+    var displayName = rawName || 'this collaborator';
+    _revokeTargetMemberId = memberId;
+    var nameEl = document.getElementById('revokeCollabName');
+    if (nameEl) nameEl.textContent = displayName;
+    var modal = document.getElementById('revokeCollabModal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeRevokeConfirmModal() {
+    _revokeTargetMemberId = null;
+    var modal = document.getElementById('revokeCollabModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  // Execute the revoke after confirmation.
+  async function confirmRevokeCollaborator() {
+    if (!_revokeTargetMemberId || !activeProject) return;
+    var memberId = _revokeTargetMemberId;
+    closeRevokeConfirmModal();
+
+    var { error } = await _supabase
+      .from('project_members')
+      .delete()
+      .eq('user_id', memberId)
+      .eq('project_id', activeProject.id);
+
+    if (error) {
+      alert('Could not revoke access: ' + error.message);
+      return;
+    }
+    // Remove from local state and refresh both views
+    projectCollaborators = projectCollaborators.filter(function(c) { return c.user_id !== memberId; });
+    renderTeamAccessList();
+    renderProjList();
   }
 
   // Accept a collab_invite task by calling the SECURITY DEFINER function.
@@ -3147,7 +3265,6 @@ ${sections}
   function createProject() {
     const input = document.getElementById('projNameInput');
     const descInput = document.getElementById('projDescInput');
-    const ownerInput = document.getElementById('projOwnerInput');
     const errEl = document.getElementById('projFormError');
     if (!input) return;
     const name = input.value.trim();
@@ -3165,7 +3282,8 @@ ${sections}
       return;
     }
     const description = descInput ? descInput.value.trim() : '';
-    const owner = ownerInput ? ownerInput.value.trim() : '';
+    // Owner is always the logged-in user's display name — not a free-text field
+    const owner = (appState.currentUser && appState.currentUser.name) ? appState.currentUser.name : '';
 
     // Use the canonical project model
     const project = createProjectModel({
@@ -3209,7 +3327,6 @@ ${sections}
 
     input.value = '';
     if (descInput) descInput.value = '';
-    if (ownerInput) ownerInput.value = '';
     updateNavProjectName();
     renderProjPage();
 
@@ -3288,6 +3405,9 @@ ${sections}
       loadProjectCollaborators(id);
     }
   }
+
+  // ── PROJECT EDIT MODAL STATE ─────────────────────────────────
+  var _editingProjectId = null; // project id currently open in the edit modal
 
   // ── PROJECT DELETE / REMOVE MODAL STATE ──────────────────────
   var _pendingDeleteId      = null; // project id pending owner deletion
@@ -3500,32 +3620,69 @@ ${sections}
   function editProject(id) {
     const proj = savedProjects.find(p => p.id === id) || (activeProject && activeProject.id === id ? activeProject : null);
     if (!proj) return;
-    const nameVal = prompt('Project Name:', proj.name);
-    if (nameVal === null) return; // cancelled
-    const trimmed = nameVal.trim();
-    if (!trimmed) { alert('Project name cannot be empty.'); return; }
-    // Duplicate check (exclude self)
+    _editingProjectId = id;
+
+    const nameInput  = document.getElementById('editProjNameInput');
+    const descInput  = document.getElementById('editProjDescInput');
+    const ownerEl    = document.getElementById('editProjOwnerDisplay');
+    const dateEl     = document.getElementById('editProjDateDisplay');
+    const errEl      = document.getElementById('editProjNameError');
+
+    if (nameInput)  nameInput.value  = proj.name;
+    if (descInput)  descInput.value  = proj.description || '';
+    if (ownerEl)    ownerEl.textContent  = proj.owner || (appState.currentUser ? appState.currentUser.name : '') || '—';
+    if (dateEl)     dateEl.textContent   = proj.created_at ? new Date(proj.created_at).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '—';
+    if (errEl)      { errEl.textContent = ''; errEl.style.display = 'none'; }
+
+    const modal = document.getElementById('editProjectModal');
+    if (modal) modal.classList.add('open');
+    if (nameInput) setTimeout(() => { nameInput.focus(); nameInput.select(); }, 60);
+  }
+
+  function saveEditProjectModal() {
+    if (!_editingProjectId) return;
+    const id   = _editingProjectId;
+    const proj = savedProjects.find(p => p.id === id) || (activeProject && activeProject.id === id ? activeProject : null);
+    if (!proj) { closeEditProjectModal(); return; }
+
+    const nameInput = document.getElementById('editProjNameInput');
+    const descInput = document.getElementById('editProjDescInput');
+    const errEl     = document.getElementById('editProjNameError');
+
+    const trimmed = nameInput ? nameInput.value.trim() : '';
+    if (!trimmed) {
+      if (errEl) { errEl.textContent = 'Project name cannot be empty.'; errEl.style.display = ''; }
+      if (nameInput) nameInput.focus();
+      return;
+    }
     const isDup = savedProjects.some(p => p.id !== id && p.name.toLowerCase() === trimmed.toLowerCase());
-    if (isDup) { alert('A project with this name already exists.'); return; }
-    const descVal = prompt('Description (optional):', proj.description || '');
-    if (descVal === null) return;
-    const ownerVal = prompt('Owner (optional):', proj.owner || '');
-    if (ownerVal === null) return;
-    proj.name = trimmed;
-    proj.description = descVal.trim();
-    proj.owner = ownerVal.trim();
-    // Update savedProjects if it's in there
+    if (isDup) {
+      if (errEl) { errEl.textContent = 'A project with this name already exists.'; errEl.style.display = ''; }
+      if (nameInput) nameInput.focus();
+      return;
+    }
+
+    proj.name        = trimmed;
+    proj.description = descInput ? descInput.value.trim() : '';
+
     const idx = savedProjects.findIndex(p => p.id === id);
     if (idx !== -1) {
       savedProjects[idx] = proj;
-      // api.saveProject() — async persistence (replace when Supabase is live)
-      saveProject(activeProject).catch(e => console.warn('save failed', e));
+      saveProject(proj).catch(e => console.warn('save failed', e));
     }
     if (activeProject && activeProject.id === id) {
       activeProject = proj;
       updateNavProjectName();
     }
+
+    closeEditProjectModal();
     renderProjPage();
+  }
+
+  function closeEditProjectModal() {
+    _editingProjectId = null;
+    const modal = document.getElementById('editProjectModal');
+    if (modal) modal.classList.remove('open');
   }
 
 
@@ -4474,6 +4631,7 @@ ${sections}
       const ility       = document.getElementById('reqAgileIlity').value;
       const want        = document.getElementById('reqAgileWant').value.trim();
       const soThat      = document.getElementById('reqAgileSoThat').value.trim();
+      const source      = document.getElementById('reqAgileSource').value.trim();
 
       if (!stakeholder) { document.getElementById('reqAgileStakeholder').focus(); return; }
       if (!ility)       { document.getElementById('reqAgileIlity').focus(); return; }
@@ -4484,6 +4642,7 @@ ${sections}
         format: 'agile',
         text: want,        // the "and I want" portion — primary display text
         agileSoThat: soThat,
+        source,
         type: reqType,
         primary: ility,
         secondaries: [],
@@ -4501,6 +4660,7 @@ ${sections}
         document.getElementById('reqAgileIlity').value = '';
         document.getElementById('reqAgileWant').value = '';
         document.getElementById('reqAgileSoThat').value = '';
+        document.getElementById('reqAgileSource').value = '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
       }
 
@@ -4511,6 +4671,7 @@ ${sections}
       const secondaryIlity = document.getElementById('reqSecondaryIlity').value;
       const primaryStak  = document.getElementById('reqPrimaryStakeholder').value;
       const secondaryStak = document.getElementById('reqSecondaryStakeholder').value;
+      const source       = document.getElementById('reqIncoseSource').value.trim();
 
       if (!text) { document.getElementById('reqText').focus(); return; }
       if (!primaryIlity) { document.getElementById('reqPrimaryIlity').focus(); return; }
@@ -4522,7 +4683,7 @@ ${sections}
       const req = {
         id: _editingReqId !== null ? _editingReqId : ++reqIdCounter,
         format: 'incose',
-        text, type: reqType, primary: primaryIlity, secondaries, stakeholders, scorer,
+        text, type: reqType, primary: primaryIlity, secondaries, stakeholders, scorer, source,
       };
 
       if (_editingReqId !== null) {
@@ -4535,6 +4696,7 @@ ${sections}
         document.getElementById('reqSecondaryIlity').value = '';
         document.getElementById('reqPrimaryStakeholder').value = '';
         document.getElementById('reqSecondaryStakeholder').value = '';
+        document.getElementById('reqIncoseSource').value = '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
         requirements.push(req);
       }
@@ -4886,6 +5048,7 @@ ${sections}
         document.getElementById('reqAgileIlity').value       = req.primary || '';
         document.getElementById('reqAgileWant').value        = req.text || '';
         document.getElementById('reqAgileSoThat').value      = req.agileSoThat || '';
+        document.getElementById('reqAgileSource').value      = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
       }, 15);
     } else {
@@ -4896,6 +5059,7 @@ ${sections}
         document.getElementById('reqSecondaryIlity').value     = req.secondaries[0] || '';
         document.getElementById('reqPrimaryStakeholder').value = req.stakeholders[0] || '';
         document.getElementById('reqSecondaryStakeholder').value = req.stakeholders[1] || '';
+        document.getElementById('reqIncoseSource').value       = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
       }, 15);
     }
@@ -4916,10 +5080,12 @@ ${sections}
     document.getElementById('reqAddBtn').textContent = 'Add Requirement';
     document.getElementById('reqCancelEdit').style.display = 'none';
     // Clear AGILE fields
-    ['reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat'].forEach(id => {
+    ['reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat','reqAgileSource'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    const agileSourceEl = document.getElementById('reqIncoseSource');
+    if (agileSourceEl) agileSourceEl.value = '';
     // Clear Responsible Scorer
     const scorerEl = document.getElementById('reqScorer');
     if (scorerEl) scorerEl.value = '';

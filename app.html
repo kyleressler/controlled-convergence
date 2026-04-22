@@ -286,15 +286,9 @@
   </div>
 
   <div class="proj-form-card" id="projFormCard">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div>
-        <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
-        <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
-      </div>
-      <div>
-        <div class="req-form-label">Owner</div>
-        <input type="text" class="add-custom-input" id="projOwnerInput" placeholder="e.g. J. Smith, Team Alpha, Acme Corp..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
-      </div>
+    <div style="margin-bottom:12px">
+      <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
+      <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
     </div>
     <div style="margin-bottom:12px">
       <div class="req-form-label">Description</div>
@@ -805,12 +799,25 @@
           placeholder="(optional) the outcome or reason this matters..."
           rows="2" style="flex:1;margin:0"></textarea>
       </div>
+      <div class="req-agile-row" style="align-items:center">
+        <span class="req-agile-label req-agile-optional">Source</span>
+        <input type="text" class="req-text-input" id="reqAgileSource"
+          placeholder="(optional) the source or reference for this requirement e.g. ISO 26262 Part 6 Clause 7.4.3"
+          style="flex:1;margin:0">
+      </div>
     </div>
 
     <!-- ── SYSTEM / INCOSE form ── -->
     <div id="reqIncoseSection" style="display:none">
       <div class="req-form-label" id="reqFormTitle" style="margin-top:12px">Requirement Statement <button class="info-icon" onclick="openSidebarToSlide('requirements', 1)" title="How to write strong requirements">ⓘ</button></div>
       <textarea class="req-text-input" id="reqText" placeholder="The system shall..." rows="2"></textarea>
+
+      <div style="margin-top:8px">
+        <div class="req-form-label">Source</div>
+        <input type="text" class="req-text-input" id="reqIncoseSource"
+          placeholder="(optional) the source or reference for this requirement e.g. ISO 26262 Part 6 Clause 7.4.3"
+          style="margin:0">
+      </div>
 
       <div class="req-form-columns">
         <div class="req-form-col">
@@ -1927,6 +1934,64 @@
     <div class="modal-footer">
       <button class="btn btn-primary" id="reqReviewSubmitBtn" onclick="submitReqReviewTask()">Assign Task</button>
       <button class="btn btn-secondary" onclick="closeReqReviewModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT PROJECT MODAL ── -->
+<div class="modal-overlay" id="editProjectModal" onclick="if(event.target===this)closeEditProjectModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Edit Project</div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Project Name</div>
+        <input id="editProjNameInput" type="text" class="modal-input" placeholder="Project name" onkeydown="if(event.key==='Enter')saveEditProjectModal()" />
+        <div id="editProjNameError" style="color:var(--danger);font-size:12px;margin-top:5px;display:none"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Description</div>
+        <input id="editProjDescInput" type="text" class="modal-input" placeholder="Brief description (optional)" onkeydown="if(event.key==='Enter')saveEditProjectModal()" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-top:4px;border-top:1px solid var(--border)">
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:5px">Owner</div>
+          <div id="editProjOwnerDisplay" style="font-size:13px;color:var(--text-muted)"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:5px">Created</div>
+          <div id="editProjDateDisplay" style="font-size:13px;color:var(--text-muted)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveEditProjectModal()">Save</button>
+      <button class="btn btn-secondary" onclick="closeEditProjectModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TEAM ACCESS MODAL ── -->
+<div class="modal-overlay" id="teamAccessModal" onclick="if(event.target===this)closeTeamAccessModal()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Team Access — <span id="teamAccessProjectName"></span></div>
+    <div id="teamAccessList" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:4px"></div>
+    <div class="modal-footer" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeTeamAccessModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REVOKE COLLABORATOR CONFIRMATION MODAL ── -->
+<div class="modal-overlay" id="revokeCollabModal" onclick="if(event.target===this)closeRevokeConfirmModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Revoke Access?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      Are you sure you want to revoke access for <strong id="revokeCollabName"></strong>?
+      They will immediately lose access to this project.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="confirmRevokeCollaborator()">Yes, Revoke Access</button>
+      <button class="btn btn-secondary" onclick="closeRevokeConfirmModal()">Cancel</button>
     </div>
   </div>
 </div>
