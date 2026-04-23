@@ -2059,6 +2059,8 @@
         datumPerformance: datumPerformance,
         conceptPerformance: conceptPerformance,
         conceptNotes: conceptNotes,
+        conceptCustomFields: conceptCustomFields,
+        cfIdCounter: _cfIdCounter,
       },
       convergence: {
         selectedConceptId: convSelectedConceptId,
@@ -2311,6 +2313,10 @@
             if (data.pugh.datumPerformance)  datumPerformance   = data.pugh.datumPerformance;
             if (data.pugh.conceptPerformance) conceptPerformance = data.pugh.conceptPerformance;
             if (data.pugh.conceptNotes)       conceptNotes       = data.pugh.conceptNotes;
+            if (data.pugh.conceptCustomFields) {
+              conceptCustomFields = data.pugh.conceptCustomFields;
+              _cfIdCounter = data.pugh.cfIdCounter || conceptCustomFields.length;
+            }
             // Sync UI to restored settings
             if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
             const mCb    = document.getElementById('toggleMTHUS');
@@ -2411,6 +2417,10 @@
       if (data.pugh.datumPerformance)   datumPerformance    = data.pugh.datumPerformance;
       if (data.pugh.conceptPerformance) conceptPerformance  = data.pugh.conceptPerformance;
       if (data.pugh.conceptNotes)       conceptNotes        = data.pugh.conceptNotes;
+      if (data.pugh.conceptCustomFields) {
+        conceptCustomFields = data.pugh.conceptCustomFields;
+        _cfIdCounter = data.pugh.cfIdCounter || conceptCustomFields.length;
+      }
       if (typeof syncScoringModeButtons === 'function') syncScoringModeButtons();
       const mCb   = document.getElementById('toggleMTHUS');
       const masCb = document.getElementById('toggleMAS');
