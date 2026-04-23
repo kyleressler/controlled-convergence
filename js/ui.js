@@ -1221,6 +1221,31 @@
 
     document.getElementById('scorViewName').textContent = concept.name;
 
+    // Custom concept fields
+    const cfSection = document.getElementById('scorCustomFieldsSection');
+    const cfBody    = document.getElementById('scorCfBody');
+    const cfToggle  = document.getElementById('scorCfToggleIcon');
+    if (cfSection && cfBody && cfToggle) {
+      const fields = (typeof conceptCustomFields !== 'undefined') ? conceptCustomFields : [];
+      if (fields.length > 0) {
+        const vals = concept.customFieldValues || {};
+        cfBody.innerHTML = fields.map(f => {
+          const raw = vals[f.id];
+          const val = (raw !== undefined && raw !== '') ? raw : '—';
+          return `<div class="scor-cf-chip">
+            <span class="scor-cf-label">${f.name}</span>
+            <span class="scor-cf-value">${val}</span>
+          </div>`;
+        }).join('');
+        const expand = fields.length <= 5;
+        cfBody.style.display  = expand ? '' : 'none';
+        cfToggle.textContent  = expand ? '▼' : '▶';
+        cfSection.style.display = '';
+      } else {
+        cfSection.style.display = 'none';
+      }
+    }
+
     // Datum routing is handled by startScoringConcept → startDatumDef, so
     // renderScoringView is only ever called for non-datum concepts.
     // Always hide the datum definition view and show the req scoring view.
@@ -1352,6 +1377,15 @@
     }
 
     updateScorContinue();
+  }
+
+  function toggleScoringCustomFields() {
+    const cfBody   = document.getElementById('scorCfBody');
+    const cfToggle = document.getElementById('scorCfToggleIcon');
+    if (!cfBody || !cfToggle) return;
+    const isCollapsed = cfBody.style.display === 'none';
+    cfBody.style.display = isCollapsed ? '' : 'none';
+    cfToggle.textContent = isCollapsed ? '▼' : '▶';
   }
 
   function renderConceptCards() {

@@ -1090,6 +1090,17 @@
         <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="exitScoringView()">← All Concepts</button>
       </div>
 
+      <!-- Custom concept fields (collapsible) -->
+      <div id="scorCustomFieldsSection" style="display:none">
+        <div class="scor-cf-header" onclick="toggleScoringCustomFields()">
+          <span class="scor-cf-title">Concept Details</span>
+          <span class="scor-cf-toggle" id="scorCfToggleIcon">▼</span>
+        </div>
+        <div id="scorCfBody">
+          <!-- populated by renderScoringView() -->
+        </div>
+      </div>
+
       <!-- Datum definition view (replaces old datum notice) -->
       <div id="scorDatumDefView" style="display:none">
         <div class="scor-req-display">

@@ -2536,6 +2536,37 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
     .scor-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
 
+    /* ── SCORING VIEW: CUSTOM CONCEPT FIELDS ── */
+    .scor-cf-header {
+      padding: 7px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none; background: var(--bg);
+    }
+    .scor-cf-header:hover { filter: brightness(0.97); }
+    .scor-cf-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .scor-cf-toggle {
+      font-size: 9px; color: var(--text-muted);
+    }
+    #scorCfBody {
+      display: flex; flex-wrap: wrap; gap: 6px 10px;
+      padding: 10px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .scor-cf-chip {
+      display: flex; align-items: baseline; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 3px 10px; font-size: 12px;
+    }
+    .scor-cf-label {
+      font-weight: 600; color: var(--text-muted); white-space: nowrap;
+    }
+    .scor-cf-value {
+      color: var(--text); white-space: nowrap;
+    }
+
     .scor-datum-notice {
       padding: 48px 32px; text-align: center; color: var(--text-muted);
     }
