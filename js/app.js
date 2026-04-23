@@ -6762,26 +6762,30 @@ ${sections}
   }
 
   // ── PUGH: MTHUS / MTHUWS CALCULATION ──
-  // MTHUS  = for each requirement, take the BEST score across all non-datum concepts; sum them
-  // MTHUWS = same but each req's best score is multiplied by its ility weight
+  // MTHUS  = Maximum Theoretical Hybrid Utility Score
+  //          For each requirement, take the BEST score across ALL concepts (including datum).
+  //          Datum always scores 0, so the floor per requirement is 0 — ratios stay in 0–1.
+  // MTHUWS = Same but each req's best score is multiplied by the active weight
+  //          (ility-based or requirement-based, matching the user's pair subject setting).
   // Ratio  = concept's utility score / MTHUS (or MTHUWS for weighted variant)
   function calcMTHUS() {
-    const nonDatum = pughConcepts.slice(1);
+    const _subj = (typeof pairSubject !== 'undefined') ? pairSubject : 'ilities';
     let mthus = 0, mthuws = 0;
     requirements.forEach(req => {
-      const weight = window._pairWeights?.[req.primary] || 1;
-      let best = -Infinity;
-      nonDatum.forEach(c => {
+      // Use same weight key as calcConceptSummary so numerator and denominator match
+      const wKey   = _subj === 'requirements' ? String(req.id) : req.primary;
+      const weight = window._pairWeights?.[wKey] || 1;
+      // Datum scores 0 by definition — include it by starting best at 0
+      let best = 0;
+      pughConcepts.slice(1).forEach(c => {
         const s = pughScores[c.id + '_' + req.id];
         let val = 0;
         if (s === '+') val = 1;
         else if (s === '-') val = -1;
         else if (s === '0') val = 0;
         else if (typeof s === 'number') val = s;
-        // datum contributes 0 (D = reference)
         if (val > best) best = val;
       });
-      if (best === -Infinity) best = 0; // unscored reqs contribute 0
       mthus  += best;
       mthuws += best * weight;
     });

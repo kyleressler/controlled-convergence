@@ -1804,7 +1804,7 @@
       rows += `<tr class="pugh-summary-section">
         <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUS Ratio <span style="font-weight:400;opacity:0.75">(${mthus})</span></td>${datumCell}
         ${summaries.map(s => {
-          const ratio = mthus !== 0 ? Math.round(s.net / mthus * 100) + '%' : '—';
+          const ratio = mthus !== 0 ? (Math.round(s.net / mthus * 100) / 100).toFixed(2) : '—';
           return `<td class="pugh-sum-mthus">${ratio}</td>`;
         }).join('')}
       </tr>`;
@@ -1812,7 +1812,7 @@
         rows += `<tr class="pugh-summary-section">
           <td class="pugh-summary-label-cell" style="color:var(--accent)">MTHUWS Ratio <span style="font-weight:400;opacity:0.75">(${mthuws})</span></td>${datumCell}
           ${summaries.map(s => {
-            const ratio = mthuws !== 0 ? Math.round(s.weightedNet / mthuws * 100) + '%' : '—';
+            const ratio = mthuws !== 0 ? (Math.round(s.weightedNet / mthuws * 100) / 100).toFixed(2) : '—';
             return `<td class="pugh-sum-mthus">${ratio}</td>`;
           }).join('')}
         </tr>`;
