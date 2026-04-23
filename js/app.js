@@ -5889,6 +5889,27 @@ ${sections}
   }
   function setReqPageTagMatchMode(mode) { reqPageTagMatchMode = mode; renderReqSettingsPanel(); renderRequirements(); }
 
+  function clearAllReqFilters() {
+    reqPageIlityFilter = []; reqPageIlityMatchMode = 'any';
+    reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
+    reqPageTagFilter = []; reqPageTagMatchMode = 'any';
+    renderReqSettingsPanel();
+    renderRequirements();
+  }
+
+  function clearConceptTagFilter() {
+    scorTagFilter = []; scorTagMatchMode = 'any';
+    renderTagFilterSection();
+    renderConceptCards();
+  }
+
+  function clearScoringReqTagFilter() {
+    scorReqTagFilter = []; scorReqTagMatchMode = 'any';
+    renderScoringReqTagFilterSection();
+    scoringReqIndex = 0;
+    if (scoringConceptId) renderScoringView();
+  }
+
   // ── SCOR: REQUIREMENT TAG FILTER (Section D of Concept Settings) ──
 
   function renderScoringReqTagFilterSection() {
@@ -6165,12 +6186,12 @@ ${sections}
     const tagsInput = document.getElementById('editConceptTagsInput');
     if (tagsInput) tagsInput.value = (c.tags || []).join(', ');
 
-    document.getElementById('editConceptModal').style.display = 'flex';
+    document.getElementById('editConceptModal').classList.add('open');
     setTimeout(() => document.getElementById('editConceptNameInput').focus(), 50);
   }
 
   function closeEditConceptModal() {
-    document.getElementById('editConceptModal').style.display = 'none';
+    document.getElementById('editConceptModal').classList.remove('open');
     _editingConceptId = null;
   }
 

@@ -914,7 +914,10 @@
 
         <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:14px;display:flex;align-items:center;justify-content:space-between">
           <div id="reqFilterCount" style="font-size:11px;color:var(--text-muted)"></div>
-          <button class="btn btn-primary" onclick="closeReqSettings()" style="font-size:12px">Done</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="clearAllReqFilters()" style="font-size:12px">Clear All</button>
+            <button class="btn btn-primary" onclick="closeReqSettings()" style="font-size:12px">Done</button>
+          </div>
         </div>
       </div>
 
@@ -1115,7 +1118,10 @@
 
     <!-- Section C: Concept Tag Filter -->
     <div>
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Concept Tag Filter</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">Concept Tag Filter</div>
+        <button class="btn btn-ghost" onclick="clearConceptTagFilter()" style="font-size:11px;padding:2px 8px">Clear</button>
+      </div>
       <div id="scorTagFilterBody">
         <!-- populated by renderTagFilterSection() -->
       </div>
@@ -1125,7 +1131,10 @@
 
     <!-- Section D: Requirement Tag Filter (for scoring view) -->
     <div>
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Requirement Tag Filter</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">Requirement Tag Filter</div>
+        <button class="btn btn-ghost" onclick="clearScoringReqTagFilter()" style="font-size:11px;padding:2px 8px">Clear</button>
+      </div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">Filters which requirements appear during scoring by their tags. Has no effect on Pugh Matrix calculations.</div>
       <div id="scorReqTagFilterBody">
         <!-- populated by renderScoringReqTagFilterSection() -->
