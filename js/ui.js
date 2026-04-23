@@ -94,11 +94,8 @@
       cta.textContent   = 'Create Free Account';
       cta.style.display = '';
     } else if (isSignedIn && userTier === 'account') {
-      // STRIPE_TODO: Uncomment the two lines below once Stripe is live.
-      // handleProUpgrade() (called by handleAccountCTA) has the full integration details.
-      // cta.textContent   = 'Upgrade to Pro';
-      // cta.style.display = '';
-      cta.style.display = 'none'; // remove this line when uncommenting above
+      cta.textContent   = 'Upgrade to Pro';
+      cta.style.display = '';
     } else {
       cta.style.display = 'none';
     }
@@ -127,6 +124,12 @@
     const floatingBtn = document.getElementById('floatingLoginBtn');
     if (floatingBtn) {
       floatingBtn.style.display = isSignedIn ? 'none' : 'flex';
+    }
+
+    // Basic Mode sign-up banner — visible only to anonymous users
+    const signupBanner = document.getElementById('basicModeSignupBanner');
+    if (signupBanner) {
+      signupBanner.style.display = (!isSignedIn && userTier === 'free') ? 'flex' : 'none';
     }
   }
 
@@ -1620,6 +1623,17 @@
     const activeIlityIds = ilityOrder.filter(il => reqsByIlity[il.id] && reqsByIlity[il.id].length > 0).map(il => il.id);
     if (ungroupedReqs.length > 0) activeIlityIds.push('__ungrouped__');
     const hasGroups = activeIlityIds.length > 0;
+
+    // Auto-collapse ility categories when there are more than 10 requirements,
+    // unless the user has manually interacted with collapse state this session.
+    if (hasGroups && !pughUserInteractedCollapse) {
+      if (requirements.length > 10) {
+        activeIlityIds.forEach(id => pughCollapsedIlities.add(id));
+      } else {
+        pughCollapsedIlities.clear();
+      }
+    }
+
     const allGroupsCollapsed = hasGroups && activeIlityIds.every(id => pughCollapsedIlities.has(id));
     const collapseAllHtml = hasGroups
       ? `<button class="pugh-tri-btn pugh-collapse-all-btn" onclick="togglePughAllCategories()" title="${allGroupsCollapsed ? 'Expand all' : 'Collapse all'}"><span class="pugh-tri${allGroupsCollapsed ? ' tri-collapsed' : ''}">▶</span></button>`

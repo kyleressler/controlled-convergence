@@ -252,7 +252,7 @@
           } else {
             valEl.classList.add('visible', 'warn');
             dotEl.classList.add('warn');
-            valTextEl.textContent = '✨ Pro users get AI coaching on each section. Upgrade for personalized feedback.';
+            valTextEl.textContent = 'Pro users get AI coaching on each section. Upgrade for personalized feedback.';
           }
         } else {
           valEl.classList.add('visible');
@@ -328,8 +328,18 @@
   //      Supabase webhook function needs: SUPABASE_SERVICE_ROLE_KEY
   //
   function handleProUpgrade() {
-    closeUpgradeModal();
-    // STRIPE_TODO: replace this placeholder with the implementation above.
+    // STRIPE_TODO: replace the modal below with the Stripe checkout implementation above.
+    const overlay = document.getElementById('upgradeModal');
+    if (overlay) {
+      document.getElementById('upgradeModalTitle').textContent = 'Upgrade to Pro';
+      document.getElementById('upgradeModalBody').textContent  =
+        'Pro unlocks AI coaching, PDF export, unlimited projects, templates, and more. ' +
+        'Paid upgrade is coming soon — stay tuned for the announcement.';
+      const ctaBtn = document.getElementById('upgradeModalCta');
+      ctaBtn.textContent = 'Got It';
+      ctaBtn.onclick = closeUpgradeModal;
+      overlay.classList.add('open');
+    }
   }
 
   function handleAccountCTA() {
@@ -1156,15 +1166,15 @@
     if (!role || role === 'owner') {
       badge.style.display = 'none';
     } else if (role === 'viewer') {
-      badge.textContent = '👁 Viewer';
+      badge.textContent = 'Viewer';
       badge.className   = 'nav-role-badge nav-role-badge-viewer';
       badge.style.display = '';
     } else if (role === 'editor') {
-      badge.textContent = '✏️ Editor';
+      badge.textContent = 'Editor';
       badge.className   = 'nav-role-badge nav-role-badge-editor';
       badge.style.display = '';
     } else if (role === 'scoped_editor') {
-      badge.textContent = '✏️ Editor';
+      badge.textContent = 'Editor';
       badge.className   = 'nav-role-badge nav-role-badge-editor';
       badge.style.display = '';
     }
@@ -2515,7 +2525,7 @@
     reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
     reqPageTagFilter = []; reqPageTagMatchMode = 'any';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
-    pughCollapsedIlities = new Set(); pughChartSort = 'order';
+    pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
     const mCb = document.getElementById('toggleMTHUS');
     const masCb = document.getElementById('toggleMAS');
     if (mCb)   mCb.checked   = false;
@@ -2546,6 +2556,143 @@
     if (typeof syncSidebarPrefs === 'function') syncSidebarPrefs();
     const ab = document.getElementById('advisorBody');
     if (ab) ab.innerHTML = '<p>Start writing your goal statement above — I\'ll help you sharpen each part as you go.</p><p>The most important thing to get right first is your <strong>TO</strong>. It must describe an outcome for a person, not a product or technology.</p>';
+  }
+
+  // ── EXPORT PROJECT MODAL ──────────────────────────────────────
+  function openExportProjectModal() {
+    document.getElementById('exportProjectModal')?.classList.add('open');
+  }
+  function closeExportProjectModal() {
+    document.getElementById('exportProjectModal')?.classList.remove('open');
+  }
+
+  // ── BASIC PDF REPORT (free, simplified, print-based) ──────────
+  function generateBasicPdfReport() {
+    const projName  = document.getElementById('qsProjectName')?.value?.trim() || 'Untitled Project';
+    const goalText  = document.getElementById('qsGoal')?.value?.trim() || '';
+    const dateStr   = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+
+    // Build requirements rows
+    let reqRows = '';
+    if (requirements.length === 0) {
+      reqRows = '<tr><td colspan="2" style="color:#888;font-style:italic;padding:6px 8px">No requirements entered.</td></tr>';
+    } else {
+      requirements.forEach((r, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f9f9f8';
+        reqRows += `<tr style="background:${bg}"><td style="padding:6px 8px;border:1px solid #e2e2df;width:36px;text-align:center;color:#555">${i+1}</td><td style="padding:6px 8px;border:1px solid #e2e2df">${escHtml(r.text || '')}</td></tr>`;
+      });
+    }
+
+    // Build Pugh matrix table
+    let pughHtml = '';
+    if (pughConcepts.length >= 2 && requirements.length > 0) {
+      const headerCells = pughConcepts.map((c, i) =>
+        `<th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;min-width:60px">${escHtml(c.name)}${i===0?' <span style="font-size:10px;color:#888">(Datum)</span>':''}</th>`
+      ).join('');
+      let pughRows = '';
+      requirements.forEach((r, ri) => {
+        const bg = ri % 2 === 0 ? '#fff' : '#f9f9f8';
+        const cells = pughConcepts.map((c, ci) => {
+          const key = c.id + '_' + r.id;
+          const val = pughScores[key];
+          const display = val === '+' ? '+' : val === '-' ? '−' : val === '0' ? '0' : (val !== undefined ? val : '');
+          const color = val === '+' ? '#057a55' : val === '-' ? '#c81e1e' : '#555';
+          return `<td style="padding:6px 8px;border:1px solid #e2e2df;text-align:center;font-weight:600;color:${color};background:${bg}">${display}</td>`;
+        }).join('');
+        pughRows += `<tr><td style="padding:6px 8px;border:1px solid #e2e2df;background:${bg}">${escHtml(r.text||'')}</td>${cells}</tr>`;
+      });
+      pughHtml = `
+        <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:28px 0 10px">Pugh Matrix</h2>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr>
+              <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:left">Requirement</th>
+              ${headerCells}
+            </tr></thead>
+            <tbody>${pughRows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    // Build concept score summary
+    let scoreHtml = '';
+    if (pughConcepts.length >= 2 && requirements.length > 0) {
+      const nonDatum = pughConcepts.slice(1);
+      const rows = nonDatum.map(c => {
+        const plus  = requirements.filter(r => pughScores[c.id+'_'+r.id] === '+').length;
+        const minus = requirements.filter(r => pughScores[c.id+'_'+r.id] === '-').length;
+        const zero  = requirements.filter(r => pughScores[c.id+'_'+r.id] === '0').length;
+        const net   = plus - minus;
+        return { name: c.name, plus, minus, zero, net };
+      }).sort((a,b) => b.net - a.net);
+      const scoreRows = rows.map((r, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f9f9f8';
+        return `<tr style="background:${bg}">
+          <td style="padding:6px 8px;border:1px solid #e2e2df">${escHtml(r.name)}</td>
+          <td style="padding:6px 8px;border:1px solid #e2e2df;text-align:center;color:#057a55;font-weight:600">+${r.plus}</td>
+          <td style="padding:6px 8px;border:1px solid #e2e2df;text-align:center;color:#555">${r.zero}</td>
+          <td style="padding:6px 8px;border:1px solid #e2e2df;text-align:center;color:#c81e1e;font-weight:600">−${r.minus}</td>
+          <td style="padding:6px 8px;border:1px solid #e2e2df;text-align:center;font-weight:700;color:${r.net>0?'#057a55':r.net<0?'#c81e1e':'#555'}">${r.net>0?'+':''}${r.net}</td>
+        </tr>`;
+      }).join('');
+      scoreHtml = `
+        <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:28px 0 10px">Concept Score Summary</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr>
+            <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:left">Concept</th>
+            <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:center">Better (+)</th>
+            <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:center">Same (0)</th>
+            <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:center">Worse (−)</th>
+            <th style="padding:6px 8px;border:1px solid #e2e2df;background:#f0f4ff;text-align:center">Net Score</th>
+          </tr></thead>
+          <tbody>${scoreRows}</tbody>
+        </table>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escHtml(projName)} — Basic Report</title>
+  <style>
+    body { font-family: Georgia, serif; margin: 0; padding: 40px; color: #1a1a18; background: #fff; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <!-- Header / branding -->
+  <div style="border-bottom:2px solid #1a56db;padding-bottom:14px;margin-bottom:24px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a56db;margin-bottom:6px">ControlledConvergence.com</div>
+    <h1 style="font-size:22px;font-weight:700;margin:0 0 4px">${escHtml(projName)}</h1>
+    <div style="font-size:13px;color:#6b6b65">Basic Analysis Report &nbsp;·&nbsp; Generated ${dateStr}</div>
+  </div>
+
+  ${goalText ? `
+  <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Project Goal</h2>
+  <div style="background:#f0f4ff;border:1px solid #c3d4f8;border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.6;margin-bottom:24px">${escHtml(goalText)}</div>` : ''}
+
+  <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Requirements (${requirements.length})</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px">
+    <tbody>${reqRows}</tbody>
+  </table>
+
+  ${pughHtml}
+  ${scoreHtml}
+
+  <!-- Footer branding -->
+  <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
+    Report Generated with <strong>ControlledConvergence.com</strong>
+  </div>
+</body>
+</html>`;
+
+    // Open in a new window and trigger print dialog
+    const win = window.open('', '_blank');
+    if (!win) { alert('Please allow popups for this site to generate the report.'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
   }
 
   function exportReport() {
@@ -3345,7 +3492,7 @@ ${sections}
     reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
     reqPageTagFilter = []; reqPageTagMatchMode = 'any';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
-    pughCollapsedIlities = new Set(); pughChartSort = 'order';
+    pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
     goalMode = 'basic';
 
     // Clear goal fields
@@ -5353,6 +5500,14 @@ ${sections}
 
   // ── INIT ──
   // Wire modal overlay close-on-backdrop after DOM is ready
+  // Warn anonymous users with data before they close or refresh the page
+  window.addEventListener('beforeunload', function(e) {
+    if (_anonHasBasicData()) {
+      e.preventDefault();
+      e.returnValue = ''; // required for Chrome; message is browser-defined
+    }
+  });
+
   window.addEventListener('DOMContentLoaded', function() {
     // Show DEV tier toggle only on localhost — never in production
     const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
@@ -5362,6 +5517,16 @@ ${sections}
     const overlay = document.getElementById('editModal');
     if (overlay) overlay.addEventListener('click', function(e) {
       if (e.target === this) closeEditModal();
+    });
+
+    const exportProjOverlay = document.getElementById('exportProjectModal');
+    if (exportProjOverlay) exportProjOverlay.addEventListener('click', function(e) {
+      if (e.target === this) closeExportProjectModal();
+    });
+
+    const dataWarnOverlay = document.getElementById('basicDataWarnModal');
+    if (dataWarnOverlay) dataWarnOverlay.addEventListener('click', function(e) {
+      if (e.target === this) closeBasicDataWarnModal(true); // clicking outside = stay in basic mode
     });
 
     // Close open sidebars when clicking outside them.
@@ -5624,7 +5789,7 @@ ${sections}
   pughConcepts = [];   // [{id, name, customFieldValues}] — index 0 is always the Datum
   pughScores   = {};   // key: `${conceptId}_${reqId}` → '+' | '0' | '-' | number
   pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
-  pughCollapsedIlities = new Set(); pughChartSort = 'order';
+  pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
   pughConceptCounter = 0;
   scoringConceptId   = null;
   scoringReqIndex    = 0;
@@ -5741,7 +5906,7 @@ ${sections}
 
     // "My Assigned Tasks" appears first if the current user has active scoring tasks
     const myTasksOption = (myAssignedScoringTasks && myAssignedScoringTasks.length > 0)
-      ? `<option value="__my_tasks__" ${scorerFilter === '__my_tasks__' ? 'selected' : ''}>⚡ My Assigned Tasks</option>`
+      ? `<option value="__my_tasks__" ${scorerFilter === '__my_tasks__' ? 'selected' : ''}>My Assigned Tasks</option>`
       : '';
 
     sel.innerHTML = '<option value="">All Requirements</option>' +
@@ -6734,6 +6899,7 @@ ${sections}
 
   // ── PUGH: COLLAPSIBLE ILITY CATEGORIES ──
   function togglePughIlityCollapse(ilityId) {
+    pughUserInteractedCollapse = true; // user manually toggled — respect their choice
     if (pughCollapsedIlities.has(ilityId)) {
       pughCollapsedIlities.delete(ilityId);
     } else {
@@ -6743,6 +6909,7 @@ ${sections}
   }
 
   function togglePughAllCategories() {
+    pughUserInteractedCollapse = true; // user manually toggled — respect their choice
     const ilityOrder = [...ILITIES, ...(typeof customIlities !== 'undefined' ? customIlities : [])]
       .filter(il => selectedIlities.has(il.id));
     const reqsByIlity = {};
@@ -7318,8 +7485,42 @@ ${sections}
   // setMode(mode) is the single point of truth for switching.
   // Full → Basic: syncs state into Basic Mode display fields.
   // Basic → Full: qsSync() was already called on each input, so state is current.
+  // ── BASIC MODE DATA-LOSS PROTECTION ───────────────────────────
+  // Holds the pending mode the user wants to switch to, shown in the warn modal.
+  let _pendingModeSwitch = null;
+
+  function _anonHasBasicData() {
+    const isAnonymous = !(appState && appState.currentUser);
+    if (!isAnonymous) return false;
+    const goalVal = document.getElementById('qsGoal')?.value?.trim() || '';
+    const projVal = document.getElementById('qsProjectName')?.value?.trim() || '';
+    return requirements.length > 0 || pughConcepts.length > 1 || goalVal || projVal;
+  }
+
+  function closeBasicDataWarnModal(stayInBasic) {
+    document.getElementById('basicDataWarnModal')?.classList.remove('open');
+    if (!stayInBasic && _pendingModeSwitch) {
+      const m = _pendingModeSwitch;
+      _pendingModeSwitch = null;
+      _doSetMode(m);
+    } else {
+      _pendingModeSwitch = null;
+    }
+  }
+
   function setMode(mode) {
     if (mode === appMode && mode === 'basic' && _currentPage === 'basic') return;
+
+    // If switching to Full Mode as anon user with data, show the nudge modal first
+    if (mode === 'full' && _anonHasBasicData()) {
+      _pendingModeSwitch = mode;
+      document.getElementById('basicDataWarnModal')?.classList.add('open');
+      return;
+    }
+    _doSetMode(mode);
+  }
+
+  function _doSetMode(mode) {
     appMode = mode;
 
     // Update body class (controls nav-tools visibility via CSS)
