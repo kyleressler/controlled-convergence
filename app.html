@@ -192,13 +192,9 @@
     </div>
 
     <div class="sidebar-label" style="margin-top:20px">Actions</div>
-    <button class="action-btn" onclick="exportProjectData()">
+    <button class="action-btn" onclick="openExportProjectModal()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export Project Data
-    </button>
-    <button class="action-btn" onclick="exportToXlsx()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/><path d="M6 13l2 2-2 2M12 13h3M12 17h3"/></svg>
-      Export to Excel
+      Export Project
     </button>
     <button class="action-btn" onclick="uploadProjectData()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -211,11 +207,6 @@
     <button class="action-btn" onclick="clearAllWithWarning()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
       Clear All
-    </button>
-    <button class="action-btn action-btn-pro" onclick="exportReport()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Export Report
-      <span class="pro-badge-inline">PRO</span>
     </button>
     <button class="action-btn action-btn-pro" onclick="openSaveTemplateModal()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M9 8h6M9 12h4"/></svg>
@@ -354,6 +345,18 @@
 -->
 <main class="main page" id="page-basic" style="display:none">
 
+  <!-- Sign-up CTA banner — shown only to anonymous users -->
+  <div id="basicModeSignupBanner" class="basic-signup-banner" style="display:none">
+    <div class="basic-signup-banner-text">
+      <strong>Your work is not being saved.</strong>
+      Create a free account to save projects between sessions and access collaboration features.
+    </div>
+    <div class="basic-signup-banner-actions">
+      <button class="btn btn-primary" style="font-size:13px;padding:6px 14px" onclick="handleAccountCTA()">Create Free Account</button>
+      <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px" onclick="openAuthModal('login')">Sign In</button>
+    </div>
+  </div>
+
   <div class="qs-header">
     <div>
       <div class="qs-title">Basic Mode</div>
@@ -417,6 +420,13 @@
     </div>
   </div>
 
+  <!-- Generate Basic PDF Report bar -->
+  <div class="qs-basic-report-bar">
+    <button class="btn btn-secondary" onclick="generateBasicPdfReport()" title="Generate a simple printable report of your current analysis">
+      Generate Basic PDF Report
+    </button>
+  </div>
+
 </main>
 
 <!-- ── HOME PAGE ── -->
@@ -431,7 +441,7 @@
       </div>
       <p class="home-cta-sub">Basic Mode: All on one page analysis &nbsp;|&nbsp; Full Mode: Structured complete workflow</p>
       <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
-        <button class="home-cta-example" onclick="loadExampleProject()">📂 Explore Example Project</button>
+        <button class="home-cta-example" onclick="loadExampleProject()">Explore Example Project</button>
       </div>
     </div>
   </div>
@@ -1755,7 +1765,7 @@
       </div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6">We recommend backing up your current project data before applying. You can export everything as a JSON file right now.</div>
       <div style="margin-bottom:20px">
-        <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="exportProjectData()">⬇ Export Project Data (Backup)</button>
+        <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="exportProjectData()">Export Project Data (Backup)</button>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="confirmApplyTemplate()">Confirm — Apply Template</button>
@@ -2286,6 +2296,47 @@
     </div>
     <div class="modal-footer" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-primary" onclick="closeTermsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EXPORT PROJECT MODAL ── -->
+<div class="modal-overlay" id="exportProjectModal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title">Export Project</div>
+    <div class="export-option-list">
+      <button class="export-option-btn" onclick="closeExportProjectModal();exportProjectData()">
+        <span class="export-option-title">Export as JSON (Backup)</span>
+        <span class="export-option-desc">Download a full backup of your project data. Use this to reload or share your project.</span>
+      </button>
+      <button class="export-option-btn" onclick="closeExportProjectModal();exportToXlsx()">
+        <span class="export-option-title">Export to Excel</span>
+        <span class="export-option-desc">Download requirements, concepts, and scores as an Excel spreadsheet (.xlsx).</span>
+      </button>
+      <button class="export-option-btn pro-gated" onclick="closeExportProjectModal();exportReport()">
+        <span class="export-option-title">Export PDF Report <span class="pro-badge-inline" style="font-size:10px;vertical-align:middle">PRO</span></span>
+        <span class="export-option-desc">Generate a formatted report with requirements, scores, and Pugh Matrix — ready to present.</span>
+      </button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeExportProjectModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BASIC MODE DATA-LOSS NUDGE MODAL ── -->
+<div class="modal-overlay" id="basicDataWarnModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Save Your Work?</div>
+    <div class="data-warn-modal-body">
+      You have data entered in Basic Mode. <strong>Without an account, your work will be lost if you close or refresh this page.</strong>
+      <br><br>
+      Create a free account to save your project and pick up where you left off anytime.
+    </div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch">
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeBasicDataWarnModal();handleAccountCTA()">Create Free Account</button>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center" id="basicDataWarnContinueBtn" onclick="closeBasicDataWarnModal()">Continue Without Saving</button>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="closeBasicDataWarnModal(true)">Stay in Basic Mode</button>
     </div>
   </div>
 </div>
