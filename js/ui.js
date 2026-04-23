@@ -571,13 +571,21 @@
   function renderRequirements() {
     const list = document.getElementById('reqList');
     const empty = document.getElementById('reqEmpty');
+    const displayReqs = (typeof getReqPageFilteredReqs === 'function') ? getReqPageFilteredReqs() : requirements;
+
     if (requirements.length === 0) {
       list.innerHTML = '';
       list.appendChild(empty);
       empty.style.display = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    if (displayReqs.length === 0) {
+      list.innerHTML = `<div class="req-empty" style="display:block">No requirements match the current filters. Adjust or clear filters using the <strong>⚙ Filter Requirements</strong> button.</div>`;
     } else {
-      empty.style.display = 'none';
-      list.innerHTML = requirements.map(r => {
+      list.innerHTML = displayReqs.map(r => {
         const typeLabel = r.type === 'willnot' ? 'WILL NOT' : r.type === 'mustnot' ? 'MUST NOT' : r.type.toUpperCase();
 
         // Build display text based on format
@@ -616,8 +624,9 @@
           return `<span class="req-tag req-tag-stakeholder" data-tooltip="${escHtml(sn + (sd ? ': ' + sd : ''))}">${escHtml(sn)}</span>`;
         }).join('');
 
-        const hasTags = ilityTag || secondaryTags || stakeholderTags;
-        const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}</div>` : '';
+        const userTags = (r.tags || []).map(t => `<span class="req-tag req-tag-user">${escHtml(t)}</span>`).join('');
+        const hasTags = ilityTag || secondaryTags || stakeholderTags || userTags;
+        const tagsRow = hasTags ? `<div class="req-item-tags">${ilityTag}${secondaryTags}${stakeholderTags}${userTags}</div>` : '';
 
         const sourceRow = r.source
           ? `<div class="req-item-source"><span class="req-source-label">Source:</span> ${escHtml(r.source)}</div>`
@@ -684,9 +693,9 @@
           ${approvalRecord}
         </div>`;
       }).join('');
-      list.appendChild(empty);
     }
 
+    list.appendChild(empty);
     renderChart();
     updateReqAdvisor();
     // nav buttons always active — no disable
@@ -1327,6 +1336,19 @@
       datumRef.style.display = 'none';
     }
 
+    // Concept tags (bottom of scoring view)
+    const tagsSection = document.getElementById('scorConceptTagsSection');
+    const tagsBody    = document.getElementById('scorConceptTagsBody');
+    if (tagsSection && tagsBody) {
+      const conceptTags = concept.tags || [];
+      if (conceptTags.length > 0) {
+        tagsBody.innerHTML = conceptTags.map(t => `<span class="concept-tag">${t}</span>`).join('');
+        tagsSection.style.display = '';
+      } else {
+        tagsSection.style.display = 'none';
+      }
+    }
+
     // Restore concept performance value and notes
     const perfKey = concept.id + '_' + req.id;
     const perfInput = document.getElementById('conceptPerfInput');
@@ -1426,6 +1448,19 @@
       });
     }
 
+    // Apply tag filter — datum always shown, non-datum filtered by scorTagFilter
+    const _tagFilter = (typeof scorTagFilter !== 'undefined') ? scorTagFilter : [];
+    const _tagMode   = (typeof scorTagMatchMode !== 'undefined') ? scorTagMatchMode : 'any';
+    if (_tagFilter.length > 0) {
+      visibleConcepts = visibleConcepts.filter((c, _i) => {
+        if (pughConcepts.indexOf(c) === 0) return true; // always show datum
+        const tags = c.tags || [];
+        return _tagMode === 'all'
+          ? _tagFilter.every(t => tags.includes(t))
+          : _tagFilter.some(t => tags.includes(t));
+      });
+    }
+
     wrap.innerHTML = visibleConcepts.map((c) => {
       // Use global index (position in full pughConcepts array) for datum check + badge numbers
       const globalIdx  = pughConcepts.indexOf(c);
@@ -1477,16 +1512,23 @@
         ? `<div style="margin-top:4px"><span class="task-active-badge">⏳ Scoring task active</span></div>`
         : '';
 
+      const tagsHtml = (c.tags && c.tags.length > 0)
+        ? `<div class="concept-tags-row">${c.tags.map(t => `<span class="concept-tag">${t}</span>`).join('')}</div>`
+        : '';
+
       return `<div class="concept-card${isBaseline ? ' datum-card' : ''}" style="${tintStyle}" onclick="startScoringConcept(${_cId})">
         ${badge}
-        <div class="concept-card-name">${c.name}</div>
+        <div style="flex:1;min-width:0">
+          <div class="concept-card-name">${c.name}</div>
+          ${tagsHtml}
+        </div>
         <div class="concept-card-meta">${meta}</div>
         ${conceptTaskBadge}
         <div class="concept-card-actions" onclick="event.stopPropagation()">
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
             onclick="showConceptSummary(${_cId})">Summary</button>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px"
-            onclick="renamePughConcept(${_cId})">Rename</button>
+            onclick="openEditConceptModal(${_cId})">Edit</button>
           ${deleteBtn}
         </div>
       </div>`;

@@ -2499,6 +2499,11 @@
     pughConcepts = []; pughScores = {}; pughAdvBackup = {}; pughConceptCounter = 0;
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
+    scorTagFilter = []; scorTagMatchMode = 'any';
+    scorReqTagFilter = []; scorReqTagMatchMode = 'any';
+    reqPageIlityFilter = []; reqPageIlityMatchMode = 'any';
+    reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
+    reqPageTagFilter = []; reqPageTagMatchMode = 'any';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     const mCb = document.getElementById('toggleMTHUS');
@@ -3324,6 +3329,11 @@ ${sections}
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
     conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
+    scorTagFilter = []; scorTagMatchMode = 'any';
+    scorReqTagFilter = []; scorReqTagMatchMode = 'any';
+    reqPageIlityFilter = []; reqPageIlityMatchMode = 'any';
+    reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
+    reqPageTagFilter = []; reqPageTagMatchMode = 'any';
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
     pughCollapsedIlities = new Set(); pughChartSort = 'order';
     goalMode = 'basic';
@@ -4648,6 +4658,10 @@ ${sections}
 
   function addRequirement() {
     const scorer = document.getElementById('reqScorer')?.value || '';
+    const tagsRaw = document.getElementById('reqTagsInput')?.value || '';
+    const parsedTags = [...new Set(
+      tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0)
+    )].sort();
 
     if (reqFormat === 'agile') {
       const stakeholder = document.getElementById('reqAgileStakeholder').value;
@@ -4671,6 +4685,7 @@ ${sections}
         secondaries: [],
         stakeholders: [stakeholder],
         scorer,
+        tags: parsedTags,
       };
 
       if (_editingReqId !== null) {
@@ -4685,6 +4700,7 @@ ${sections}
         document.getElementById('reqAgileSoThat').value = '';
         document.getElementById('reqAgileSource').value = '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
+        if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = '';
       }
 
     } else {
@@ -4707,6 +4723,7 @@ ${sections}
         id: _editingReqId !== null ? _editingReqId : ++reqIdCounter,
         format: 'incose',
         text, type: reqType, primary: primaryIlity, secondaries, stakeholders, scorer, source,
+        tags: parsedTags,
       };
 
       if (_editingReqId !== null) {
@@ -4721,6 +4738,7 @@ ${sections}
         document.getElementById('reqSecondaryStakeholder').value = '';
         document.getElementById('reqIncoseSource').value = '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = '';
+        if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = '';
         requirements.push(req);
       }
     }
@@ -5065,6 +5083,7 @@ ${sections}
     const fmt = req.format || 'incose';
     switchReqFormat(fmt);
 
+    const tagsStr = (req.tags || []).join(', ');
     if (fmt === 'agile') {
       setTimeout(() => {
         document.getElementById('reqAgileStakeholder').value = req.stakeholders[0] || '';
@@ -5073,6 +5092,7 @@ ${sections}
         document.getElementById('reqAgileSoThat').value      = req.agileSoThat || '';
         document.getElementById('reqAgileSource').value      = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
+        if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = tagsStr;
       }, 15);
     } else {
       populateReqForms();
@@ -5084,6 +5104,7 @@ ${sections}
         document.getElementById('reqSecondaryStakeholder').value = req.stakeholders[1] || '';
         document.getElementById('reqIncoseSource').value       = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
+        if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = tagsStr;
       }, 15);
     }
 
@@ -5103,7 +5124,7 @@ ${sections}
     document.getElementById('reqAddBtn').textContent = 'Add Requirement';
     document.getElementById('reqCancelEdit').style.display = 'none';
     // Clear AGILE fields
-    ['reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat','reqAgileSource'].forEach(id => {
+    ['reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat','reqAgileSource','reqTagsInput'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
@@ -5604,7 +5625,17 @@ ${sections}
   conceptNotes       = {};
   conceptCustomFields = [];
   _cfIdCounter       = 0;
-  scorerFilter       = '';
+  scorerFilter            = '';
+  scorTagFilter           = [];
+  scorTagMatchMode        = 'any';
+  scorReqTagFilter        = [];
+  scorReqTagMatchMode     = 'any';
+  reqPageIlityFilter      = [];
+  reqPageIlityMatchMode   = 'any';
+  reqPageStakeholderFilter     = [];
+  reqPageStakeholderMatchMode  = 'any';
+  reqPageTagFilter        = [];
+  reqPageTagMatchMode     = 'any';
 
   // ── SCOR: SETTINGS PANEL ──
 
@@ -5620,6 +5651,8 @@ ${sections}
       if (btn) btn.classList.add('active');
       renderCustomFieldsList();
       renderScorerFilterDropdown();
+      renderTagFilterSection();
+      renderScoringReqTagFilterSection();
       syncScoringModeButtons();
       // Close when clicking outside the panel or its trigger button
       setTimeout(() => {
@@ -5708,6 +5741,290 @@ ${sections}
         const label = s ? (s.contactName ? s.name + ' — ' + s.contactName : s.name) : id;
         return `<option value="${escHtml(id)}" ${scorerFilter === id ? 'selected' : ''}>${escHtml(label)}</option>`;
       }).join('');
+  }
+
+  // ── REQUIREMENTS PAGE: SETTINGS PANEL & FILTERS ──
+
+  function toggleReqSettings() {
+    const panel = document.getElementById('reqSettingsPanel');
+    const btn   = document.getElementById('reqSettingsBtn');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none' && panel.style.display !== '';
+    if (isOpen) {
+      closeReqSettings();
+    } else {
+      panel.style.display = '';
+      if (btn) btn.classList.add('active');
+      renderReqSettingsPanel();
+      setTimeout(() => {
+        document.addEventListener('click', _reqSettingsOutsideHandler);
+      }, 0);
+    }
+  }
+
+  function closeReqSettings() {
+    const panel = document.getElementById('reqSettingsPanel');
+    const btn   = document.getElementById('reqSettingsBtn');
+    if (panel) panel.style.display = 'none';
+    if (btn)   btn.classList.remove('active');
+    document.removeEventListener('click', _reqSettingsOutsideHandler);
+  }
+
+  function _reqSettingsOutsideHandler(e) {
+    const panel = document.getElementById('reqSettingsPanel');
+    const btn   = document.getElementById('reqSettingsBtn');
+    if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
+      closeReqSettings();
+    }
+  }
+
+  function getAllReqTags() {
+    const tagSet = new Set();
+    requirements.forEach(r => { if (Array.isArray(r.tags)) r.tags.forEach(t => tagSet.add(t)); });
+    return [...tagSet].sort();
+  }
+
+  function getReqPageFilteredReqs() {
+    let filtered = requirements;
+    if (reqPageIlityFilter.length > 0) {
+      filtered = filtered.filter(r => {
+        const ids = [r.primary, ...(r.secondaries || [])].filter(Boolean);
+        return reqPageIlityMatchMode === 'all'
+          ? reqPageIlityFilter.every(id => ids.includes(id))
+          : reqPageIlityFilter.some(id => ids.includes(id));
+      });
+    }
+    if (reqPageStakeholderFilter.length > 0) {
+      filtered = filtered.filter(r => {
+        const staks = r.stakeholders || [];
+        return reqPageStakeholderMatchMode === 'all'
+          ? reqPageStakeholderFilter.every(id => staks.includes(id))
+          : reqPageStakeholderFilter.some(id => staks.includes(id));
+      });
+    }
+    if (reqPageTagFilter.length > 0) {
+      filtered = filtered.filter(r => {
+        const tags = r.tags || [];
+        return reqPageTagMatchMode === 'all'
+          ? reqPageTagFilter.every(t => tags.includes(t))
+          : reqPageTagFilter.some(t => tags.includes(t));
+      });
+    }
+    return filtered;
+  }
+
+  function _buildFilterBlock(items, activeFilter, matchMode, onChangeFn, onModeFn, emptyMsg) {
+    if (items.length === 0) {
+      return `<div style="font-size:12px;color:var(--text-muted)">${emptyMsg}</div>`;
+    }
+    const radioDisabled = activeFilter.length < 2 ? 'opacity:0.4;pointer-events:none' : '';
+    const uid = onChangeFn; // use fn name as unique key for radio name attr
+    return `
+      <div style="margin-bottom:10px">
+        ${items.map(item => {
+          const checked = activeFilter.includes(item.id) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
+            <input type="checkbox" ${checked} onchange="${onChangeFn}('${escHtml(item.id)}',this.checked)" style="flex-shrink:0">
+            <span>${escHtml(item.label)}</span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="${radioDisabled}">
+        <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
+          <input type="radio" name="${uid}" value="any" ${matchMode==='any'?'checked':''} onchange="${onModeFn}('any')" style="flex-shrink:0;margin-top:2px">
+          <span><strong>Match Any</strong> — show requirements with at least one selected</span>
+        </label>
+        <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
+          <input type="radio" name="${uid}" value="all" ${matchMode==='all'?'checked':''} onchange="${onModeFn}('all')" style="flex-shrink:0;margin-top:2px">
+          <span><strong>Match All</strong> — show requirements with every selected</span>
+        </label>
+      </div>`;
+  }
+
+  function renderReqSettingsPanel() {
+    const allIlities = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])];
+    const usedIlityIds = new Set(requirements.flatMap(r => [r.primary, ...(r.secondaries||[])].filter(Boolean)));
+    const ilityItems = allIlities.filter(i => usedIlityIds.has(i.id)).map(i => ({ id: i.id, label: i.name }));
+
+    const allStakeholders = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])];
+    const usedStakIds = new Set(requirements.flatMap(r => r.stakeholders || []).filter(Boolean));
+    const stakItems = allStakeholders.filter(s => usedStakIds.has(s.id)).map(s => ({ id: s.id, label: s.name }));
+
+    const allTags = getAllReqTags().map(t => ({ id: t, label: t }));
+
+    const ilityBody = document.getElementById('reqIlityFilterBody');
+    const stakBody  = document.getElementById('reqStakeholderFilterBody');
+    const tagBody   = document.getElementById('reqTagFilterBody');
+    const countEl   = document.getElementById('reqFilterCount');
+
+    if (ilityBody) ilityBody.innerHTML = _buildFilterBlock(ilityItems, reqPageIlityFilter, reqPageIlityMatchMode,
+      'setReqPageIlityFilter', 'setReqPageIlityMatchMode', 'No ilities assigned to requirements yet.');
+    if (stakBody)  stakBody.innerHTML  = _buildFilterBlock(stakItems, reqPageStakeholderFilter, reqPageStakeholderMatchMode,
+      'setReqPageStakeholderFilter', 'setReqPageStakeholderMatchMode', 'No stakeholders assigned to requirements yet.');
+    if (tagBody)   tagBody.innerHTML   = _buildFilterBlock(allTags, reqPageTagFilter, reqPageTagMatchMode,
+      'setReqPageTagFilter', 'setReqPageTagMatchMode', 'No tags defined on requirements yet.');
+
+    const filtered = getReqPageFilteredReqs();
+    if (countEl) countEl.textContent = `Showing ${filtered.length} of ${requirements.length} requirement${requirements.length !== 1 ? 's' : ''}`;
+  }
+
+  function setReqPageIlityFilter(id, checked) {
+    if (checked) { if (!reqPageIlityFilter.includes(id)) reqPageIlityFilter.push(id); }
+    else { reqPageIlityFilter = reqPageIlityFilter.filter(x => x !== id); }
+    renderReqSettingsPanel(); renderRequirements();
+  }
+  function setReqPageIlityMatchMode(mode) { reqPageIlityMatchMode = mode; renderReqSettingsPanel(); renderRequirements(); }
+
+  function setReqPageStakeholderFilter(id, checked) {
+    if (checked) { if (!reqPageStakeholderFilter.includes(id)) reqPageStakeholderFilter.push(id); }
+    else { reqPageStakeholderFilter = reqPageStakeholderFilter.filter(x => x !== id); }
+    renderReqSettingsPanel(); renderRequirements();
+  }
+  function setReqPageStakeholderMatchMode(mode) { reqPageStakeholderMatchMode = mode; renderReqSettingsPanel(); renderRequirements(); }
+
+  function setReqPageTagFilter(id, checked) {
+    if (checked) { if (!reqPageTagFilter.includes(id)) reqPageTagFilter.push(id); }
+    else { reqPageTagFilter = reqPageTagFilter.filter(x => x !== id); }
+    renderReqSettingsPanel(); renderRequirements();
+  }
+  function setReqPageTagMatchMode(mode) { reqPageTagMatchMode = mode; renderReqSettingsPanel(); renderRequirements(); }
+
+  // ── SCOR: REQUIREMENT TAG FILTER (Section D of Concept Settings) ──
+
+  function renderScoringReqTagFilterSection() {
+    const body = document.getElementById('scorReqTagFilterBody');
+    if (!body) return;
+    const allTags = getAllReqTags();
+    if (allTags.length === 0) {
+      body.innerHTML = `<div style="font-size:12px;color:var(--text-muted);line-height:1.5">No tags defined on requirements yet. Add tags when creating or editing requirements.</div>`;
+      return;
+    }
+    const radioDisabled = scorReqTagFilter.length < 2 ? 'opacity:0.4;pointer-events:none' : '';
+    body.innerHTML = `
+      <div style="margin-bottom:10px">
+        ${allTags.map(tag => {
+          const checked = scorReqTagFilter.includes(tag) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
+            <input type="checkbox" ${checked} onchange="setScoringReqTagFilter('${escHtml(tag)}',this.checked)" style="flex-shrink:0">
+            <span class="req-tag req-tag-user">${escHtml(tag)}</span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="${radioDisabled}">
+        <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
+          <input type="radio" name="scorReqTagMode" value="any" ${scorReqTagMatchMode==='any'?'checked':''} onchange="setScoringReqTagMatchMode('any')" style="flex-shrink:0;margin-top:2px">
+          <span><strong>Match Any</strong> — show requirements with at least one selected tag</span>
+        </label>
+        <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
+          <input type="radio" name="scorReqTagMode" value="all" ${scorReqTagMatchMode==='all'?'checked':''} onchange="setScoringReqTagMatchMode('all')" style="flex-shrink:0;margin-top:2px">
+          <span><strong>Match All</strong> — show requirements with every selected tag</span>
+        </label>
+      </div>`;
+  }
+
+  function setScoringReqTagFilter(tag, checked) {
+    if (checked) { if (!scorReqTagFilter.includes(tag)) scorReqTagFilter.push(tag); }
+    else { scorReqTagFilter = scorReqTagFilter.filter(t => t !== tag); }
+    renderScoringReqTagFilterSection();
+    scoringReqIndex = 0;
+    if (scoringConceptId) renderScoringView();
+  }
+
+  function setScoringReqTagMatchMode(mode) {
+    scorReqTagMatchMode = mode;
+    renderScoringReqTagFilterSection();
+    scoringReqIndex = 0;
+    if (scoringConceptId) renderScoringView();
+  }
+
+  // ── SCOR: TAG FILTER ──
+
+  function getAllConceptTags() {
+    const tagSet = new Set();
+    pughConcepts.forEach(c => {
+      if (Array.isArray(c.tags)) c.tags.forEach(t => tagSet.add(t));
+    });
+    return [...tagSet].sort();
+  }
+
+  function getVisibleConceptCount() {
+    // Count non-datum concepts passing both the scorer filter and the tag filter.
+    let filtered = pughConcepts.slice(1);
+
+    // Scorer filter (my-tasks mode restricts by assigned concept IDs)
+    if (scorerFilter === '__my_tasks__' && typeof _getAssignedConceptIds === 'function') {
+      const { allConcepts, ids } = _getAssignedConceptIds();
+      if (!allConcepts) filtered = filtered.filter(c => ids.has(String(c.id)));
+    }
+
+    // Tag filter
+    if (scorTagFilter.length > 0) {
+      filtered = filtered.filter(c => {
+        const tags = c.tags || [];
+        return scorTagMatchMode === 'all'
+          ? scorTagFilter.every(t => tags.includes(t))
+          : scorTagFilter.some(t => tags.includes(t));
+      });
+    }
+
+    return { visible: filtered.length, total: pughConcepts.length > 0 ? pughConcepts.length - 1 : 0 };
+  }
+
+  function renderTagFilterSection() {
+    const body = document.getElementById('scorTagFilterBody');
+    if (!body) return;
+    const allTags = getAllConceptTags();
+
+    if (allTags.length === 0) {
+      body.innerHTML = `<div style="font-size:12px;color:var(--text-muted);line-height:1.5">No tags defined yet. Add tags to concepts using the <strong>Edit</strong> button on each concept card.</div>`;
+      return;
+    }
+
+    const { visible, total } = getVisibleConceptCount();
+    const radioDisabledStyle = scorTagFilter.length < 2 ? 'opacity:0.4;pointer-events:none' : '';
+
+    body.innerHTML = `
+      <div style="margin-bottom:12px">
+        ${allTags.map(tag => {
+          const checked = scorTagFilter.includes(tag) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;font-size:12px">
+            <input type="checkbox" ${checked} onchange="setTagFilter('${escHtml(tag)}', this.checked)" style="flex-shrink:0">
+            <span class="concept-tag">${escHtml(tag)}</span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px">Match mode</div>
+        <div style="${radioDisabledStyle}">
+          <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;cursor:pointer;font-size:12px">
+            <input type="radio" name="scorTagMatchMode" value="any" ${scorTagMatchMode === 'any' ? 'checked' : ''} onchange="setTagMatchMode('any')" style="flex-shrink:0;margin-top:2px">
+            <span><strong>Match Any</strong> — show concepts with at least one selected tag</span>
+          </label>
+          <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
+            <input type="radio" name="scorTagMatchMode" value="all" ${scorTagMatchMode === 'all' ? 'checked' : ''} onchange="setTagMatchMode('all')" style="flex-shrink:0;margin-top:2px">
+            <span><strong>Match All</strong> — show concepts with every selected tag</span>
+          </label>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+        Showing <strong>${visible}</strong> of <strong>${total}</strong> concept${total !== 1 ? 's' : ''}
+      </div>`;
+  }
+
+  function setTagFilter(tag, checked) {
+    if (checked) {
+      if (!scorTagFilter.includes(tag)) scorTagFilter.push(tag);
+    } else {
+      scorTagFilter = scorTagFilter.filter(t => t !== tag);
+    }
+    renderTagFilterSection();
+    renderConceptCards();
+  }
+
+  function setTagMatchMode(mode) {
+    scorTagMatchMode = mode;
+    renderTagFilterSection();
+    renderConceptCards();
   }
 
   // ── SCOR: CUSTOM CONCEPT FIELDS ──
@@ -5813,11 +6130,102 @@ ${sections}
     renderPughMatrix();
   }
 
-  function renamePughConcept(id) {
+  let _editingConceptId = null;
+
+  function openEditConceptModal(id) {
     const c = pughConcepts.find(c => c.id === id);
     if (!c) return;
-    const n = prompt('Rename concept:', c.name);
-    if (n && n.trim()) { c.name = n.trim(); renderConceptCards(); renderPughMatrix(); }
+    _editingConceptId = id;
+
+    const isDatum = pughConcepts[0]?.id === id;
+    document.getElementById('editConceptModalTitle').textContent = isDatum ? 'Edit Datum' : 'Edit Concept';
+    document.getElementById('editConceptNameInput').value = c.name;
+    document.getElementById('editConceptWarning').style.display = 'none';
+    document.getElementById('editConceptWarning').textContent = '';
+
+    // Populate custom fields (empty container if none defined)
+    const container = document.getElementById('editConceptCustomFields');
+    const fields = (typeof conceptCustomFields !== 'undefined') ? conceptCustomFields : [];
+    if (fields.length > 0) {
+      const vals = c.customFieldValues || {};
+      container.innerHTML = fields.map(f => `
+        <div class="modal-field">
+          <div class="modal-label">${f.name}</div>
+          <input class="modal-input" id="editCf_${f.id}"
+            type="${f.type === 'number' ? 'number' : 'text'}"
+            value="${vals[f.id] !== undefined ? vals[f.id] : ''}"
+            placeholder="${f.type === 'number' ? 'e.g. 42' : 'e.g. Steel'}">
+        </div>
+      `).join('');
+    } else {
+      container.innerHTML = '';
+    }
+
+    // Populate tags field
+    const tagsInput = document.getElementById('editConceptTagsInput');
+    if (tagsInput) tagsInput.value = (c.tags || []).join(', ');
+
+    document.getElementById('editConceptModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('editConceptNameInput').focus(), 50);
+  }
+
+  function closeEditConceptModal() {
+    document.getElementById('editConceptModal').style.display = 'none';
+    _editingConceptId = null;
+  }
+
+  function saveEditConcept() {
+    const c = pughConcepts.find(c => c.id === _editingConceptId);
+    if (!c) return;
+
+    const nameInput = document.getElementById('editConceptNameInput');
+    const warning   = document.getElementById('editConceptWarning');
+    const newName   = nameInput.value.trim();
+
+    // Validation: blank name
+    if (!newName) {
+      warning.textContent    = 'Name cannot be blank.';
+      warning.style.display  = '';
+      nameInput.focus();
+      return;
+    }
+
+    // Validation: duplicate name (case-insensitive, excluding self)
+    const duplicate = pughConcepts.find(
+      x => x.id !== _editingConceptId &&
+           x.name.trim().toLowerCase() === newName.toLowerCase()
+    );
+    if (duplicate) {
+      warning.textContent    = `A concept named "${newName}" already exists. Please choose a different name.`;
+      warning.style.display  = '';
+      nameInput.focus();
+      return;
+    }
+
+    // Save name
+    c.name = newName;
+
+    // Save custom field values
+    const fields = (typeof conceptCustomFields !== 'undefined') ? conceptCustomFields : [];
+    if (!c.customFieldValues) c.customFieldValues = {};
+    fields.forEach(f => {
+      const inp = document.getElementById(`editCf_${f.id}`);
+      if (inp) c.customFieldValues[f.id] = inp.value.trim();
+    });
+
+    // Save tags (split by comma, lowercase, trim, deduplicate, sort alphabetically)
+    const tagsInput = document.getElementById('editConceptTagsInput');
+    if (tagsInput) {
+      c.tags = [...new Set(
+        tagsInput.value.split(',')
+          .map(t => t.trim().toLowerCase())
+          .filter(t => t.length > 0)
+      )].sort();
+    }
+
+    closeEditConceptModal();
+    renderConceptCards();
+    if (typeof renderPughMatrix === 'function') renderPughMatrix();
   }
 
   function startScoringConcept(id) {
@@ -6010,20 +6418,32 @@ ${sections}
   // Returns the requirements list filtered by the current scorerFilter.
   // The scorer filter only affects scoring view display — never Pugh calculations.
   function getFilteredReqs() {
-    if (!scorerFilter) return requirements;
-
-    // "My Assigned Tasks" mode: only show requirements covered by the user's task payloads
-    if (scorerFilter === '__my_tasks__') {
+    let reqs;
+    if (!scorerFilter) {
+      reqs = requirements;
+    } else if (scorerFilter === '__my_tasks__') {
       const assignedReqIds = new Set();
       (myAssignedScoringTasks || []).forEach(t => {
         if (t.payload && Array.isArray(t.payload.requirementIds)) {
           t.payload.requirementIds.forEach(id => assignedReqIds.add(String(id)));
         }
       });
-      return requirements.filter(r => assignedReqIds.has(String(r.id)));
+      reqs = requirements.filter(r => assignedReqIds.has(String(r.id)));
+    } else {
+      reqs = requirements.filter(r => r.scorer === scorerFilter);
     }
+    return _applyReqTagFilter(reqs);
+  }
 
-    return requirements.filter(r => r.scorer === scorerFilter);
+  // Apply scoring requirement tag filter (Section D) on top of scorer filter
+  function _applyReqTagFilter(reqs) {
+    if (!scorReqTagFilter || scorReqTagFilter.length === 0) return reqs;
+    return reqs.filter(r => {
+      const tags = r.tags || [];
+      return scorReqTagMatchMode === 'all'
+        ? scorReqTagFilter.every(t => tags.includes(t))
+        : scorReqTagFilter.some(t => tags.includes(t));
+    });
   }
 
   // Returns the set of concept IDs the current user is assigned to score.
@@ -6057,6 +6477,15 @@ ${sections}
     if (isBaseline) html += `<span class="concept-datum-badge">Datum</span>`;
     html += `<span style="font-size:15px;font-weight:700;color:var(--text)">${escHtml(concept.name)}</span>`;
     html += `</div>`;
+
+    // Tags
+    if (concept.tags && concept.tags.length > 0) {
+      html += `<div class="concept-tags-row" style="margin-bottom:14px">`;
+      concept.tags.forEach(t => {
+        html += `<span class="concept-tag">${escHtml(t)}</span>`;
+      });
+      html += `</div>`;
+    }
 
     // Custom field values
     if (conceptCustomFields.length > 0) {

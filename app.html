@@ -864,6 +864,14 @@
       </select>
     </div>
 
+    <!-- ── Tags (shared, both formats) ── -->
+    <div style="margin-top:12px">
+      <div class="req-form-label">Tags <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional — separate with commas, ordered alphabetically)</span></div>
+      <input type="text" class="req-text-input" id="reqTagsInput"
+        placeholder="e.g. cost, safety-critical, phase-2"
+        style="margin:0">
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
       <button class="btn btn-primary" id="reqAddBtn" onclick="addRequirement()">Add Requirement</button>
       <button class="btn btn-ghost" id="reqCancelEdit" style="display:none" onclick="cancelReqEdit()">Cancel</button>
@@ -872,6 +880,44 @@
 
   <div class="req-layout">
     <div>
+
+      <!-- Requirements filter toolbar -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn btn-ghost" id="reqSettingsBtn" onclick="toggleReqSettings()" style="font-size:12px">⚙ Filter Requirements</button>
+      </div>
+
+      <!-- Requirements Settings panel (collapsible) -->
+      <div id="reqSettingsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:16px">Requirement Filters</div>
+
+        <!-- Ility Filter -->
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Ility Filter</div>
+          <div id="reqIlityFilterBody"></div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
+
+        <!-- Stakeholder Filter -->
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Stakeholder Filter</div>
+          <div id="reqStakeholderFilterBody"></div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
+
+        <!-- Tag Filter -->
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Tag Filter</div>
+          <div id="reqTagFilterBody"></div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:14px;display:flex;align-items:center;justify-content:space-between">
+          <div id="reqFilterCount" style="font-size:11px;color:var(--text-muted)"></div>
+          <button class="btn btn-primary" onclick="closeReqSettings()" style="font-size:12px">Done</button>
+        </div>
+      </div>
+
       <div id="reqList" class="req-list">
         <div class="req-empty" id="reqEmpty">No requirements yet. Add your first one above.</div>
       </div>
@@ -1065,6 +1111,27 @@
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">Filters which requirements are shown during scoring. Has no effect on Pugh Matrix calculations. Assign scorers on the REQS page.</div>
     </div>
 
+    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
+
+    <!-- Section C: Concept Tag Filter -->
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">Concept Tag Filter</div>
+      <div id="scorTagFilterBody">
+        <!-- populated by renderTagFilterSection() -->
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:20px 0"></div>
+
+    <!-- Section D: Requirement Tag Filter (for scoring view) -->
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">Requirement Tag Filter</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.5">Filters which requirements appear during scoring by their tags. Has no effect on Pugh Matrix calculations.</div>
+      <div id="scorReqTagFilterBody">
+        <!-- populated by renderScoringReqTagFilterSection() -->
+      </div>
+    </div>
+
     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:14px;text-align:right">
       <button class="btn btn-primary" onclick="closeScoringSettings()" style="font-size:12px">Done</button>
     </div>
@@ -1190,6 +1257,12 @@
           <textarea class="concept-notes-input" id="conceptNotesInput" rows="3"
             placeholder="Add notes explaining this score or capturing performance context…"
             oninput="saveConceptNote()"></textarea>
+        </div>
+
+        <!-- Concept tags (bottom of scoring view) -->
+        <div class="concept-tags-section" id="scorConceptTagsSection" style="display:none">
+          <div class="datum-def-label">Tags</div>
+          <div class="concept-tags-row" id="scorConceptTagsBody"></div>
         </div>
       </div>
     </div>
@@ -1445,6 +1518,32 @@
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="confirmAddConcept()">Add Concept</button>
       <button class="btn btn-secondary" onclick="cancelAddConcept()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT CONCEPT MODAL ── -->
+<div class="modal-overlay" id="editConceptModal" onclick="if(event.target===this)closeEditConceptModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title" id="editConceptModalTitle">Edit Concept</div>
+    <div class="modal-field">
+      <div class="modal-label">Name</div>
+      <input class="modal-input" id="editConceptNameInput" type="text"
+        placeholder="Concept name…"
+        onkeydown="if(event.key==='Enter')saveEditConcept()">
+    </div>
+    <div id="editConceptCustomFields"></div>
+    <div class="modal-field">
+      <div class="modal-label">Tags</div>
+      <input class="modal-input" id="editConceptTagsInput" type="text"
+        placeholder="e.g. aluminum, structural, welded"
+        onkeydown="if(event.key==='Enter')saveEditConcept()">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Separate tags with commas. Tags are ordered alphabetically.</div>
+    </div>
+    <div id="editConceptWarning" class="modal-warning" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveEditConcept()">Save</button>
+      <button class="btn btn-secondary" onclick="closeEditConceptModal()">Cancel</button>
     </div>
   </div>
 </div>
