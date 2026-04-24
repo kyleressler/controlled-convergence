@@ -5744,6 +5744,7 @@ ${sections}
         document.getElementById('reqAgileSource').value      = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
         if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = tagsStr;
+        renderReqTagSuggestions();
       }, 15);
     } else {
       populateReqForms();
@@ -5756,6 +5757,7 @@ ${sections}
         document.getElementById('reqIncoseSource').value       = req.source || '';
         if (document.getElementById('reqScorer')) document.getElementById('reqScorer').value = req.scorer || '';
         if (document.getElementById('reqTagsInput')) document.getElementById('reqTagsInput').value = tagsStr;
+        renderReqTagSuggestions();
       }, 15);
     }
 
@@ -5788,6 +5790,7 @@ ${sections}
     document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
     reqType = '';
     populateReqForms();
+    renderReqTagSuggestions();
   }
 
   // ── PAIRWISE COMPARISON ──
@@ -6456,6 +6459,39 @@ ${sections}
     const tagSet = new Set();
     requirements.forEach(r => { if (Array.isArray(r.tags)) r.tags.forEach(t => tagSet.add(t)); });
     return [...tagSet].sort();
+  }
+
+  function renderReqTagSuggestions() {
+    const container = document.getElementById('reqTagSuggestions');
+    if (!container) return;
+    const allTags = getAllReqTags();
+    if (allTags.length === 0) { container.innerHTML = ''; return; }
+    const inputEl = document.getElementById('reqTagsInput');
+    const currentTags = new Set(
+      (inputEl?.value || '').split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0)
+    );
+    container.innerHTML = allTags.map(tag => {
+      const active = currentTags.has(tag);
+      return `<span class="req-tag req-tag-user" data-suggest-tag="${escHtml(tag)}"
+        title="${active ? 'Already added' : 'Click to add tag'}"
+        style="cursor:${active ? 'default' : 'pointer'};opacity:${active ? '0.4' : '1'}"
+      >${escHtml(tag)}</span>`;
+    }).join('');
+    container.querySelectorAll('[data-suggest-tag]').forEach(el => {
+      el.addEventListener('click', () => addTagSuggestion(el.dataset.suggestTag));
+    });
+  }
+
+  function addTagSuggestion(tag) {
+    const inputEl = document.getElementById('reqTagsInput');
+    if (!inputEl) return;
+    const existing = inputEl.value.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+    if (!existing.includes(tag)) {
+      existing.push(tag);
+      existing.sort();
+      inputEl.value = existing.join(', ');
+    }
+    renderReqTagSuggestions();
   }
 
   function getReqPageFilteredReqs() {

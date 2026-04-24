@@ -737,6 +737,7 @@
     list.appendChild(empty);
     renderChart();
     updateReqAdvisor();
+    if (typeof renderReqTagSuggestions === 'function') renderReqTagSuggestions();
     // nav buttons always active — no disable
   }
 
