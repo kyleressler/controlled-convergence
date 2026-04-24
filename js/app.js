@@ -6226,7 +6226,10 @@ ${sections}
     history.replaceState(null, '', window.location.pathname); // clean URL bar
     if      (h === '#login')  { openAuthModal('login'); }
     else if (h === '#signup') { openAuthModal('signup'); }
-    else if (h === '#basic')  { setMode('basic'); }
+    // #basic used to drop the visitor straight into Basic Mode. Quick Mode is now
+    // tied to project creation (Project Manager → Start Quick Project), so this
+    // hash now nudges the visitor to sign up instead.
+    else if (h === '#basic')  { openAuthModal('signup'); }
     else if (h === '#demo')   { setTimeout(function() { loadExampleProject(true); }, 0); }
   })();
 
