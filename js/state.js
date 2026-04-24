@@ -107,6 +107,16 @@ let convNextSteps         = [];   // [{ id, what, who, when }]
 let convClosedAt          = null;
 let _convNSCounter        = 0;
 
+// ── Requirements page filter state ───────────────────────────
+// Declared here (loaded before app.js) so they exist when the hash handler
+// fires loadExampleProject() → renderRequirements() → getReqPageFilteredReqs().
+let reqPageIlityFilter          = [];
+let reqPageIlityMatchMode       = 'any';
+let reqPageStakeholderFilter    = [];
+let reqPageStakeholderMatchMode = 'any';
+let reqPageTagFilter            = [];
+let reqPageTagMatchMode         = 'any';
+
 // ── Central state object (Supabase-ready shape) ───────────────
 // currentUser: populated by auth.js on login
 // currentProject / projects: synced with api.js
