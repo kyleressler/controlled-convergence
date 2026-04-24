@@ -3836,7 +3836,7 @@ ${sections}
     'account-stak-limit':   { title: 'Stakeholder Limit Reached',                body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.',                                                                              cta: 'Upgrade to Pro',      action: 'pro'    },
     'coaching':             { title: 'AI Coaching is a Pro Feature',             body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.',                                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
     'export-report':        { title: 'Report Export is a Pro Feature',           body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.',                                                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
-    'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Account users can own up to 5 projects. Delete a project to make room, or upgrade to Pro for unlimited projects.',                                                                                       cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Free Accounts can own 3 Quick Projects and 3 Full Projects. Delete a project of this type to make room, or upgrade to Pro for more.',                                                                cta: 'Upgrade to Pro',      action: 'pro'    },
     'account-collab-limit': { title: 'Collaborating Limit Reached',             body: 'Account users can collaborate on up to 5 projects. Remove a project from your collaborating list to make room, or upgrade to Pro for unlimited.',                                                             cta: 'Upgrade to Pro',      action: 'pro'    },
     'invite-collab':        { title: 'Inviting Collaborators requires Pro',     body: 'Upgrade to Pro to invite collaborators to your projects. The people you invite do not need Pro — only the project owner does.',                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
     'templates':            { title: 'Templates is a Pro Feature',              body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.',                                      cta: 'Upgrade to Pro',      action: 'pro'    },
@@ -3911,8 +3911,11 @@ ${sections}
       input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
-    const ownedCount = savedProjects.filter(p => p.is_owner !== false).length;
-    if (userTier === 'account' && ownedCount >= PROJECT_LIMITS.account) {
+    // Default this entry point to a Full Project. Change 4 replaces this
+    // call site with two type-specific entry points (Quick / Full).
+    const projectType = 'full';
+    const ownedCount = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === projectType).length;
+    if (userTier === 'account' && ownedCount >= getProjectLimit('account', projectType)) {
       showUpgradePrompt('account-project-limit');
       return;
     }

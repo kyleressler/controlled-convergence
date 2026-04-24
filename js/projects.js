@@ -3,12 +3,24 @@
 // ============================================================
 
 // ── Tier limits ───────────────────────────────────────────────
-// Owned projects (projects this user created)
+// Owned projects (projects this user created). Quick and Full have
+// SEPARATE pools — a Free Account user can own 3 Quick + 3 Full
+// independently. A Pro user can own 100 of each.
 const PROJECT_LIMITS = {
-  free:    0,        // free = not logged in; cannot own saved projects
-  account: 5,        // account tier: up to 5 owned projects
-  pro:     Infinity  // pro: unlimited
+  free:    { quick: 0,   full: 0   }, // free = not logged in; cannot own saved projects
+  account: { quick: 3,   full: 3   }, // free Account tier: 3 Quick + 3 Full
+  pro:     { quick: 100, full: 100 }  // Pro: 100 Quick + 100 Full
 };
+
+/**
+ * Look up the owned-project limit for a given tier and project type.
+ * Defaults to 'full' when projectType is missing.
+ */
+function getProjectLimit(tier, projectType) {
+  const tierLimits = PROJECT_LIMITS[tier] || PROJECT_LIMITS.free;
+  const type = projectType === 'quick' ? 'quick' : 'full';
+  return typeof tierLimits[type] === 'number' ? tierLimits[type] : 0;
+}
 
 // Collaborating projects (projects this user was invited to)
 const COLLAB_LIMITS = {
@@ -64,12 +76,12 @@ function createProjectModel({ name, description = '', owner = '', userId = null,
 }
 
 /**
- * Check whether a user is allowed to create another project.
- * This is the Stripe entitlement gate — in production, validate
- * against the user's active subscription from Stripe.
+ * Check whether a user is allowed to create another project of the given type.
+ * Quick and Full projects have separate per-type pools.
  *
  * @param {object|null} user — appState.currentUser
- * @param {number} currentCount — savedProjects.length
+ * @param {number} currentCount — count of OWNED projects of the SAME projectType
+ * @param {string} [projectType='full'] — 'quick' | 'full'
  * @returns {{ allowed: boolean, reason: string|null }}
  *
  * Stripe integration points:
@@ -77,18 +89,20 @@ function createProjectModel({ name, description = '', owner = '', userId = null,
  *   2. Store entitlement in appState.currentUser.tier
  *   3. This function reads that tier — no change needed here once step 2 is live
  */
-function canCreateProject(user, currentCount) {
-  const tier = (user && user.tier) || userTier || 'free';
-  const limit = PROJECT_LIMITS[tier] !== undefined ? PROJECT_LIMITS[tier] : 1;
+function canCreateProject(user, currentCount, projectType) {
+  const tier  = (user && user.tier) || userTier || 'free';
+  const type  = projectType === 'quick' ? 'quick' : 'full';
+  const limit = getProjectLimit(tier, type);
 
   if (currentCount < limit) {
     return { allowed: true, reason: null };
   }
 
+  const typeLabel = type === 'quick' ? 'Quick Projects' : 'Full Projects';
   const messages = {
-    free:   'Free accounts can save 1 project. Create a free Account to save up to 5.',
-    account: 'Account users can save up to 5 projects. Upgrade to Pro for unlimited projects.',
-    pro:    null // unlimited — should never hit this branch
+    free:    'Sign in to save ' + typeLabel + '.',
+    account: 'Free Accounts can own up to ' + limit + ' ' + typeLabel + '. Upgrade to Pro for more.',
+    pro:     'Pro users can own up to ' + limit + ' ' + typeLabel + '.'
   };
 
   return { allowed: false, reason: messages[tier] || 'Project limit reached.' };
