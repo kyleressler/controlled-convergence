@@ -2366,13 +2366,13 @@
     document.body.removeChild(input);
   }
 
-  function loadExampleProject() {
+  function loadExampleProject(autoLoad) {
     // Detect if the current session has any meaningful data
     const hasData = requirements.length > 0 ||
                     pughConcepts.length > 0 ||
                     selectedIlities.size > 0 ||
                     selectedStakeholders.size > 0;
-    if (hasData) {
+    if (hasData && !autoLoad) {
       if (!confirm('Loading the example project will replace your current session data. Continue?')) return;
     }
 
@@ -2473,7 +2473,12 @@
 
     // Navigate to Full Mode so the user lands somewhere useful
     setMode('full');
-    switchPage('proj', document.querySelector('[data-page=proj]'));
+    if (autoLoad) {
+      // Coming from the marketing demo button — drop directly onto Stakeholders
+      switchPage('stak', document.querySelector('[data-page=stak]'));
+    } else {
+      switchPage('proj', document.querySelector('[data-page=proj]'));
+    }
   }
 
   function clearAllWithWarning() {
@@ -6041,6 +6046,7 @@ ${sections}
     if      (h === '#login')  { openAuthModal('login'); }
     else if (h === '#signup') { openAuthModal('signup'); }
     else if (h === '#basic')  { setMode('basic'); }
+    else if (h === '#demo')   { loadExampleProject(true); }
   })();
 
   // ── IMMEDIATE SAVE HELPER ──

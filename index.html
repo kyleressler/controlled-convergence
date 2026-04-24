@@ -268,6 +268,81 @@
       display: block;
     }
 
+    /* ─── Demo / Case Study Section ──────────────────────────────────── */
+    .section-demo {
+      padding: 96px 24px 100px;
+      background: #f4f9f9;
+      text-align: center;
+    }
+    .demo-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--teal-light); color: var(--teal);
+      font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      padding: 5px 16px; border-radius: 100px; margin-bottom: 24px;
+    }
+    .demo-heading {
+      font-size: clamp(28px, 3.5vw, 48px); font-weight: 800;
+      letter-spacing: -1.5px; color: var(--text); line-height: 1.1;
+    }
+    .demo-sub {
+      margin: 16px auto 0; font-size: 18px; color: var(--text-muted);
+      max-width: 580px; line-height: 1.6;
+    }
+    .demo-cards {
+      max-width: 1100px; margin: 56px auto 0;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+    }
+    .demo-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: var(--radius-card); overflow: hidden;
+      display: flex; flex-direction: column;
+      transition: box-shadow .25s ease, transform .22s ease;
+      text-align: left;
+    }
+    .demo-card:hover {
+      box-shadow: var(--shadow-lg); transform: translateY(-5px);
+    }
+    .demo-card-img {
+      width: 100%; aspect-ratio: 4/3; overflow: hidden; flex-shrink: 0;
+    }
+    .demo-card-img img {
+      width: 100%; height: 100%; object-fit: cover;
+      transition: transform .45s ease;
+      display: block;
+    }
+    .demo-card:hover .demo-card-img img { transform: scale(1.06); }
+    .demo-card-img.crop-top    img { object-position: center top; }
+    .demo-card-img.crop-center img { object-position: center center; }
+    .demo-card-img.crop-right  img { object-position: right center; }
+    .demo-card-body {
+      padding: 18px 20px 22px;
+      display: flex; flex-direction: column; gap: 5px; flex: 1;
+    }
+    .demo-card-tag {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--teal); margin-bottom: 2px;
+    }
+    .demo-card-title {
+      font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.3;
+    }
+    .demo-card-desc {
+      font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-top: 4px;
+    }
+    .demo-cta {
+      margin-top: 52px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .demo-cta-note {
+      font-size: 13px; color: var(--text-muted);
+      display: flex; align-items: center; gap: 5px;
+    }
+    @media (max-width: 900px) {
+      .demo-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+      .demo-cards { grid-template-columns: 1fr; max-width: 400px; }
+    }
+
     /* ─── Bottom CTA ───────────────────────────────────────────────────── */
     .section-cta {
       padding: 80px 24px 96px; text-align: center;
@@ -528,118 +603,82 @@
     </div>
   </section>
 
-  <!-- ═══ MEETS YOUR TEAM'S NEEDS ═══════════════════════════════════════ -->
-  <section class="section-modes" aria-labelledby="modes-heading">
-    <h2 id="modes-heading" class="section-heading">One Platform. Every Stage of Concept Selection.</h2>
+  <!-- ═══ DEMO / CASE STUDY ════════════════════════════════════════════ -->
+  <section class="section-demo" aria-labelledby="demo-heading">
 
-    <!-- ── Basic Mode ── -->
-    <div class="mode-block">
-      <p class="mode-eyebrow" aria-hidden="true">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Basic Mode
-      </p>
-      <p class="mode-desc">
-        Use Basic Mode for fast and streamlined all on one page concept analysis.
-        Perfect for beginners or on the fly design studies.
-      </p>
-      <div class="mode-img-wrap">
-        <img src="basic-mode-screenshot.png" alt="Basic Mode interface showing streamlined single-page concept analysis" />
+    <p class="demo-eyebrow" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      UCI Road Bike Frame Design — Live Example
+    </p>
+
+    <h2 id="demo-heading" class="demo-heading">See a Real Project in Action</h2>
+    <p class="demo-sub">
+      Explore a complete concept selection study: 32 engineering requirements, 18 competing frame designs, and a structured path to the winning concept.
+    </p>
+
+    <!-- Feature cards -->
+    <div class="demo-cards">
+
+      <!-- Card 1 — Laptop / Data-backed -->
+      <div class="demo-card">
+        <div class="demo-card-img crop-center">
+          <img src="bike-frame-laptop.png" alt="Engineer reviewing bike frame design on a laptop" />
+        </div>
+        <div class="demo-card-body">
+          <p class="demo-card-tag">Requirements</p>
+          <p class="demo-card-title">32 Requirements, All Stakeholder-Linked</p>
+          <p class="demo-card-desc">Every requirement is tied to who cares about it and how much — so your scoring reflects real priorities, not just opinions.</p>
+        </div>
       </div>
+
+      <!-- Card 2 — Ideation / Stakeholder alignment -->
+      <div class="demo-card">
+        <div class="demo-card-img crop-top">
+          <img src="bike-frame-ideation.png" alt="Bike frame ideation and design sketches" />
+        </div>
+        <div class="demo-card-body">
+          <p class="demo-card-tag">Concept Evaluation</p>
+          <p class="demo-card-title">18 Competing Designs, One Framework</p>
+          <p class="demo-card-desc">From carbon fiber layups to aluminum alloys — every concept scored against the same weighted criteria, side by side.</p>
+        </div>
+      </div>
+
+      <!-- Card 3 — FEA / Simulation-backed -->
+      <div class="demo-card">
+        <div class="demo-card-img crop-center">
+          <img src="bike-frame-fea.png" alt="FEA simulation results for bike frame analysis" />
+        </div>
+        <div class="demo-card-body">
+          <p class="demo-card-tag">Pugh Matrix</p>
+          <p class="demo-card-title">Simulation Data in the Matrix</p>
+          <p class="demo-card-desc">FEA and test results feed directly into the Pugh Matrix — so decisions are driven by data, not gut feeling.</p>
+        </div>
+      </div>
+
+      <!-- Card 4 — Sanding / Hands-on -->
+      <div class="demo-card">
+        <div class="demo-card-img crop-center">
+          <img src="bike-frame-sanding.png" alt="Hands-on bike frame prototype finishing work" />
+        </div>
+        <div class="demo-card-body">
+          <p class="demo-card-tag">Convergence</p>
+          <p class="demo-card-title">A Clear Winner Emerges</p>
+          <p class="demo-card-desc">When the process is done, the best design wins on merit — and your team has the rationale to back it up.</p>
+        </div>
+      </div>
+
     </div>
 
-    <!-- ── Full Mode ── -->
-    <div class="mode-block">
-      <p class="mode-eyebrow" aria-hidden="true">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        Full Mode
+    <!-- CTA -->
+    <div class="demo-cta">
+      <a href="app.html#demo" class="btn btn-primary btn-primary-lg">
+        Explore the Project
+        <svg style="margin-left:8px" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <p class="demo-cta-note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        No account needed — loads instantly
       </p>
-      <p class="mode-desc">
-        Or enable Full Mode to experience the entire Controlled Convergence workflow.
-        Ideal for more complex developments requiring deeper dives.
-      </p>
-
-      <!-- Workflow Diagram -->
-      <div class="flow-wrap" role="img" aria-label="Full Mode workflow: Goal Statement, Stakeholders, Lifecycle Properties, Requirements, Weighting, Concept Scoring, Pugh Matrix, Convergence">
-        <svg viewBox="0 0 706 254" xmlns="http://www.w3.org/2000/svg" overflow="visible">
-          <defs>
-            <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#0d6e6e"/>
-            </marker>
-          </defs>
-
-          <!-- ── ROW 1 (left → right) ──────────────────────────────── -->
-          <!-- 1: Goal Statement -->
-          <rect x="24" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="40" cy="36" r="12" fill="#0d6e6e"/>
-          <text x="40" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">1</text>
-          <text x="98" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Goal Statement</text>
-
-          <!-- Arrow 1 → 2 -->
-          <line x1="174" y1="59" x2="191" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 2: Stakeholders -->
-          <rect x="194" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="210" cy="36" r="12" fill="#0d6e6e"/>
-          <text x="210" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">2</text>
-          <text x="268" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Stakeholders</text>
-
-          <!-- Arrow 2 → 3 -->
-          <line x1="344" y1="59" x2="361" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 3: Lifecycle Properties -->
-          <rect x="364" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="380" cy="36" r="12" fill="#0d6e6e"/>
-          <text x="380" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">3</text>
-          <text x="438" y="63" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">Lifecycle</text>
-          <text x="438" y="78" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">Properties</text>
-
-          <!-- Arrow 3 → 4 -->
-          <line x1="514" y1="59" x2="531" y2="59" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 4: Requirements -->
-          <rect x="534" y="20" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="550" cy="36" r="12" fill="#0d6e6e"/>
-          <text x="550" y="40.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">4</text>
-          <text x="608" y="74" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Requirements</text>
-
-          <!-- Turn-down: 4 → 5 -->
-          <line x1="608" y1="100" x2="608" y2="149" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- ── ROW 2 (right → left) ──────────────────────────────── -->
-          <!-- 5: Weighting -->
-          <rect x="534" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="550" cy="168" r="12" fill="#0d6e6e"/>
-          <text x="550" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">5</text>
-          <text x="608" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Weighting</text>
-
-          <!-- Arrow 5 → 6 -->
-          <line x1="532" y1="191" x2="515" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 6: Concept Scoring -->
-          <rect x="364" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="380" cy="168" r="12" fill="#0d6e6e"/>
-          <text x="380" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">6</text>
-          <text x="438" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Concept Scoring</text>
-
-          <!-- Arrow 6 → 7 -->
-          <line x1="362" y1="191" x2="345" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 7: Pugh Matrix -->
-          <rect x="194" y="152" width="148" height="78" rx="10" fill="white" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="210" cy="168" r="12" fill="#0d6e6e"/>
-          <text x="210" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="white">7</text>
-          <text x="268" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">Pugh Matrix</text>
-
-          <!-- Arrow 7 → 8 -->
-          <line x1="192" y1="191" x2="175" y2="191" stroke="#0d6e6e" stroke-width="1.5" marker-end="url(#arr)"/>
-
-          <!-- 8: Convergence — terminal node (filled teal) -->
-          <rect x="24" y="152" width="148" height="78" rx="10" fill="#0d6e6e" stroke="#0d6e6e" stroke-width="1.5"/>
-          <circle cx="40" cy="168" r="12" fill="white"/>
-          <text x="40" y="172.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="#0d6e6e">8</text>
-          <text x="98" y="206" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="14" font-weight="700" fill="white">Convergence</text>
-        </svg>
-      </div>
     </div>
 
   </section>
