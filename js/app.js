@@ -2718,6 +2718,8 @@
       ilty: document.getElementById('rptILTY').checked,
       stak: document.getElementById('rptSTAK').checked,
       reqs: document.getElementById('rptREQS').checked,
+      cov:  document.getElementById('rptCOV')  ? document.getElementById('rptCOV').checked  : true,
+      rtm:  document.getElementById('rptRTM')  ? document.getElementById('rptRTM').checked  : true,
       pair: document.getElementById('rptPAIR').checked,
       scor: document.getElementById('rptSCOR').checked,
       pugh: document.getElementById('rptPUGH').checked,
@@ -2881,9 +2883,107 @@
           <td style="white-space:nowrap;font-size:11px">${escHtml(scorer)}</td>
         </tr>`;
       }).join('');
+
+      // ── Coverage charts (conditional on inc.cov) ──
+      let covCharts = '';
+      if (inc.cov && requirements.length > 0) {
+        const ilAll = [...selIlities];
+        if (requirements.some(r => r.primary === 'other')) ilAll.push({ id: 'other', name: 'Other' });
+        const ilCounts = {};
+        ilAll.forEach(il => { ilCounts[il.id] = 0; });
+        requirements.forEach(r => {
+          if (ilCounts[r.primary] !== undefined) ilCounts[r.primary]++;
+          (r.secondaries || []).forEach(s => { if (ilCounts[s] !== undefined) ilCounts[s]++; });
+        });
+        const ilMax   = Math.max(...Object.values(ilCounts), 1);
+        const ilTotal = requirements.length;
+        const ilRows  = ilAll.map(il => {
+          const count = ilCounts[il.id] || 0;
+          const pct   = Math.round((count / ilMax) * 100);
+          const conc  = ilTotal > 0 && count / ilTotal > 0.45;
+          return `<div class="cov-bar-row">
+            <div class="cov-bar-lbl" title="${escHtml(il.name)}">${escHtml(il.name)}</div>
+            <div class="cov-bar-track"><div class="cov-bar-fill${conc ? ' conc' : ''}" style="width:${pct}%"></div></div>
+            <div class="cov-bar-cnt">${count}</div>
+          </div>`;
+        }).join('');
+        const skCounts = {};
+        selStakeholders.forEach(s => { skCounts[s.id] = 0; });
+        requirements.forEach(r => {
+          (r.stakeholders || []).forEach(sid => { if (skCounts[sid] !== undefined) skCounts[sid]++; });
+        });
+        const skMax  = Math.max(...Object.values(skCounts), 1);
+        const skRows = selStakeholders.map(s => {
+          const count = skCounts[s.id] || 0;
+          const pct   = Math.round((count / skMax) * 100);
+          return `<div class="cov-bar-row">
+            <div class="cov-bar-lbl" title="${escHtml(s.name)}">${escHtml(s.name)}</div>
+            <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${pct}%"></div></div>
+            <div class="cov-bar-cnt">${count}</div>
+          </div>`;
+        }).join('');
+        covCharts = `<div class="cov-charts">
+          ${ilAll.length  ? `<div class="cov-chart-col"><div class="cov-chart-label">Coverage by Lifecycle Property</div>${ilRows}</div>` : ''}
+          ${selStakeholders.length ? `<div class="cov-chart-col"><div class="cov-chart-label">Coverage by Stakeholder</div>${skRows}</div>` : ''}
+        </div>`;
+      }
+
+      // ── RTMs (conditional on inc.rtm) ──
+      let covRtms = '';
+      if (inc.rtm && requirements.length > 0) {
+        const _re = s => String(s || '').replace(/[&<>"]/g, c =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+        const buildPdfRtm = (reqs, cols, hasRelation, title) => {
+          if (!cols.length) return '';
+          let h = `<h4 class="rpt-subhead sub-page-break" style="margin-top:28px">${title}</h4>`;
+          h += '<div style="overflow-x:auto"><table class="rtm-rpt-table"><thead><tr>';
+          h += '<th class="rtm-rpt-corner">#</th>';
+          h += '<th class="rtm-rpt-req-col">Requirement</th>';
+          cols.forEach(col => {
+            h += `<th class="rtm-rpt-col-header" title="${_re(col.name)}"><div class="rtm-rpt-col-label">${_re(col.name)}</div></th>`;
+          });
+          h += '</tr></thead><tbody>';
+          reqs.forEach((req, idx) => {
+            h += '<tr>';
+            h += `<td class="rtm-rpt-num">${idx + 1}</td>`;
+            const txt   = req.text || '';
+            const short = txt.length > 80 ? txt.substring(0, 80) + '…' : txt;
+            h += `<td class="rtm-rpt-req-text" title="${_re(txt)}">${_re(short)}</td>`;
+            cols.forEach(col => {
+              const filled = hasRelation(req, col);
+              h += `<td class="rtm-rpt-cell${filled ? ' rtm-rpt-filled' : ''}">`;
+              if (filled) h += '<span class="rtm-rpt-dot"></span>';
+              h += '</td>';
+            });
+            h += '</tr>';
+          });
+          h += '</tbody></table></div>';
+          return h;
+        };
+
+        const ilCols  = [...selIlities].sort((a, b) => a.name.localeCompare(b.name));
+        if (requirements.some(r => r.primary === 'other')) ilCols.push({ id: 'other', name: 'Other' });
+        const skCols   = [...selStakeholders].sort((a, b) => a.name.localeCompare(b.name));
+        const allTagArr = [...new Set(requirements.flatMap(r => r.tags || []))].sort();
+        const tagCols   = allTagArr.map(t => ({ id: t, name: t }));
+
+        covRtms += buildPdfRtm(requirements, ilCols,
+          (req, col) => req.primary === col.id || (req.secondaries || []).includes(col.id),
+          'Traceability — Lifecycle Properties');
+        covRtms += buildPdfRtm(requirements, skCols,
+          (req, col) => (req.stakeholders || []).includes(col.id),
+          'Traceability — Stakeholders');
+        if (tagCols.length) {
+          covRtms += buildPdfRtm(requirements, tagCols,
+            (req, col) => (req.tags || []).includes(col.id),
+            'Traceability — Tags');
+        }
+      }
+
       sections += rptSection(++sn, `Requirements (${requirements.length})`,
         requirements.length
-          ? `<table class="rpt-table"><thead><tr><th>#</th><th>Requirement</th><th>Lifecycle Property</th><th>Scorer</th></tr></thead><tbody>${rows}</tbody></table>`
+          ? `<table class="rpt-table"><thead><tr><th>#</th><th>Requirement</th><th>Lifecycle Property</th><th>Scorer</th></tr></thead><tbody>${rows}</tbody></table>${covCharts}${covRtms}`
           : '<p><em>No requirements defined.</em></p>',
         true);
     }
@@ -2909,7 +3009,7 @@
         const rows = ranked.map((r, i) => `<tr><td>${i + 1}</td><td>${escHtml(r.name)}</td><td>${r.wins}</td></tr>`).join('');
         pairContent = `<table class="rpt-table"><thead><tr><th>Rank</th><th>Lifecycle Property</th><th>Win Count</th></tr></thead><tbody>${rows}</tbody></table>`;
       }
-      sections += rptSection(++sn, 'Lifecycle Property Weighting', pairContent, true);
+      sections += rptSection(++sn, 'Weightings', pairContent, true);
     }
 
     // ── CONCEPT SCORING SUMMARY ──
@@ -3165,6 +3265,29 @@
   .rpt-conv-status { display: inline-block; background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 4px; padding: 8px 14px; font-size: 11px; font-weight: 700; color: #276749; margin-bottom: 18px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; }
   .rpt-badge { font-size: 10px; background: #e2e8f0; color: #4a5568; padding: 1px 5px; border-radius: 3px; margin-left: 5px; font-weight: 500; font-family: 'Courier New', monospace; vertical-align: middle; }
   p { margin-bottom: 10px; }
+
+  /* ── Coverage Charts (requirements section) ── */
+  .cov-charts { display: flex; gap: 24px; margin-top: 24px; }
+  .cov-chart-col { flex: 1; min-width: 0; }
+  .cov-chart-label { font-family: 'Courier New', monospace; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #999; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+  .cov-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 11px; }
+  .cov-bar-lbl { width: 120px; flex-shrink: 0; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cov-bar-track { flex: 1; height: 10px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+  .cov-bar-fill { height: 100%; background: #3182ce; border-radius: 3px; }
+  .cov-bar-fill.conc { background: #dd6b20; }
+  .cov-bar-cnt { width: 18px; text-align: right; font-weight: 700; color: #555; flex-shrink: 0; }
+
+  /* ── RTM Tables (requirements traceability) ── */
+  .rtm-rpt-table { border-collapse: collapse; font-size: 10px; }
+  .rtm-rpt-corner { padding: 2px 6px 4px; min-width: 24px; vertical-align: bottom; text-align: right; font-size: 9px; color: #aaa; }
+  .rtm-rpt-req-col { min-width: 180px; max-width: 280px; padding: 2px 8px 4px; vertical-align: bottom; font-size: 10px; color: #999; white-space: nowrap; }
+  .rtm-rpt-col-header { padding: 0; width: 18px; vertical-align: bottom; }
+  .rtm-rpt-col-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 90px; font-size: 9px; color: #666; padding: 2px 3px; display: block; }
+  .rtm-rpt-num { text-align: right; color: #aaa; font-size: 9px; padding: 2px 6px; min-width: 24px; }
+  .rtm-rpt-req-text { font-size: 10px; padding: 2px 8px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
+  .rtm-rpt-cell { width: 18px; height: 16px; padding: 0; text-align: center; vertical-align: middle; border: 1px solid #e2e8f0; }
+  .rtm-rpt-filled { background: #ebf8ff; }
+  .rtm-rpt-dot { display: block; width: 8px; height: 8px; background: #3182ce; border-radius: 1px; margin: auto; }
 
   /* ── Footer ── */
   .rpt-footer { padding: 20px 64px; font-size: 10px; color: #ccc; font-family: 'Courier New', monospace; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; letter-spacing: 0.05em; }
@@ -5822,7 +5945,7 @@ ${sections}
     if (isOpen) {
       closeScoringSettings();
     } else {
-      panel.style.display = '';
+      panel.style.display = 'block';
       if (btn) btn.classList.add('active');
       renderCustomFieldsList();
       renderScorerFilterDropdown();
@@ -5928,7 +6051,7 @@ ${sections}
     if (isOpen) {
       closeReqSettings();
     } else {
-      panel.style.display = '';
+      panel.style.display = 'block';
       if (btn) btn.classList.add('active');
       renderReqSettingsPanel();
       setTimeout(() => {
@@ -6888,7 +7011,7 @@ ${sections}
   // ── PUGH: CHART SORT ──
   function setPughChartSort(mode) {
     pughChartSort = mode;
-    renderPughConceptChart();
+    renderPughMatrix(); // renders matrix with new column order AND re-renders chart
   }
 
   // ── PUGH: FREEZE TOP ROW ──

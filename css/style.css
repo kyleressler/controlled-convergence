@@ -1345,7 +1345,10 @@
       position: sticky;
       top: calc(var(--nav-h) + 16px);
     }
-    .req-chart-title { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 14px; }
+    .req-chart-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .req-chart-title { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; }
+    .chart-expand-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; transition: background 0.15s, border-color 0.15s, color 0.15s; flex-shrink: 0; }
+    .chart-expand-btn:hover { background: var(--bg); border-color: var(--border-strong); color: var(--text); }
     .req-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .req-bar-label { font-size: 11px; color: var(--text-muted); width: 100px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .req-bar-track { flex: 1; height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; }
@@ -1389,6 +1392,26 @@
     /* ── DUAL CHART LAYOUT ── */
     .req-chart-stack { display: flex; flex-direction: column; gap: 16px; }
     .req-chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+
+    /* ── RTM (Requirements Traceability Matrix) ── */
+    .req-rtm-container { overflow: auto; max-height: 220px; }
+    .rtm-scroll-wrap { display: inline-block; min-width: 100%; }
+    .rtm-table { border-collapse: collapse; font-size: 10px; }
+    .rtm-corner { padding: 2px 5px 4px; min-width: 22px; vertical-align: bottom; text-align: right; font-size: 9px; color: var(--text-light); }
+    .rtm-col-header { padding: 0; width: 16px; vertical-align: bottom; }
+    .rtm-col-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 72px; font-size: 9px; color: var(--text-muted); padding: 2px 3px; display: block; }
+    .rtm-num { text-align: right; color: var(--text-light); font-size: 9px; padding: 1px 5px; min-width: 20px; white-space: nowrap; }
+    .rtm-cell { width: 16px; height: 14px; padding: 0; text-align: center; vertical-align: middle; border: 1px solid var(--border); }
+    .rtm-filled { background: var(--accent-light); }
+    .rtm-dot { display: block; width: 7px; height: 7px; background: var(--accent); border-radius: 1px; margin: auto; }
+    /* expanded modal overrides */
+    .chart-expand-content .rtm-col-label { max-height: 100px; font-size: 10px; }
+    .chart-expand-content .rtm-cell { width: 22px; height: 20px; }
+    .chart-expand-content .rtm-dot { width: 10px; height: 10px; }
+    .chart-expand-content .rtm-num { font-size: 10px; padding: 2px 6px; }
+    .chart-expand-content .rtm-corner { font-size: 10px; }
+    .chart-expand-content .rtm-req-col { min-width: 180px; max-width: 260px; padding: 2px 10px; font-size: 11px; color: var(--text-muted); white-space: nowrap; vertical-align: bottom; }
+    .chart-expand-content .rtm-req-text { font-size: 11px; padding: 2px 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 
     /* ── STAK ── */
     .stak-grid {
@@ -2117,6 +2140,63 @@ body.theme-engineering .sidebar-brand {
   border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
   border-radius: 8px; padding: 8px 12px; margin-top: 10px;
 }
+
+/* ── CHART EXPAND MODAL ── */
+.chart-expand-overlay {
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+.chart-expand-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 32px 32px;
+  width: min(680px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+.chart-expand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+.chart-expand-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.chart-expand-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.chart-expand-close:hover { background: var(--bg); color: var(--text); }
+.chart-expand-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.chart-expand-content .req-bar-label { width: 140px; font-size: 12px; }
+.chart-expand-content .req-bar-row { margin-bottom: 10px; }
+.chart-expand-content .req-bar-track { height: 20px; }
+.chart-expand-content .req-bar-count { font-size: 12px; }
 
 /* ── ROLE BADGE (nav) ── */
 .nav-role-badge {

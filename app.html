@@ -938,12 +938,80 @@
     <div class="req-charts-col">
       <div class="req-chart-stack">
         <div class="req-chart-card">
-          <div class="req-chart-title">Coverage by Ility</div>
+          <div class="req-chart-title-row">
+            <div class="req-chart-title">Coverage by Ility</div>
+            <button class="chart-expand-btn" onclick="openChartModal('ility')" title="Expand chart">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
           <div id="reqChartIlity"></div>
         </div>
         <div class="req-chart-card">
-          <div class="req-chart-title">Coverage by Stakeholder</div>
+          <div class="req-chart-title-row">
+            <div class="req-chart-title">Coverage by Stakeholder</div>
+            <button class="chart-expand-btn" onclick="openChartModal('stak')" title="Expand chart">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
           <div id="reqChartStak"></div>
+        </div>
+
+        <!-- ── RTM: Requirements × Ilities ── -->
+        <div class="req-chart-card" id="rtmIlityCard">
+          <div class="req-chart-title-row">
+            <div class="req-chart-title">Req × Ilities</div>
+            <button class="chart-expand-btn" onclick="openChartModal('rtm-ility')" title="Expand matrix">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div id="reqRtmIlity" class="req-rtm-container"></div>
+        </div>
+
+        <!-- ── RTM: Requirements × Stakeholders ── -->
+        <div class="req-chart-card" id="rtmStakCard">
+          <div class="req-chart-title-row">
+            <div class="req-chart-title">Req × Stakeholders</div>
+            <button class="chart-expand-btn" onclick="openChartModal('rtm-stak')" title="Expand matrix">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div id="reqRtmStak" class="req-rtm-container"></div>
+        </div>
+
+        <!-- ── RTM: Requirements × Tags (hidden when no tags) ── -->
+        <div class="req-chart-card" id="rtmTagsCard" style="display:none">
+          <div class="req-chart-title-row">
+            <div class="req-chart-title">Req × Tags</div>
+            <button class="chart-expand-btn" onclick="openChartModal('rtm-tags')" title="Expand matrix">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <div id="reqRtmTags" class="req-rtm-container"></div>
         </div>
       </div>
     </div>
@@ -1624,6 +1692,21 @@
 <!-- ── PUGH SCORE POPUP ── -->
 <div id="pughScorePopup" role="dialog" aria-label="Set score"></div>
 
+<!-- ── CHART EXPAND MODAL ── -->
+<div class="modal-overlay chart-expand-overlay" id="chartExpandModal" onclick="if(event.target===this)closeChartModal()">
+  <div class="chart-expand-box">
+    <div class="chart-expand-header">
+      <div class="chart-expand-title" id="chartExpandTitle"></div>
+      <button class="chart-expand-close" onclick="closeChartModal()" title="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div id="chartExpandContent" class="chart-expand-content"></div>
+  </div>
+</div>
+
 <!-- ── EXPORT REPORT MODAL ── -->
 <div class="modal-overlay" id="exportReportModal">
   <div class="modal-box" style="max-width:480px">
@@ -1643,7 +1726,13 @@
         <input type="checkbox" id="rptREQS" checked> Requirements
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="rptPAIR" checked> Pairwise Rankings
+        <input type="checkbox" id="rptCOV" checked> Coverage Charts
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptRTM" checked> Traceability Matrices
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptPAIR" checked> Weightings
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="rptSCOR" checked> Concept Scoring

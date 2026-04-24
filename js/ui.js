@@ -707,6 +707,7 @@
   function renderChart() {
     renderIlityChart();
     renderStakChart();
+    renderRTMs();
   }
 
   function renderIlityChart() {
@@ -784,6 +785,139 @@
   }
 
   function updateReqAdvisor() { /* AI coaching reserved */ }
+
+  // ── RTM helpers ──────────────────────────────────────────────
+
+  // Build an RTM table HTML string.
+  // cols        = [{id, name}, ...]
+  // hasRelation = function(req, col) -> bool
+  // expanded    = false (compact sidebar) | true (modal, adds text column)
+  function buildRtmHtml(reqs, cols, hasRelation, expanded) {
+    const _e = s => String(s || '').replace(/[&<>"]/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    if (!reqs.length || !cols.length) {
+      return '<div style="font-size:11px;color:var(--text-light);padding:4px 0">No data to display.</div>';
+    }
+
+    let html = '<div class="rtm-scroll-wrap"><table class="rtm-table"><thead><tr>';
+    html += '<th class="rtm-corner">#</th>';
+    if (expanded) html += '<th class="rtm-req-col">Requirement</th>';
+    cols.forEach(col => {
+      html += `<th class="rtm-col-header" title="${_e(col.name)}"><div class="rtm-col-label">${_e(col.name)}</div></th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    reqs.forEach((req, idx) => {
+      html += '<tr>';
+      html += `<td class="rtm-num">${idx + 1}</td>`;
+      if (expanded) {
+        const txt   = req.text || '';
+        const short = txt.length > 90 ? txt.substring(0, 90) + '…' : txt;
+        html += `<td class="rtm-req-text" title="${_e(txt)}">${_e(short)}</td>`;
+      }
+      cols.forEach(col => {
+        const filled = hasRelation(req, col);
+        html += `<td class="rtm-cell${filled ? ' rtm-filled' : ''}">`;
+        if (filled) html += '<span class="rtm-dot"></span>';
+        html += '</td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function renderRtmIlity() {
+    const el = document.getElementById('reqRtmIlity');
+    if (!el) return;
+    const cols = [...ILITIES, ...customIlities]
+      .filter(il => selectedIlities.has(il.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (requirements.some(r => r.primary === 'other')) cols.push({ id: 'other', name: 'Other' });
+    el.innerHTML = buildRtmHtml(requirements, cols,
+      (req, col) => req.primary === col.id || (req.secondaries || []).includes(col.id), false);
+  }
+
+  function renderRtmStak() {
+    const el = document.getElementById('reqRtmStak');
+    if (!el) return;
+    const cols = [...STAKEHOLDERS, ...customStakeholders]
+      .filter(s => selectedStakeholders.has(s.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    el.innerHTML = buildRtmHtml(requirements, cols,
+      (req, col) => (req.stakeholders || []).includes(col.id), false);
+  }
+
+  function renderRtmTags() {
+    const card = document.getElementById('rtmTagsCard');
+    const el   = document.getElementById('reqRtmTags');
+    if (!el || !card) return;
+    const allTags = [...new Set(requirements.flatMap(r => r.tags || []))].sort();
+    if (!allTags.length) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    const cols = allTags.map(t => ({ id: t, name: t }));
+    el.innerHTML = buildRtmHtml(requirements, cols,
+      (req, col) => (req.tags || []).includes(col.id), false);
+  }
+
+  function renderRTMs() {
+    renderRtmIlity();
+    renderRtmStak();
+    renderRtmTags();
+  }
+
+  // ── Chart / RTM expand modal ──────────────────────────────────
+
+  function openChartModal(type) {
+    const modal     = document.getElementById('chartExpandModal');
+    const titleEl   = document.getElementById('chartExpandTitle');
+    const contentEl = document.getElementById('chartExpandContent');
+    if (!modal) return;
+
+    if (type === 'ility') {
+      titleEl.textContent = 'Coverage by Ility';
+      const src = document.getElementById('reqChartIlity');
+      contentEl.innerHTML = src ? src.innerHTML : '';
+
+    } else if (type === 'stak') {
+      titleEl.textContent = 'Coverage by Stakeholder';
+      const src = document.getElementById('reqChartStak');
+      contentEl.innerHTML = src ? src.innerHTML : '';
+
+    } else if (type === 'rtm-ility') {
+      titleEl.textContent = 'Requirements × Lifecycle Properties';
+      const cols = [...ILITIES, ...customIlities]
+        .filter(il => selectedIlities.has(il.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (requirements.some(r => r.primary === 'other')) cols.push({ id: 'other', name: 'Other' });
+      contentEl.innerHTML = buildRtmHtml(requirements, cols,
+        (req, col) => req.primary === col.id || (req.secondaries || []).includes(col.id), true);
+
+    } else if (type === 'rtm-stak') {
+      titleEl.textContent = 'Requirements × Stakeholders';
+      const cols = [...STAKEHOLDERS, ...customStakeholders]
+        .filter(s => selectedStakeholders.has(s.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      contentEl.innerHTML = buildRtmHtml(requirements, cols,
+        (req, col) => (req.stakeholders || []).includes(col.id), true);
+
+    } else if (type === 'rtm-tags') {
+      titleEl.textContent = 'Requirements × Tags';
+      const allTags = [...new Set(requirements.flatMap(r => r.tags || []))].sort();
+      const cols    = allTags.map(t => ({ id: t, name: t }));
+      contentEl.innerHTML = buildRtmHtml(requirements, cols,
+        (req, col) => (req.tags || []).includes(col.id), true);
+    }
+
+    modal.classList.add('open');
+  }
+
+  function closeChartModal() {
+    const modal = document.getElementById('chartExpandModal');
+    if (modal) modal.classList.remove('open');
+  }
 
 
 
@@ -1603,23 +1737,25 @@
     const ungroupedReqs = requirements.filter(r => !selectedIlities.has(r.primary));
 
     // Header row — req column + optional MAS column + concept columns
-    const conceptCount = pughConcepts.length;
+    const sortedConcepts = getPughSortedConcepts();
+    const datumId        = pughConcepts[0]?.id;
+    const conceptCount = sortedConcepts.length;
     const showMASCol   = pughSettings.showMAS && userTier !== 'free';
     const reqColPct    = showMASCol ? 30 : 35;
     const masColPct    = showMASCol ? 6  : 0;
     const conColPct    = conceptCount > 0 ? ((100 - reqColPct - masColPct) / conceptCount).toFixed(1) : 10;
     const masColEl     = showMASCol ? `<col style="width:${masColPct}%">` : '';
-    const colGroup     = `<colgroup><col style="width:${reqColPct}%">${masColEl}${pughConcepts.map(() => `<col style="width:${conColPct}%">`).join('')}</colgroup>`;
+    const colGroup     = `<colgroup><col style="width:${reqColPct}%">${masColEl}${sortedConcepts.map(() => `<col style="width:${conColPct}%">`).join('')}</colgroup>`;
 
     const masHeader = showMASCol
       ? `<th class="pugh-mas-cell pugh-mas-header">MAS</th>`
       : '';
-    const thCols = pughConcepts.map((c, i) => {
-      const isDatum = i === 0;
+    const thCols = sortedConcepts.map((c) => {
+      const isDatum = c.id === datumId;
       return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</span></th>`;
     }).join('');
     // Determine collapse-all triangle state for cell A1
-    const totalCols = pughConcepts.length + 1 + (showMASCol ? 1 : 0);
+    const totalCols = sortedConcepts.length + 1 + (showMASCol ? 1 : 0);
     const activeIlityIds = ilityOrder.filter(il => reqsByIlity[il.id] && reqsByIlity[il.id].length > 0).map(il => il.id);
     if (ungroupedReqs.length > 0) activeIlityIds.push('__ungrouped__');
     const hasGroups = activeIlityIds.length > 0;
@@ -1662,17 +1798,17 @@
       const wStr = (isWeightedMode && _ilSubj === 'ilities') ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
       const isCollapsed = pughCollapsedIlities.has(il.id);
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('${il.id}')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>${il.name}${wStr}</td></tr>`;
-      if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol));
+      if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts));
     });
 
     if (ungroupedReqs.length > 0) {
       const isCollapsed = pughCollapsedIlities.has('__ungrouped__');
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('__ungrouped__')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>Other</td></tr>`;
-      if (!isCollapsed) ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol));
+      if (!isCollapsed) ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts));
     }
 
     // Summary rows
-    html += pughSummaryRows(isWeightedMode);
+    html += pughSummaryRows(isWeightedMode, sortedConcepts);
 
     html += '</tbody>';
     table.innerHTML = html;
@@ -1684,7 +1820,8 @@
     renderPughConceptChart();
   }
 
-  function pughReqRow(req, showMASCol) {
+  function pughReqRow(req, showMASCol, sortedConcepts) {
+    sortedConcepts = sortedConcepts || pughConcepts;
     const typeTag = req.format !== 'agile'
       ? ({ essential:'E', desirable:'D', optional:'O', willnot:'WN', mustnot:'MN' }[req.type] || '')
       : '';
@@ -1703,8 +1840,9 @@
       masCell = `<td class="pugh-mas-cell">${masDisplay}</td>`;
     }
 
-    const scoreCells = pughConcepts.map((c, i) => {
-      if (i === 0) return `<td class="pugh-cell pugh-cell-D">D</td>`;
+    const _datumId = pughConcepts[0]?.id;
+    const scoreCells = sortedConcepts.map((c) => {
+      if (c.id === _datumId) return `<td class="pugh-cell pugh-cell-D">D</td>`;
       const score = pughScores[c.id + '_' + req.id];
       return pughScoreCell(c.id, req.id, score, masVal);
     }).join('');
@@ -1764,8 +1902,45 @@
     return { plusCount, minusCount, neuCount, net, weightedNet: Math.round(weightedNet * 10) / 10 };
   }
 
-  function pughSummaryRows(isWeightedMode) {
-    const nonDatum   = pughConcepts.slice(1);
+  // Returns pughConcepts reordered per pughChartSort.
+  // Datum is always pinned at index 0; only non-datum concepts are reordered.
+  function getPughSortedConcepts() {
+    if (pughConcepts.length < 2) return pughConcepts;
+    const _sort = (typeof pughChartSort !== 'undefined') ? pughChartSort : 'order';
+    const datum    = pughConcepts[0];
+    const nonDatum = pughConcepts.slice(1);
+    if (_sort === 'order') return pughConcepts;
+
+    const isWeightedMode = (typeof pairMode !== 'undefined' ? pairMode : 'nonweighted') === 'weighted'
+                        && userTier !== 'free';
+
+    // Build sortable array — minusCount stored negative to match chart convention
+    const sortable = nonDatum.map(c => {
+      const s = calcConceptSummary(c.id);
+      const utilityScore = isWeightedMode ? s.weightedNet : s.net;
+      return { concept: c, utilityScore, minusCount: -s.minusCount, plusCount: s.plusCount };
+    });
+
+    if (_sort === 'utility') {
+      sortable.sort((a, b) =>
+        a.utilityScore - b.utilityScore ||
+        a.minusCount   - b.minusCount   ||
+        a.plusCount    - b.plusCount
+      );
+    } else if (_sort === 'minus') {
+      sortable.sort((a, b) =>
+        a.minusCount   - b.minusCount   ||
+        a.utilityScore - b.utilityScore ||
+        a.plusCount    - b.plusCount
+      );
+    }
+
+    return [datum, ...sortable.map(s => s.concept)];
+  }
+
+  function pughSummaryRows(isWeightedMode, sortedConcepts) {
+    sortedConcepts = sortedConcepts || pughConcepts;
+    const nonDatum   = sortedConcepts.slice(1);
     const summaries  = nonDatum.map(c => calcConceptSummary(c.id));
     const showMASCol = pughSettings.showMAS && userTier !== 'free';
     // Summary rows: datum and MAS columns are blank — no content, just a tinted background

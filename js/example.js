@@ -16,8 +16,11 @@ const CC_EXAMPLE_PROJECT = {
   },
   "goalMode": "basic",
   "goalStatement": {
-    "basic": "Design and develop a UCI-compliant road bike frame that delivers competitive performance through an optimized stiffness-to-weight ratio and aerodynamic efficiency, while remaining producible at scale and serviceable across professional and consumer markets.",
-    "to": "", "by": "", "using": "", "while": ""
+    "basic": "TO design and develop a UCI-compliant road bike frame that delivers competitive performance BY delivering optimized stiffness-to-weight ratio and aerodynamic efficiency, WHILE remaining producible at scale and serviceable across professional and consumer markets.",
+    "to": "design and develop a UCI-compliant road bike frame that delivers competitive performance",
+    "by": "delivering optimized stiffness-to-weight ratio and aerodynamic efficiency",
+    "using": "",
+    "while": "remaining producible at scale and serviceable across professional and consumer markets"
   },
   "ilities": {
     "selected": ["reliability","safety","durability","manufacturability","maintainability","performance","sustainability","usability","affordability","testability","aesthetics"],
