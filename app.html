@@ -263,6 +263,14 @@
     <div class="page-subtitle">Name and create your project.</div>
   </div>
 
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
+      Continue to Goal Statement →
+    </button>
+  </div>
+
   <div id="projActiveBanner" style="display:none">
     <div class="proj-active-card" id="projActiveCard">
       <div class="proj-active-label">ACTIVE PROJECT</div>
@@ -523,6 +531,14 @@
 
   </div>
 
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+      Continue to Stakeholders →
+    </button>
+  </div>
+
   <!-- Basic Goal Input -->
   <div id="goalBasicForm">
     <div class="statement-card">
@@ -647,6 +663,14 @@
     <div class="page-subtitle">Select the lifecycle properties relevant to your project. You can categorize requirements against these properties to track coverage.</div>
   </div>
 
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+      Continue to Requirements →
+    </button>
+  </div>
+
   <div class="ility-selection-bar">
     <span class="ility-count"><strong id="ilityCount">0</strong> of 25 selected <button class="info-icon" onclick="openSidebarToSlide('ilities', 1)" title="How to select ilities">ⓘ</button></span>
     <div style="display:flex;gap:6px">
@@ -696,6 +720,14 @@
   <div class="page-header">
     <div class="page-title">Stakeholders <button class="info-icon" onclick="openSidebarToSlide('stak', 0)" title="What are stakeholders?">ⓘ</button></div>
     <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to who it serves or affects.</div>
+  </div>
+
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+      Continue to Lifecycle Properties →
+    </button>
   </div>
 
   <div class="stak-selection-bar">
@@ -771,6 +803,14 @@
   <div class="page-header">
     <div class="page-title">Requirements</div>
     <div class="page-subtitle">Write requirements and classify them. The coverage charts can help you spot gaps in your requirements.</div>
+  </div>
+
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
+      Continue to Weighting →
+    </button>
   </div>
 
   <div class="req-form-card" id="reqFormCard">
@@ -1047,6 +1087,14 @@
     <div class="page-subtitle" id="pairSubtitle">If desired, you can apply weights to either Ilities or Requirements in your Pugh Matrix scoring.</div>
   </div>
 
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
+      Continue to Concept Scoring →
+    </button>
+  </div>
+
   <div class="pair-mode-bar">
     <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
       <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
@@ -1143,6 +1191,14 @@
   <div class="page-header">
     <div class="page-title">Concept Scoring <button class="info-icon" onclick="openSidebarToSlide('scor', 0)" title="What is concept scoring?">ⓘ</button></div>
     <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept added becomes the Datum — your fixed baseline. Score concepts requirement by requirement. The results will be shown in the Pugh Matrix.</div>
+  </div>
+
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      Continue to Pugh Matrix →
+    </button>
   </div>
 
   <!-- Add concept row + settings button -->
@@ -1383,6 +1439,14 @@
   <div class="page-header">
     <div class="page-title">Pugh Matrix <button class="info-icon" onclick="openSidebarToSlide('pugh', 0)" title="What is the Pugh Matrix?">ⓘ</button></div>
     <div class="page-subtitle">Your concepts scored against requirements in one view.</div>
+  </div>
+
+  <!-- Top navigation button -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <div></div>
+    <button class="btn btn-continue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
+      Continue to Convergence Summary →
+    </button>
   </div>
 
   <div class="pugh-toolbar">
