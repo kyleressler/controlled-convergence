@@ -4062,6 +4062,15 @@ ${sections}
     // Persist active project ID for refresh restore
     try { localStorage.setItem('cc_activeProjectId', id); } catch(e) {}
 
+    // Apply the project's type to the app mode. Missing field → treat as 'full'.
+    // setMode() also handles the body class and (for quick) navigates to the
+    // basic page. For full, we leave the user wherever loadProject was called
+    // from — switchPage decisions live in callers like activateProjectAndGo.
+    const projType = (proj.projectType === 'quick') ? 'quick' : 'full';
+    if (typeof setMode === 'function') {
+      setMode(projType === 'quick' ? 'basic' : 'full');
+    }
+
     // Load active scoring tasks for this project so badges appear on cards
     if (typeof loadActiveScoringTasksForProject === 'function') {
       loadActiveScoringTasksForProject(id);
@@ -4327,11 +4336,18 @@ ${sections}
     renderProjPage();
   }
 
-  // Double-click on a project card: activate it and navigate to GOAL
+  // Double-click on a project card: activate it and navigate to its first page.
+  // Quick projects → stay on the basic page (setMode inside loadProject handles
+  // the navigation). Full projects → jump to GOAL.
   function activateProjectAndGo(id) {
     loadProject(id);
-    const goalNavBtn = document.querySelector('[data-page="tbus"]');
-    switchPage('tbus', goalNavBtn);
+    const proj = savedProjects.find(p => p.id === id);
+    const projType = (proj && proj.projectType === 'quick') ? 'quick' : 'full';
+    if (projType === 'full') {
+      const goalNavBtn = document.querySelector('[data-page="tbus"]');
+      switchPage('tbus', goalNavBtn);
+    }
+    // Quick: loadProject → setMode('basic') already navigated to the basic page.
   }
 
   function deactivateProject() {
