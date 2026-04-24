@@ -2700,19 +2700,250 @@
       showUpgradePrompt('export-report');
       return;
     }
-    // Pre-populate the filename field with the project name + date
+
+    // Pre-populate filename
     const fnField = document.getElementById('rptFileName');
     if (fnField) {
       const safeName = (activeProject?.name || 'CC_Report').replace(/[^a-zA-Z0-9\s_-]/g, '').trim().replace(/\s+/g, '_');
       const dateTag  = new Date().toISOString().slice(0,10).replace(/-/g,'');
       fnField.value  = `${safeName}_${dateTag}`;
     }
+
+    // Wire theme radio labels (idempotent — safe to call multiple times)
+    ['Light','Dark','Bw'].forEach(t => {
+      const radio = document.getElementById('rptTheme' + t);
+      if (radio && !radio._rptWired) {
+        radio.addEventListener('change', _rptSyncThemeLabels);
+        radio._rptWired = true;
+      }
+    });
+    _rptSyncThemeLabels();
+
+    // Populate Focus Concepts list
+    const focusSec  = document.getElementById('rptFocusSection');
+    const focusList = document.getElementById('rptFocusList');
+    const sortedCS  = pughConcepts.slice(1).map(c => {
+      const plus  = requirements.filter(r => pughScores[c.id + '_' + r.id] === '+').length;
+      const minus = requirements.filter(r => pughScores[c.id + '_' + r.id] === '-').length;
+      return { c, net: plus - minus };
+    }).sort((a, b) => b.net - a.net);
+
+    if (focusSec && focusList) {
+      if (sortedCS.length > 0) {
+        focusSec.style.display = '';
+        focusList.innerHTML = sortedCS.map((s, i) =>
+          `<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;overflow:hidden">
+            <input type="checkbox" class="rptFocusConcept" data-cid="${s.c.id}">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(s.c.name)}">#${i+1} ${escHtml(s.c.name)}</span>
+          </label>`
+        ).join('');
+      } else {
+        focusSec.style.display = 'none';
+      }
+    }
+
     document.getElementById('exportReportModal').classList.add('open');
+  }
+
+  function _rptSyncThemeLabels() {
+    ['Light','Dark','Bw'].forEach(t => {
+      const radio = document.getElementById('rptTheme' + t);
+      const lbl   = document.getElementById('rptTheme' + t + 'Label');
+      if (!radio || !lbl) return;
+      if (radio.checked) {
+        lbl.style.border     = '2px solid var(--accent)';
+        lbl.style.background = 'var(--accent-subtle)';
+        lbl.style.color      = 'var(--accent)';
+        lbl.style.fontWeight = '600';
+      } else {
+        lbl.style.border     = '1px solid var(--border)';
+        lbl.style.background = 'var(--surface)';
+        lbl.style.color      = '';
+        lbl.style.fontWeight = '';
+      }
+    });
+  }
+
+  function rptQuickSelect(n) {
+    document.querySelectorAll('.rptFocusConcept').forEach((cb, i) => {
+      cb.checked = n > 0 && i < n;
+    });
   }
 
   function generateReport() {
     document.getElementById('exportReportModal').classList.remove('open');
 
+    // ── Theme ──
+    const themeVal = document.querySelector('input[name="rptTheme"]:checked')?.value || 'light';
+
+    // Token objects — every color in the report goes through T
+    const THEMES = {
+      light: {
+        pageBg:       '#ffffff',
+        pageBorder:   '#e2e8f0',
+        stripBg:      '#f8fafc',
+        stripBorder:  '#e2e8f0',
+        stripText:    '#64748b',
+        stripBrand:   '#94a3b8',
+        bodyBg:       '#ffffff',
+        secBorder:    '#e2e8f0',
+        textPrimary:  '#0d1b2a',
+        textSecondary:'#475569',
+        textTertiary: '#94a3b8',
+        ghost:        '#e8ecf0',
+        calloutBg:    '#f8fafc',
+        calloutBorder:'#0d1b2a',
+        cardBg:       '#f8fafc',
+        cardBorder:   '#e2e8f0',
+        tblHeadBg:    '#0d1b2a',
+        tblHeadText:  '#f1f5f9',
+        tblRowAlt:    '#f8fafc',
+        tblBorder:    '#e2e8f0',
+        winnerBg:     '#f0fff4',
+        winnerBorder: '#9ae6b4',
+        winnerText:   '#276749',
+        winnerSub:    '#48bb78',
+        barPosBg:     '#e2e8f0',
+        barPosText:   '#276749',
+        barPos1:      '#276749',
+        barPos2:      '#38a169',
+        barPos3:      '#68d391',
+        barNeg:       '#fc8181',
+        barNegText:   '#c53030',
+        datumBg:      '#f8fafc',
+        datumText:    '#94a3b8',
+        covBarPos:    '#3182ce',
+        covBarConc:   '#dd6b20',
+        rtmDot:       '#3182ce',
+        rtmFill:      '#ebf8ff',
+        accentLine:   '#0d1b2a',
+        subheadColor: '#94a3b8',
+        footerBg:     '#f8fafc',
+        footerText:   '#94a3b8',
+        cardColors:   ['#0d1b2a','#276749','#3182ce','#dd6b20','#805ad5','#d53f8c','#b7791f','#2c7a7b','#c53030','#2b6cb0'],
+        coverBg:      '#f0f4f8',
+        coverText:    '#0d1b2a',
+        coverSub:     '#475569',
+        coverAccent:  '#0d1b2a',
+        coverMeta:    '#64748b',
+        coverUrl:     '#94a3b8',
+        coverBadgeBg: '#e2e8f0',
+        coverBadgeTx: '#475569',
+        coverBadgeBd: '#cbd5e0',
+        coverRule:    '#0d1b2a',
+      },
+      dark: {
+        pageBg:       '#0f172a',
+        pageBorder:   '#334155',
+        stripBg:      '#1e293b',
+        stripBorder:  '#334155',
+        stripText:    '#94a3b8',
+        stripBrand:   '#38bdf8',
+        bodyBg:       '#0f172a',
+        secBorder:    '#334155',
+        textPrimary:  '#f1f5f9',
+        textSecondary:'#cbd5e0',
+        textTertiary: '#64748b',
+        ghost:        '#1e293b',
+        calloutBg:    '#1e293b',
+        calloutBorder:'#38bdf8',
+        cardBg:       '#1e293b',
+        cardBorder:   '#334155',
+        tblHeadBg:    '#1e293b',
+        tblHeadText:  '#94a3b8',
+        tblRowAlt:    '#172032',
+        tblBorder:    '#334155',
+        winnerBg:     '#14532d',
+        winnerBorder: '#166534',
+        winnerText:   '#86efac',
+        winnerSub:    '#4ade80',
+        barPosBg:     '#1e293b',
+        barPosText:   '#4ade80',
+        barPos1:      '#166534',
+        barPos2:      '#15803d',
+        barPos3:      '#16a34a',
+        barNeg:       '#7f1d1d',
+        barNegText:   '#fca5a5',
+        datumBg:      '#1e293b',
+        datumText:    '#475569',
+        covBarPos:    '#38bdf8',
+        covBarConc:   '#f97316',
+        rtmDot:       '#38bdf8',
+        rtmFill:      '#0c2a3f',
+        accentLine:   '#38bdf8',
+        subheadColor: '#475569',
+        footerBg:     '#1e293b',
+        footerText:   '#334155',
+        cardColors:   ['#38bdf8','#4ade80','#fb923c','#e879f9','#facc15','#f472b6','#34d399','#a78bfa','#60a5fa','#f87171'],
+        coverBg:      '#0f172a',
+        coverText:    '#f1f5f9',
+        coverSub:     '#94a3b8',
+        coverAccent:  '#38bdf8',
+        coverMeta:    '#475569',
+        coverUrl:     '#334155',
+        coverBadgeBg: '#172032',
+        coverBadgeTx: '#38bdf8',
+        coverBadgeBd: '#1e4976',
+        coverRule:    '#38bdf8',
+      },
+      bw: {
+        pageBg:       '#ffffff',
+        pageBorder:   '#aaaaaa',
+        stripBg:      '#f0f0f0',
+        stripBorder:  '#cccccc',
+        stripText:    '#444444',
+        stripBrand:   '#888888',
+        bodyBg:       '#ffffff',
+        secBorder:    '#cccccc',
+        textPrimary:  '#000000',
+        textSecondary:'#333333',
+        textTertiary: '#777777',
+        ghost:        '#e8e8e8',
+        calloutBg:    '#f5f5f5',
+        calloutBorder:'#000000',
+        cardBg:       '#f5f5f5',
+        cardBorder:   '#cccccc',
+        tblHeadBg:    '#222222',
+        tblHeadText:  '#ffffff',
+        tblRowAlt:    '#f5f5f5',
+        tblBorder:    '#cccccc',
+        winnerBg:     '#f0f0f0',
+        winnerBorder: '#444444',
+        winnerText:   '#000000',
+        winnerSub:    '#555555',
+        barPosBg:     '#e0e0e0',
+        barPosText:   '#222222',
+        barPos1:      '#222222',
+        barPos2:      '#555555',
+        barPos3:      '#888888',
+        barNeg:       '#bbbbbb',
+        barNegText:   '#444444',
+        datumBg:      '#f5f5f5',
+        datumText:    '#888888',
+        covBarPos:    '#444444',
+        covBarConc:   '#222222',
+        rtmDot:       '#333333',
+        rtmFill:      '#eeeeee',
+        accentLine:   '#000000',
+        subheadColor: '#888888',
+        footerBg:     '#f0f0f0',
+        footerText:   '#888888',
+        cardColors:   ['#000000','#333333','#555555','#777777','#999999','#000000','#333333','#555555','#777777','#999999'],
+        coverBg:      '#ffffff',
+        coverText:    '#000000',
+        coverSub:     '#444444',
+        coverAccent:  '#000000',
+        coverMeta:    '#666666',
+        coverUrl:     '#888888',
+        coverBadgeBg: '#eeeeee',
+        coverBadgeTx: '#333333',
+        coverBadgeBd: '#aaaaaa',
+        coverRule:    '#000000',
+      },
+    };
+    const T = THEMES[themeVal] || THEMES.light;
+
+    // ── Sections to include ──
     const inc = {
       tbuw: document.getElementById('rptTBUW').checked,
       ilty: document.getElementById('rptILTY').checked,
@@ -2725,6 +2956,12 @@
       pugh: document.getElementById('rptPUGH').checked,
       conv: document.getElementById('rptCONV') ? document.getElementById('rptCONV').checked : false,
     };
+
+    // ── Focus Concepts ──
+    const focusIds = new Set(
+      [...document.querySelectorAll('.rptFocusConcept:checked')].map(cb => cb.dataset.cid)
+    );
+    const focusFilterCharts = document.getElementById('rptFocusFilterCharts')?.checked ?? true;
 
     const rawFileName  = (document.getElementById('rptFileName')?.value || '').trim();
     const projName     = activeProject?.name        || 'Untitled Project';
@@ -2741,12 +2978,11 @@
     const selIlities      = allIlities.filter(i => selectedIlities.has(i.id));
     const selStakeholders = allStakeholders.filter(s => selectedStakeholders.has(s.id));
 
-    // Score helpers (scores are strings: '+', '-', '0')
+    // Score helpers
     const isPlus  = v => v === '+';
     const isMinus = v => v === '-';
-    const toNum   = v => isPlus(v) ? 1 : isMinus(v) ? -1 : 0;
 
-    // Pre-compute concept stats once (used in exec summary, concept scoring, bar chart)
+    // Pre-compute concept stats
     const conceptStats = pughConcepts.map((c, idx) => {
       const plus  = requirements.filter(r => isPlus(pughScores[c.id + '_' + r.id])).length;
       const minus = requirements.filter(r => isMinus(pughScores[c.id + '_' + r.id])).length;
@@ -2761,6 +2997,18 @@
     const selConcept = convSelectedConceptId
       ? pughConcepts.find(c => String(c.id) === String(convSelectedConceptId))
       : null;
+
+    // Helper: page header/footer strips
+    const pageStrip = () => `
+      <div style="padding:7px 48px;border-bottom:1px solid ${T.stripBorder};display:flex;justify-content:space-between;align-items:center;background:${T.stripBg};-webkit-print-color-adjust:exact;print-color-adjust:exact">
+        <span style="font-family:'Courier New',monospace;font-size:10px;color:${T.stripText};letter-spacing:0.04em">${escHtml(projName)}</span>
+        <span style="font-family:'Courier New',monospace;font-size:10px;color:${T.stripBrand};letter-spacing:0.04em">www.controlledconvergence.com</span>
+      </div>`;
+    const pageFooter = () => `
+      <div style="padding:8px 48px;border-top:1px solid ${T.stripBorder};display:flex;justify-content:space-between;align-items:center;background:${T.footerBg};-webkit-print-color-adjust:exact;print-color-adjust:exact">
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:${T.footerText};letter-spacing:0.05em">Controlled Convergence · www.controlledconvergence.com · Pro Report</span>
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:${T.footerText}">${dateStr}</span>
+      </div>`;
 
     let sn = 1;
     let sections = '';
@@ -2784,87 +3032,108 @@
             return [to && 'To ' + to, by && 'by ' + by, us && 'using ' + us, wh && 'while ' + wh].filter(Boolean).join(' ');
           })();
 
-      const statsRow = [
+      const statItems = [
         ['Stakeholders',         selStakeholders.length || '—'],
         ['Lifecycle Properties', selIlities.length || '—'],
         ['Requirements',         requirements.length || '—'],
         ['Concepts Evaluated',   pughConcepts.length ? pughConcepts.length - 1 + ' + 1 datum' : '—'],
-      ].map(([label, val]) => `
-        <div class="exec-stat">
-          <div class="exec-stat-val">${val}</div>
-          <div class="exec-stat-label">${label}</div>
+      ];
+      const statsRow = statItems.map(([label, val]) => `
+        <div style="flex:1;padding:14px 10px;text-align:center;border-right:1px solid ${T.tblBorder}">
+          <div style="font-size:26px;font-weight:700;color:${T.textPrimary};line-height:1;margin-bottom:5px">${val}</div>
+          <div style="font-family:'Courier New',monospace;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:${T.textTertiary}">${label}</div>
         </div>`).join('');
 
-      sections += `<div class="section">
-        <div class="section-header">
-          <span class="section-num">SECTION ${sn}</span>
-          <span class="section-title">Executive Summary</span>
+      const numPad = String(sn).padStart(2,'0');
+      sections += `
+        ${pageStrip()}
+        <div style="padding:32px 48px;background:${T.bodyBg}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid ${T.secBorder}">
+            <div>
+              <div style="font-size:10px;font-family:'Courier New',monospace;letter-spacing:0.12em;color:${T.textTertiary};margin-bottom:4px;text-transform:uppercase">Section ${numPad}</div>
+              <div style="font-size:18px;font-weight:700;color:${T.textPrimary}">Executive Summary</div>
+            </div>
+            <div style="font-size:60px;font-weight:700;color:${T.ghost};line-height:1;font-family:'Courier New',monospace;user-select:none">${numPad}</div>
+          </div>
+          ${basicGoal ? `<div style="border-left:3px solid ${T.calloutBorder};padding:11px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;margin-bottom:18px">
+            <div style="font-size:10px;font-family:'Courier New',monospace;letter-spacing:0.1em;color:${T.textTertiary};margin-bottom:4px;text-transform:uppercase">Project Goal</div>
+            <div style="font-size:13px;color:${T.textPrimary};line-height:1.55">${escHtml(basicGoal)}</div>
+          </div>` : ''}
+          <div style="display:flex;border:1px solid ${T.tblBorder};border-radius:6px;overflow:hidden;margin-bottom:18px;background:${T.cardBg}">
+            ${statsRow.replace(/border-right:1px solid [^;]+;(?=.*<\/div><\/div>$)/, '')}
+          </div>
+          ${selConcept ? `<div style="border:1px solid ${T.winnerBorder};border-radius:6px;padding:15px 18px;background:${T.winnerBg};margin-bottom:16px">
+            <div style="font-size:10px;font-family:'Courier New',monospace;letter-spacing:0.1em;color:${T.winnerText};margin-bottom:4px;text-transform:uppercase">Selected Concept</div>
+            <div style="font-size:19px;font-weight:700;color:${T.winnerText};margin-bottom:3px">${escHtml(selConcept.name)}</div>
+            ${rankedConcepts.length ? `<div style="font-size:11px;color:${T.winnerSub}">Ranked #1 of ${rankedConcepts.length} concepts evaluated against the datum${convClosedAt ? ' · Convergence closed ' + new Date(convClosedAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : ''}</div>` : ''}
+          </div>` : ''}
+          <div style="font-size:12px;color:${T.textSecondary};display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:${T.textTertiary};width:120px;flex-shrink:0;padding-top:1px">Project started</span>${startFmt}</div>
+            <div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:${T.textTertiary};width:120px;flex-shrink:0;padding-top:1px">Convergence</span>${convFmt || '<em>In progress</em>'}</div>
+            ${projOwner ? `<div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:${T.textTertiary};width:120px;flex-shrink:0;padding-top:1px">Owner</span>${escHtml(projOwner)}</div>` : ''}
+          </div>
         </div>
-        ${basicGoal ? `<div class="rpt-callout" style="margin-bottom:24px"><strong>Goal:</strong> ${escHtml(basicGoal)}</div>` : ''}
-        <div class="exec-stats">${statsRow}</div>
-        ${selConcept ? `<div class="exec-winner">
-          <div class="exec-winner-label">Selected Concept</div>
-          <div class="exec-winner-name">${escHtml(selConcept.name)}</div>
-          ${rankedConcepts.length ? `<div class="exec-winner-sub">Ranked #1 of ${rankedConcepts.length} concepts evaluated against the datum</div>` : ''}
-        </div>` : ''}
-        <div class="exec-dates">
-          <div><span class="label">Project Started</span>${startFmt}</div>
-          <div><span class="label">Convergence</span>${convFmt || '<em>In progress</em>'}</div>
-          ${projOwner ? `<div><span class="label">Owner</span>${escHtml(projOwner)}</div>` : ''}
-        </div>
-      </div>`;
+        ${pageFooter()}`;
     }
 
     // ── GOAL STATEMENT ──
     if (inc.tbuw) {
+      const rptCallout = (content) => `<div style="border-left:3px solid ${T.calloutBorder};padding:12px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;font-size:13px;color:${T.textPrimary};line-height:1.55">${content}</div>`;
       if (goalMode === 'basic') {
         const basicGoal = document.getElementById('input-goal-basic')?.value || '';
         sections += rptSection(++sn, 'Goal Statement',
-          basicGoal
-            ? `<div class="rpt-callout">${escHtml(basicGoal)}</div>`
-            : '<p><em>No goal statement entered.</em></p>',
-          true);
+          basicGoal ? rptCallout(escHtml(basicGoal)) : `<p style="color:${T.textTertiary}"><em>No goal statement entered.</em></p>`,
+          true, T);
       } else {
         const to    = document.getElementById('input-to')?.value    || '';
         const by    = document.getElementById('input-by')?.value    || '';
         const using = document.getElementById('input-using')?.value || '';
         const wh    = document.getElementById('input-while')?.value || '';
-        const rows  = [
-          ['TO',    to],
-          ['BY',    by],
-          ['USING', using],
-          ['WHILE', wh],
-        ].map(([label, val]) => `<tr><td class="rpt-label-cell">${label}</td><td>${escHtml(val) || '<em>—</em>'}</td></tr>`).join('');
+        const rows  = [['TO', to],['BY', by],['USING', using],['WHILE', wh]]
+          .map(([label, val]) => `<tr>
+            <td style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;color:${T.textTertiary};white-space:nowrap;width:60px;padding:7px 10px;border-bottom:1px solid ${T.tblBorder};vertical-align:top">${label}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary};font-size:13px">${escHtml(val) || `<em style="color:${T.textTertiary}">—</em>`}</td>
+          </tr>`).join('');
         const preview = [to && 'To ' + to, by && 'by ' + by, using && 'using ' + using, wh && 'while ' + wh].filter(Boolean).join(' ');
         sections += rptSection(++sn, 'Goal Statement',
-          `<table class="rpt-table" style="margin-bottom:14px">${rows}</table>` +
-          (preview ? `<div class="rpt-callout"><strong>Full Statement:</strong> ${escHtml(preview)}.</div>` : ''),
-          true);
+          `<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${rows}</table>` +
+          (preview ? rptCallout(`<strong>Full statement:</strong> ${escHtml(preview)}.`) : ''),
+          true, T);
       }
     }
 
     // ── LIFECYCLE PROPERTIES ──
     if (inc.ilty) {
-      const chips = selIlities.map(i =>
-        `<div class="chip"><div class="chip-name">${escHtml(i.name)}</div><div class="chip-desc">${escHtml((i.desc || '').substring(0, 60))}${(i.desc||'').length > 60 ? '…' : ''}</div></div>`
-      ).join('');
+      const chips = selIlities.map((il, idx) => {
+        const borderColor = T.cardColors[idx % T.cardColors.length];
+        const desc = (il.desc || '').substring(0, 80) + ((il.desc||'').length > 80 ? '…' : '');
+        return `<div style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
+          <div style="font-size:12px;font-weight:700;color:${T.textPrimary};margin-bottom:3px">${escHtml(il.name)}</div>
+          <div style="font-size:11px;color:${T.textSecondary};line-height:1.4">${escHtml(desc)}</div>
+        </div>`;
+      }).join('');
       sections += rptSection(++sn, `Lifecycle Properties (${selIlities.length})`,
         selIlities.length
-          ? `<div class="chip-grid">${chips}</div>`
-          : '<p><em>No lifecycle properties selected.</em></p>',
-        true);
+          ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${chips}</div>`
+          : `<p style="color:${T.textTertiary}"><em>No lifecycle properties selected.</em></p>`,
+        true, T);
     }
 
     // ── STAKEHOLDERS ──
     if (inc.stak) {
-      const chips = selStakeholders.map(s =>
-        `<div class="chip"><div class="chip-name">${escHtml(s.name)}</div><div class="chip-desc">${escHtml((s.desc || '').substring(0, 60))}${(s.desc||'').length > 60 ? '…' : ''}</div></div>`
-      ).join('');
+      const chips = selStakeholders.map((s, idx) => {
+        const borderColor = T.cardColors[idx % T.cardColors.length];
+        const desc = (s.desc || '').substring(0, 80) + ((s.desc||'').length > 80 ? '…' : '');
+        return `<div style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
+          <div style="font-size:12px;font-weight:700;color:${T.textPrimary};margin-bottom:3px">${escHtml(s.name)}</div>
+          <div style="font-size:11px;color:${T.textSecondary};line-height:1.4">${escHtml(desc)}</div>
+        </div>`;
+      }).join('');
       sections += rptSection(++sn, `Stakeholders (${selStakeholders.length})`,
         selStakeholders.length
-          ? `<div class="chip-grid">${chips}</div>`
-          : '<p><em>No stakeholders selected.</em></p>',
-        true);
+          ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${chips}</div>`
+          : `<p style="color:${T.textTertiary}"><em>No stakeholders selected.</em></p>`,
+        true, T);
     }
 
     // ── REQUIREMENTS ──
@@ -2876,11 +3145,12 @@
           : (r.stakeholders && r.stakeholders.length
               ? (allStakeholders.find(s => s.id === r.stakeholders[0])?.name || r.stakeholders[0])
               : '—');
-        return `<tr>
-          <td style="white-space:nowrap;color:#888;font-size:11px">${idx + 1}</td>
-          <td>${escHtml(r.text || '')}</td>
-          <td style="white-space:nowrap;font-size:11px">${escHtml(ilName)}</td>
-          <td style="white-space:nowrap;font-size:11px">${escHtml(scorer)}</td>
+        const rowBg = idx % 2 === 1 ? T.tblRowAlt : T.bodyBg;
+        return `<tr style="background:${rowBg}">
+          <td style="white-space:nowrap;color:${T.textTertiary};font-size:11px;padding:7px 10px;border-bottom:1px solid ${T.tblBorder}">${idx + 1}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary}">${escHtml(r.text || '')}</td>
+          <td style="white-space:nowrap;font-size:11px;padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textSecondary}">${escHtml(ilName)}</td>
+          <td style="white-space:nowrap;font-size:11px;padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textSecondary}">${escHtml(scorer)}</td>
         </tr>`;
       }).join('');
 
@@ -2901,10 +3171,11 @@
           const count = ilCounts[il.id] || 0;
           const pct   = Math.round((count / ilMax) * 100);
           const conc  = ilTotal > 0 && count / ilTotal > 0.45;
-          return `<div class="cov-bar-row">
-            <div class="cov-bar-lbl" title="${escHtml(il.name)}">${escHtml(il.name)}</div>
-            <div class="cov-bar-track"><div class="cov-bar-fill${conc ? ' conc' : ''}" style="width:${pct}%"></div></div>
-            <div class="cov-bar-cnt">${count}</div>
+          const barColor = conc ? T.covBarConc : T.covBarPos;
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px">
+            <div style="width:120px;flex-shrink:0;color:${T.textSecondary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(il.name)}">${escHtml(il.name)}</div>
+            <div style="flex:1;height:10px;background:${T.barPosBg};border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px"></div></div>
+            <div style="width:18px;text-align:right;font-weight:700;color:${T.textSecondary}">${count}</div>
           </div>`;
         }).join('');
         const skCounts = {};
@@ -2916,19 +3187,20 @@
         const skRows = selStakeholders.map(s => {
           const count = skCounts[s.id] || 0;
           const pct   = Math.round((count / skMax) * 100);
-          return `<div class="cov-bar-row">
-            <div class="cov-bar-lbl" title="${escHtml(s.name)}">${escHtml(s.name)}</div>
-            <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${pct}%"></div></div>
-            <div class="cov-bar-cnt">${count}</div>
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:11px">
+            <div style="width:120px;flex-shrink:0;color:${T.textSecondary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(s.name)}">${escHtml(s.name)}</div>
+            <div style="flex:1;height:10px;background:${T.barPosBg};border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${T.covBarPos};border-radius:3px"></div></div>
+            <div style="width:18px;text-align:right;font-weight:700;color:${T.textSecondary}">${count}</div>
           </div>`;
         }).join('');
-        covCharts = `<div class="cov-charts">
-          ${ilAll.length  ? `<div class="cov-chart-col"><div class="cov-chart-label">Coverage by Lifecycle Property</div>${ilRows}</div>` : ''}
-          ${selStakeholders.length ? `<div class="cov-chart-col"><div class="cov-chart-label">Coverage by Stakeholder</div>${skRows}</div>` : ''}
+        const covLabel = (txt) => `<div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
+        covCharts = `<div style="display:flex;gap:24px;margin-top:24px">
+          ${ilAll.length  ? `<div style="flex:1;min-width:0">${covLabel('Coverage by Lifecycle Property')}${ilRows}</div>` : ''}
+          ${selStakeholders.length ? `<div style="flex:1;min-width:0">${covLabel('Coverage by Stakeholder')}${skRows}</div>` : ''}
         </div>`;
       }
 
-      // ── RTMs (conditional on inc.rtm) ──
+      // ── RTMs ──
       let covRtms = '';
       if (inc.rtm && requirements.length > 0) {
         const _re = s => String(s || '').replace(/[&<>"]/g, c =>
@@ -2936,24 +3208,25 @@
 
         const buildPdfRtm = (reqs, cols, hasRelation, title) => {
           if (!cols.length) return '';
-          let h = `<h4 class="rpt-subhead sub-page-break" style="margin-top:28px">${title}</h4>`;
-          h += '<div style="overflow-x:auto"><table class="rtm-rpt-table"><thead><tr>';
-          h += '<th class="rtm-rpt-corner">#</th>';
-          h += '<th class="rtm-rpt-req-col">Requirement</th>';
+          let h = `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:28px 0 10px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder};page-break-before:always">${title}</div>`;
+          h += `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:10px"><thead><tr>`;
+          h += `<th style="padding:2px 6px 4px;min-width:24px;vertical-align:bottom;text-align:right;font-size:9px;color:${T.textTertiary}">#</th>`;
+          h += `<th style="min-width:180px;max-width:280px;padding:2px 8px 4px;vertical-align:bottom;font-size:10px;color:${T.textTertiary}">Requirement</th>`;
           cols.forEach(col => {
-            h += `<th class="rtm-rpt-col-header" title="${_re(col.name)}"><div class="rtm-rpt-col-label">${_re(col.name)}</div></th>`;
+            h += `<th style="padding:0;width:18px;vertical-align:bottom" title="${_re(col.name)}"><div style="writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:90px;font-size:9px;color:${T.textSecondary};padding:2px 3px;display:block">${_re(col.name)}</div></th>`;
           });
           h += '</tr></thead><tbody>';
           reqs.forEach((req, idx) => {
-            h += '<tr>';
-            h += `<td class="rtm-rpt-num">${idx + 1}</td>`;
+            const rowBg = idx % 2 === 1 ? T.tblRowAlt : T.bodyBg;
+            h += `<tr style="background:${rowBg}">`;
+            h += `<td style="text-align:right;color:${T.textTertiary};font-size:9px;padding:2px 6px;min-width:24px">${idx + 1}</td>`;
             const txt   = req.text || '';
             const short = txt.length > 80 ? txt.substring(0, 80) + '…' : txt;
-            h += `<td class="rtm-rpt-req-text" title="${_re(txt)}">${_re(short)}</td>`;
+            h += `<td style="font-size:10px;padding:2px 8px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${T.textPrimary}" title="${_re(txt)}">${_re(short)}</td>`;
             cols.forEach(col => {
               const filled = hasRelation(req, col);
-              h += `<td class="rtm-rpt-cell${filled ? ' rtm-rpt-filled' : ''}">`;
-              if (filled) h += '<span class="rtm-rpt-dot"></span>';
+              h += `<td style="width:18px;height:16px;padding:0;text-align:center;vertical-align:middle;border:1px solid ${T.tblBorder};background:${filled ? T.rtmFill : 'transparent'}">`;
+              if (filled) h += `<span style="display:block;width:8px;height:8px;background:${T.rtmDot};border-radius:1px;margin:auto"></span>`;
               h += '</td>';
             });
             h += '</tr>';
@@ -2981,11 +3254,17 @@
         }
       }
 
+      const tblHead = `<thead><tr>
+        <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">#</th>
+        <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Requirement</th>
+        <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Lifecycle Property</th>
+        <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Scorer</th>
+      </tr></thead>`;
       sections += rptSection(++sn, `Requirements (${requirements.length})`,
         requirements.length
-          ? `<table class="rpt-table"><thead><tr><th>#</th><th>Requirement</th><th>Lifecycle Property</th><th>Scorer</th></tr></thead><tbody>${rows}</tbody></table>${covCharts}${covRtms}`
-          : '<p><em>No requirements defined.</em></p>',
-        true);
+          ? `<table style="width:100%;border-collapse:collapse;font-size:12px">${tblHead}<tbody>${rows}</tbody></table>${covCharts}${covRtms}`
+          : `<p style="color:${T.textTertiary}"><em>No requirements defined.</em></p>`,
+        true, T);
     }
 
     // ── PAIRWISE RANKINGS ──
@@ -2995,151 +3274,197 @@
       Object.entries(pairComparisons).forEach(([, winner]) => {
         if (wins[winner] !== undefined) wins[winner]++;
       });
-      const totalComparisons = Object.keys(pairComparisons).length;
-      const allEqual = totalComparisons === 0;
+      const allEqual = Object.keys(pairComparisons).length === 0;
 
       let pairContent;
       if (allEqual) {
-        pairContent = `<div class="rpt-callout" style="border-left-color:#718096">
-          <strong>Equal Weighting Applied</strong> — No pairwise comparisons were recorded for this project.
-          All ${selIlities.length} lifecycle properties carry equal weight in the Pugh matrix scoring.
+        pairContent = `<div style="border-left:3px solid ${T.textTertiary};padding:12px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;font-size:13px;color:${T.textPrimary}">
+          <strong>Equal weighting applied</strong> — No pairwise comparisons were recorded. All ${selIlities.length} lifecycle properties carry equal weight.
         </div>`;
       } else {
         const ranked = selIlities.map(i => ({ name: i.name, wins: wins[i.id] || 0 })).sort((a, b) => b.wins - a.wins);
-        const rows = ranked.map((r, i) => `<tr><td>${i + 1}</td><td>${escHtml(r.name)}</td><td>${r.wins}</td></tr>`).join('');
-        pairContent = `<table class="rpt-table"><thead><tr><th>Rank</th><th>Lifecycle Property</th><th>Win Count</th></tr></thead><tbody>${rows}</tbody></table>`;
+        const pairRows = ranked.map((r, i) => {
+          const bg = i % 2 === 1 ? T.tblRowAlt : T.bodyBg;
+          return `<tr style="background:${bg}">
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textTertiary};font-size:11px">${i + 1}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary}">${escHtml(r.name)}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary};font-weight:700">${r.wins}</td>
+          </tr>`;
+        }).join('');
+        const pairHead = `<thead><tr>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Rank</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Lifecycle Property</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Win Count</th>
+        </tr></thead>`;
+        pairContent = `<table style="width:100%;border-collapse:collapse;font-size:12px">${pairHead}<tbody>${pairRows}</tbody></table>`;
       }
-      sections += rptSection(++sn, 'Weightings', pairContent, true);
+      sections += rptSection(++sn, 'Weightings', pairContent, true, T);
     }
 
     // ── CONCEPT SCORING SUMMARY ──
+    const scoringTblHead = (extraCols='') => `<thead><tr>
+      <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Concept</th>
+      <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:40px">+</th>
+      <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:40px">−</th>
+      <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:40px">0</th>
+      <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:right;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:80px">Net Score</th>
+      ${extraCols}
+    </tr></thead>`;
+
+    const makeBarRows = (list, maxNet) => list.map((s, i) => {
+      const pct       = Math.max(Math.round((Math.abs(s.net) / maxNet) * 100), 2);
+      const barColors = [T.barPos1, T.barPos2, T.barPos3];
+      const barColor  = s.net < 0 ? T.barNeg : (barColors[i] || T.barPos3);
+      const scoreColor= s.net > 0 ? T.barPosText : s.net < 0 ? T.barNegText : T.textTertiary;
+      const rankCircleBg = i === 0 ? T.barPos1 : i === 1 ? T.barPos2 : i === 2 ? T.barPos3 : T.cardBg;
+      const rankCircleTx = i < 3 ? T.winnerBg : T.textTertiary;
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:26px;height:26px;border-radius:50%;background:${rankCircleBg};border:1px solid ${T.cardBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <span style="font-size:11px;font-weight:700;color:${rankCircleTx}">${i+1}</span>
+        </div>
+        <div style="width:180px;flex-shrink:0;font-size:11px;font-weight:${i===0?'700':'400'};color:${T.textPrimary};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.c.name)}</div>
+        <div style="flex:1;background:${T.barPosBg};border-radius:3px;height:13px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px"></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:${scoreColor};width:36px;text-align:right">${s.net >= 0 ? '+' : ''}${s.net}</div>
+      </div>`;
+    }).join('');
+
     if (inc.scor) {
       if (!pughConcepts.length) {
-        sections += rptSection(++sn, 'Concept Scoring Summary', '<p><em>No concepts defined.</em></p>', true);
+        sections += rptSection(++sn, 'Concept Scoring', `<p style="color:${T.textTertiary}"><em>No concepts defined.</em></p>`, true, T);
       } else {
-        // Full ranked table
-        const rows = conceptStats.map(({ c, plus, minus, zero, net, isDatum }) => {
-          const badge    = isDatum ? ' <span class="rpt-badge">Datum</span>' : '';
-          const rank     = isDatum ? '—' : rankMap[c.id];
-          const netColor = !isDatum ? (net > 0 ? 'color:#276749' : net < 0 ? 'color:#c53030' : 'color:#888') : '';
-          return `<tr>
-            <td>${escHtml(c.name)}${badge}</td>
-            <td style="text-align:center;color:#276749;font-weight:600">${isDatum ? 'D' : plus}</td>
-            <td style="text-align:center;color:#c53030;font-weight:600">${isDatum ? 'D' : minus}</td>
-            <td style="text-align:center;color:#888">${isDatum ? 'D' : zero}</td>
-            <td style="text-align:center;font-weight:700;${netColor}">${isDatum ? 'D' : (net >= 0 ? '+' : '') + net}</td>
-            <td style="text-align:center;font-weight:700">${rank}</td>
+        // Which concepts to show in table (filter if focus + filter charts active)
+        const tableList = (focusIds.size > 0 && focusFilterCharts)
+          ? conceptStats.filter(s => s.isDatum || focusIds.has(String(s.c.id)))
+          : conceptStats;
+
+        const rows = tableList.map(({ c, plus, minus, zero, net, isDatum }, rowIdx) => {
+          const isWin = selConcept && String(c.id) === String(convSelectedConceptId);
+          const bg = isWin ? T.winnerBg : (rowIdx % 2 === 1 ? T.tblRowAlt : T.bodyBg);
+          const netColor = isDatum ? T.textTertiary : (net > 0 ? T.barPosText : net < 0 ? T.barNegText : T.textTertiary);
+          const rankDisp = isDatum ? '<span style="font-family:\'Courier New\',monospace;font-size:9px;padding:1px 5px;background:'+T.cardBg+';color:'+T.textTertiary+';border-radius:3px;border:1px solid '+T.cardBorder+'">Datum</span>'
+            : `<span style="font-weight:700;color:${T.textPrimary}">#${rankMap[c.id]}</span>`;
+          return `<tr style="background:${bg}">
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${isWin ? T.winnerText : T.textPrimary};font-weight:${isWin?'700':'400'}">${escHtml(c.name)}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.barPosText};font-weight:700">${isDatum ? '—' : plus}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.barNegText};font-weight:700">${isDatum ? '—' : minus}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.textTertiary}">${isDatum ? '—' : zero}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:right;font-weight:700;color:${netColor}">${isDatum ? '—' : (net >= 0 ? '+' : '') + net}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center">${rankDisp}</td>
           </tr>`;
         }).join('');
 
-        // Top-5 highlight strip
-        const top5 = rankedConcepts.slice(0, 5);
+        const chartList = (focusIds.size > 0 && focusFilterCharts)
+          ? rankedConcepts.filter(s => focusIds.has(String(s.c.id)))
+          : rankedConcepts;
+        const top5 = chartList.slice(0, 5);
         const maxNet = Math.max(...top5.map(s => Math.abs(s.net)), 1);
-        const top5Rows = top5.map((s, i) => {
-          const pct = Math.round((s.net / maxNet) * 100);
-          const medal = ['🥇','🥈','🥉','④','⑤'][i] || (i + 1);
-          return `<div class="top5-row">
-            <div class="top5-rank">${medal}</div>
-            <div class="top5-name">${escHtml(s.c.name)}</div>
-            <div class="top5-bar-wrap"><div class="top5-bar" style="width:${pct}%"></div></div>
-            <div class="top5-score">${s.net >= 0 ? '+' : ''}${s.net}</div>
-          </div>`;
-        }).join('');
 
-        sections += rptSection(++sn, `Concept Scoring (${pughConcepts.length} concepts)`,
-          `<table class="rpt-table" style="margin-bottom:28px">
-            <thead><tr>
-              <th>Concept</th>
-              <th style="text-align:center">+</th>
-              <th style="text-align:center">−</th>
-              <th style="text-align:center">0</th>
-              <th style="text-align:center">Utility Score</th>
-              <th style="text-align:center">Rank</th>
-            </tr></thead>
+        const subhead = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:24px 0 12px;padding-bottom:7px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
+
+        sections += rptSection(++sn, `Concept Scoring (${pughConcepts.length - 1} concepts + datum)`,
+          `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
+            ${scoringTblHead(`<th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:50px">Rank</th>`)}
             <tbody>${rows}</tbody>
           </table>
-          <div class="rpt-subhead sub-page-break">Top ${top5.length} Concepts by Utility Score</div>
-          <div class="top5-chart" style="margin-top:12px">${top5Rows}</div>`,
-          true);
+          ${top5.length ? subhead(`Top ${top5.length} concepts by net score${focusIds.size > 0 && focusFilterCharts ? ' (filtered to focus concepts)' : ''}`) + makeBarRows(top5, maxNet) : ''}`,
+          true, T);
       }
     }
 
-    // ── CONCEPT RANKINGS CHART (replaces raw Pugh matrix) ──
+    // ── CONCEPT RANKINGS CHART ──
     if (inc.pugh) {
       if (!pughConcepts.length || !requirements.length) {
-        sections += rptSection(++sn, 'Concept Rankings', '<p><em>No concepts or requirements to display.</em></p>', true);
+        sections += rptSection(++sn, 'Concept Rankings', `<p style="color:${T.textTertiary}"><em>No concepts or requirements to display.</em></p>`, true, T);
       } else {
-        // Full horizontal bar chart for ALL non-datum concepts, sorted by net score
-        const allSorted = rankedConcepts.slice(); // already sorted descending
-        const maxAbsNet = Math.max(...allSorted.map(s => Math.abs(s.net)), 1);
+        const displayList = (focusIds.size > 0 && focusFilterCharts)
+          ? rankedConcepts.filter(s => focusIds.has(String(s.c.id)))
+          : rankedConcepts;
+        const maxAbsNet = Math.max(...displayList.map(s => Math.abs(s.net)), 1);
         const DATUM     = conceptStats[0];
 
-        const bars = allSorted.map((s, i) => {
-          const pctPos = s.net >= 0 ? Math.round((s.net  / maxAbsNet) * 50) : 0;
-          const pctNeg = s.net < 0  ? Math.round((-s.net / maxAbsNet) * 50) : 0;
-          const isWinner = selConcept && String(s.c.id) === String(convSelectedConceptId);
-          return `<div class="bar-row${isWinner ? ' bar-row-winner' : ''}">
-            <div class="bar-rank">${i + 1}</div>
-            <div class="bar-label">${escHtml(s.c.name)}${isWinner ? ' <span class="rpt-badge" style="background:#276749;color:#fff">Selected</span>' : ''}</div>
-            <div class="bar-track">
-              <div class="bar-neg-fill" style="width:${pctNeg}%"></div>
-              <div class="bar-pos-fill" style="width:${pctPos}%"></div>
+        const bars = displayList.map((s, i) => {
+          const pctPos  = s.net >= 0 ? Math.round((s.net  / maxAbsNet) * 50) : 0;
+          const pctNeg  = s.net < 0  ? Math.round((-s.net / maxAbsNet) * 50) : 0;
+          const isWinner= selConcept && String(s.c.id) === String(convSelectedConceptId);
+          const rowBg   = isWinner ? T.winnerBg : (i % 2 === 1 ? T.tblRowAlt : T.bodyBg);
+          const netColor= s.net > 0 ? T.barPosText : s.net < 0 ? T.barNegText : T.textTertiary;
+          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid ${T.tblBorder};background:${rowBg};font-size:11px">
+            <div style="width:22px;text-align:center;font-weight:700;color:${T.textTertiary};font-size:10px;flex-shrink:0">${i + 1}</div>
+            <div style="width:200px;flex-shrink:0;font-weight:${isWinner?'700':'400'};color:${isWinner ? T.winnerText : T.textPrimary};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.c.name)}${isWinner ? ` <span style="font-size:9px;background:${T.winnerText};color:${T.winnerBg};padding:1px 5px;border-radius:3px;margin-left:4px">Selected</span>` : ''}</div>
+            <div style="flex:1;display:flex;height:12px;background:${T.barPosBg};border-radius:3px;overflow:hidden">
+              <div style="width:${pctNeg}%;background:${T.barNeg};border-radius:3px 0 0 3px"></div>
+              <div style="width:${pctPos}%;background:${T.barPos1};border-radius:0 3px 3px 0"></div>
             </div>
-            <div class="bar-score" style="${s.net > 0 ? 'color:#276749' : s.net < 0 ? 'color:#c53030' : 'color:#888'}">${s.net >= 0 ? '+' : ''}${s.net}</div>
+            <div style="width:40px;text-align:right;font-weight:700;color:${netColor};flex-shrink:0">${s.net >= 0 ? '+' : ''}${s.net}</div>
           </div>`;
         }).join('');
 
-        // Datum reference row
-        const datumRow = `<div class="bar-row bar-row-datum">
-          <div class="bar-rank">D</div>
-          <div class="bar-label">${escHtml(DATUM.c.name)} <span class="rpt-badge">Datum</span></div>
-          <div class="bar-track"><div style="width:50%;border-right:2px dashed #999"></div></div>
-          <div class="bar-score" style="color:#999">Baseline</div>
+        const datumRow = `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:2px solid ${T.accentLine};background:${T.datumBg};font-size:11px">
+          <div style="width:22px;text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${T.datumText};flex-shrink:0">D</div>
+          <div style="width:200px;flex-shrink:0;color:${T.datumText};font-style:italic">${escHtml(DATUM.c.name)} <span style="font-size:9px;background:${T.cardBg};color:${T.textTertiary};padding:1px 5px;border-radius:3px;border:1px solid ${T.cardBorder}">Datum</span></div>
+          <div style="flex:1;display:flex;height:12px;background:${T.barPosBg};border-radius:3px;overflow:hidden">
+            <div style="width:50%;border-right:2px dashed ${T.datumText}"></div>
+          </div>
+          <div style="width:40px;text-align:right;color:${T.datumText};font-size:10px;flex-shrink:0">Baseline</div>
         </div>`;
 
-        // Top-5 breakdown table
-        const top5 = rankedConcepts.slice(0, 5);
-        const top5Rows = top5.map(s => {
+        const top5b = displayList.slice(0, 5);
+        const t5rows = top5b.map(s => {
           const isWinner = selConcept && String(s.c.id) === String(convSelectedConceptId);
-          return `<tr${isWinner ? ' style="background:#f0fff4"' : ''}>
-            <td style="font-weight:700">${rankMap[s.c.id]}</td>
-            <td>${escHtml(s.c.name)}${isWinner ? ' <span class="rpt-badge" style="background:#276749;color:#fff">Selected</span>' : ''}</td>
-            <td style="text-align:center;color:#276749;font-weight:600">${s.plus}</td>
-            <td style="text-align:center;color:#c53030;font-weight:600">${s.minus}</td>
-            <td style="text-align:center;color:#888">${s.zero}</td>
-            <td style="text-align:center;font-weight:700;${s.net > 0 ? 'color:#276749' : s.net < 0 ? 'color:#c53030' : ''}">${s.net >= 0 ? '+' : ''}${s.net}</td>
+          const bg = isWinner ? T.winnerBg : T.bodyBg;
+          return `<tr style="background:${bg}">
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};font-weight:700;color:${T.textPrimary}">#${rankMap[s.c.id]}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${isWinner ? T.winnerText : T.textPrimary};font-weight:${isWinner?'700':'400'}">${escHtml(s.c.name)}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.barPosText};font-weight:700">${s.plus}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.barNegText};font-weight:700">${s.minus}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;color:${T.textTertiary}">${s.zero}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:right;font-weight:700;color:${s.net>0?T.barPosText:s.net<0?T.barNegText:T.textTertiary}">${s.net>=0?'+':''}${s.net}</td>
           </tr>`;
         }).join('');
+        const t5Head = `<thead><tr>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Rank</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Concept</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">+</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">−</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">0</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:right;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Net Score</th>
+        </tr></thead>`;
 
-        sections += rptSection(++sn, `Concept Rankings — All ${rankedConcepts.length} Concepts vs. Datum`,
-          `<div class="bar-chart" style="margin-bottom:32px">
-            ${datumRow}
-            ${bars}
+        const subhead2 = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:28px 0 10px;padding-bottom:7px;border-bottom:1px solid ${T.secBorder};page-break-before:always">${txt}</div>`;
+
+        sections += rptSection(++sn, `Concept Rankings — ${displayList.length} Concepts vs. Datum`,
+          `<div style="border:1px solid ${T.tblBorder};border-radius:6px;overflow:hidden;margin-bottom:28px">
+            ${datumRow}${bars}
           </div>
-          <div class="rpt-subhead sub-page-break">Top 5 Breakdown</div>
-          <table class="rpt-table" style="margin-top:10px">
-            <thead><tr><th>Rank</th><th>Concept</th><th style="text-align:center">+</th><th style="text-align:center">−</th><th style="text-align:center">0</th><th style="text-align:center">Utility Score</th></tr></thead>
-            <tbody>${top5Rows}</tbody>
+          ${subhead2('Top ' + top5b.length + ' breakdown')}
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
+            ${t5Head}<tbody>${t5rows}</tbody>
           </table>`,
-          true);
+          true, T);
       }
     }
 
     // ── CONVERGENCE SUMMARY ──
     if (inc.conv) {
+      const convSubhead = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
       let cHtml = '';
 
       if (convClosedAt) {
         const fmt = new Date(convClosedAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-        cHtml += `<div class="rpt-conv-status">✓ Convergence logged: ${fmt}</div>`;
+        cHtml += `<div style="display:inline-block;background:${T.winnerBg};border:1px solid ${T.winnerBorder};border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;color:${T.winnerText};margin-bottom:18px;font-family:'Courier New',monospace;letter-spacing:0.05em">✓ Convergence logged: ${fmt}</div>`;
       }
 
       if (selConcept) {
-        cHtml += `<div class="rpt-callout" style="margin-bottom:20px"><strong>Selected Concept:</strong> ${escHtml(selConcept.name)}</div>`;
+        cHtml += `<div style="border:1px solid ${T.winnerBorder};border-radius:6px;padding:15px 18px;background:${T.winnerBg};margin-bottom:20px">
+          <div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.winnerText};margin-bottom:4px">Selected Concept</div>
+          <div style="font-size:20px;font-weight:700;color:${T.winnerText}">${escHtml(selConcept.name)}</div>
+        </div>`;
       }
 
       if (convRationale) {
-        cHtml += `<h4 class="rpt-subhead">Decision Rationale</h4><p>${escHtml(convRationale)}</p>`;
+        cHtml += convSubhead('Decision Rationale') + `<p style="color:${T.textPrimary};line-height:1.6">${escHtml(convRationale)}</p>`;
       }
 
       const lessonDefs = [
@@ -3150,176 +3475,160 @@
       ];
       const hasLessons = lessonDefs.some(([key]) => convLessons[key]);
       if (hasLessons) {
-        cHtml += `<h4 class="rpt-subhead">Lessons Learned</h4>`;
+        cHtml += convSubhead('Lessons Learned');
+        cHtml += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
         lessonDefs.forEach(([key, label]) => {
           if (convLessons[key]) {
-            cHtml += `<div style="margin-bottom:16px">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:4px">${label}</div>
-              <p style="margin:0">${escHtml(convLessons[key])}</p>
+            cHtml += `<div style="border:1px solid ${T.cardBorder};border-radius:6px;padding:12px 14px;background:${T.cardBg}">
+              <div style="font-size:9px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.textTertiary};margin-bottom:5px">${label}</div>
+              <p style="margin:0;font-size:12px;color:${T.textPrimary};line-height:1.5">${escHtml(convLessons[key])}</p>
             </div>`;
           }
         });
+        cHtml += `</div>`;
       }
 
       if (convRisks) {
-        cHtml += `<h4 class="rpt-subhead">Open Risks</h4><p style="white-space:pre-line">${escHtml(convRisks)}</p>`;
+        cHtml += convSubhead('Open Risks') + `<p style="white-space:pre-line;color:${T.textPrimary};font-size:12px;line-height:1.6">${escHtml(convRisks)}</p>`;
       }
 
       if (convNextSteps && convNextSteps.length) {
-        const nsRows = convNextSteps.map(s =>
-          `<tr><td>${escHtml(s.what || '')}</td><td style="white-space:nowrap">${escHtml(s.who || '')}</td><td style="white-space:nowrap">${escHtml(s.when || '')}</td></tr>`
-        ).join('');
-        cHtml += `<h4 class="rpt-subhead sub-page-break">Next Steps</h4>
-          <table class="rpt-table">
-            <thead><tr><th>Action</th><th>Owner</th><th>Due</th></tr></thead>
-            <tbody>${nsRows}</tbody>
-          </table>`;
+        const nsHead = `<thead><tr>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Action</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;white-space:nowrap">Owner</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;white-space:nowrap">Due</th>
+        </tr></thead>`;
+        const nsRows = convNextSteps.map((s, i) => {
+          const bg = i % 2 === 1 ? T.tblRowAlt : T.bodyBg;
+          return `<tr style="background:${bg}">
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary}">${escHtml(s.what || '')}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};white-space:nowrap;color:${T.textSecondary}">${escHtml(s.who || '')}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};white-space:nowrap;color:${T.textSecondary}">${escHtml(s.when || '')}</td>
+          </tr>`;
+        }).join('');
+        cHtml += convSubhead('Next Steps') + `<table style="width:100%;border-collapse:collapse;font-size:12px">${nsHead}<tbody>${nsRows}</tbody></table>`;
       }
 
-      if (!cHtml) cHtml = '<p><em>Convergence section not yet completed.</em></p>';
+      if (!cHtml) cHtml = `<p style="color:${T.textTertiary}"><em>Convergence section not yet completed.</em></p>`;
 
-      sections += rptSection(++sn, 'Convergence Summary', cHtml, true);
+      sections += rptSection(++sn, 'Convergence Summary', cHtml, true, T);
+    }
+
+    // ── FOCUS CONCEPTS DEEP DIVE ──
+    if (focusIds.size > 0) {
+      const focusList = rankedConcepts.filter(s => focusIds.has(String(s.c.id)));
+
+      // Head-to-head comparison when 2+ selected
+      if (focusList.length >= 2) {
+        const h2hHead = `<thead><tr>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">#</th>
+          <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">Requirement</th>
+          ${focusList.map(s => `<th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700">${escHtml(s.c.name.substring(0,18))}${s.c.name.length>18?'…':''}</th>`).join('')}
+        </tr></thead>`;
+        const h2hRows = requirements.map((r, idx) => {
+          const bg = idx % 2 === 1 ? T.tblRowAlt : T.bodyBg;
+          const cells = focusList.map(s => {
+            const v = pughScores[s.c.id + '_' + r.id];
+            const col = v === '+' ? T.barPosText : v === '-' ? T.barNegText : T.textTertiary;
+            return `<td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};text-align:center;font-weight:700;color:${col}">${v === '+' ? '+' : v === '-' ? '−' : '0'}</td>`;
+          }).join('');
+          return `<tr style="background:${bg}">
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textTertiary};font-size:11px">${idx+1}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid ${T.tblBorder};color:${T.textPrimary};font-size:12px">${escHtml(r.text||'')}</td>
+            ${cells}
+          </tr>`;
+        }).join('');
+        sections += rptSection(++sn, 'Head-to-Head Comparison',
+          `<table style="width:100%;border-collapse:collapse;font-size:12px">${h2hHead}<tbody>${h2hRows}</tbody></table>`,
+          true, T);
+      }
+
+      // Per-concept deep dive pages
+      focusList.forEach(s => {
+        const rank = rankMap[s.c.id];
+        const isSelected = selConcept && String(s.c.id) === String(convSelectedConceptId);
+        const winRate = requirements.length ? Math.round((s.plus / requirements.length) * 100) : 0;
+
+        // Top wins and losses
+        const wins  = requirements.filter(r => pughScores[s.c.id + '_' + r.id] === '+').slice(0, 5);
+        const losses= requirements.filter(r => pughScores[s.c.id + '_' + r.id] === '-').slice(0, 5);
+
+        const reqMiniRows = (list, color) => list.map((r, i) => {
+          const ilName = allIlities.find(il => il.id === r.primary)?.name || '—';
+          return `<tr><td style="padding:6px 8px;border-bottom:1px solid ${T.tblBorder};color:${color};font-size:10px;width:14px;font-weight:700">${pughScores[s.c.id + '_' + r.id] === '+' ? '+' : '−'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid ${T.tblBorder};font-size:11px;color:${T.textPrimary}">${escHtml(r.text||'')}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid ${T.tblBorder};font-size:10px;color:${T.textTertiary};white-space:nowrap">${escHtml(ilName)}</td>
+          </tr>`;
+        }).join('');
+
+        // Auto-generated "why" text
+        const topIl = (() => {
+          const ilWins = {};
+          requirements.forEach(r => { if (pughScores[s.c.id+'_'+r.id]==='+') { ilWins[r.primary] = (ilWins[r.primary]||0)+1; } });
+          const best = Object.entries(ilWins).sort((a,b)=>b[1]-a[1])[0];
+          return best ? allIlities.find(il=>il.id===best[0])?.name : null;
+        })();
+        const whySummary = `Ranked <strong>#${rank}</strong> of ${rankedConcepts.length} concepts. Net score: <strong>${s.net>=0?'+':''}${s.net}</strong> (${s.plus} wins · ${s.minus} losses · ${s.zero} ties). Win rate vs. datum: <strong>${winRate}%</strong>.${topIl ? ` Strongest area: <strong>${escHtml(topIl)}</strong>.` : ''}${isSelected ? ` <span style="background:${T.winnerBg};color:${T.winnerText};padding:1px 6px;border-radius:3px;border:1px solid ${T.winnerBorder};font-size:11px">Selected concept</span>` : ''}`;
+
+        sections += rptSection(++sn, `Deep Dive: ${escHtml(s.c.name)}`,
+          `<div style="border-left:3px solid ${T.accentLine};padding:11px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;margin-bottom:18px;font-size:13px;color:${T.textPrimary};line-height:1.6">${whySummary}</div>
+          <div style="display:flex;gap:24px;margin-bottom:20px">
+            ${[['Net Score', (s.net>=0?'+':'')+s.net, T.barPosText],['Wins',s.plus,T.barPosText],['Losses',s.minus,T.barNegText],['Ties',s.zero,T.textTertiary],['Rank','#'+rank,T.textPrimary]].map(([label,val,color])=>`
+              <div style="flex:1;background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:6px;padding:12px 8px;text-align:center">
+                <div style="font-size:20px;font-weight:700;color:${color};line-height:1;margin-bottom:4px">${val}</div>
+                <div style="font-size:9px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.08em;color:${T.textTertiary}">${label}</div>
+              </div>`).join('')}
+          </div>
+          ${wins.length ? `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder}">Top wins vs. datum</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px"><tbody>${reqMiniRows(wins,T.barPosText)}</tbody></table>` : ''}
+          ${losses.length ? `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder}">Top losses vs. datum</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${reqMiniRows(losses,T.barNegText)}</tbody></table>` : ''}`,
+          true, T);
+      });
     }
 
     // ── BUILD DOCUMENT ──
+    const coverBorderStyle = themeVal === 'bw' ? `border:2px solid ${T.coverAccent}` : '';
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>${escHtml(exportFileName)}</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Georgia, 'Times New Roman', serif; color: #1a202c; background: #fff; font-size: 13px; line-height: 1.65; }
-
-  /* ── Cover ── */
-  .cover { padding: 80px 64px 60px; border-bottom: 3px solid #1a202c; page-break-after: always; }
-  .cover-eyebrow { font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #aaa; margin-bottom: 40px; }
-  .cover-title { font-size: 36px; font-weight: 700; line-height: 1.12; margin-bottom: 24px; max-width: 540px; }
-  .cover-divider { width: 40px; height: 3px; background: #1a202c; margin-bottom: 24px; }
-  .cover-meta { font-size: 13px; color: #555; }
-  .cover-meta .row { display: flex; gap: 0; margin-bottom: 7px; }
-  .cover-meta .label { font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; width: 110px; flex-shrink: 0; padding-top: 2px; }
-  .cover-meta .val { max-width: 420px; }
-  .cover-url { font-family: 'Courier New', monospace; font-size: 11px; color: #aaa; margin-top: 48px; letter-spacing: 0.05em; }
-
-  /* ── Sections ── */
-  .section { padding: 40px 64px; border-bottom: 1px solid #e2e8f0; }
+  body { font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif; color: ${T.textPrimary}; background: ${T.bodyBg}; font-size: 13px; line-height: 1.65; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .section { padding: 32px 48px; border-bottom: 1px solid ${T.secBorder}; background: ${T.bodyBg}; }
   .section.page-break { page-break-before: always; break-before: page; }
   .section:last-of-type { border-bottom: none; }
-  .sub-page-break { page-break-before: always; break-before: page; padding-top: 40px; margin-top: 0; }
-  .section-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 24px; padding-bottom: 10px; border-bottom: 2px solid #1a202c; }
-  .section-num { font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; }
-  .section-title { font-size: 18px; font-weight: 700; color: #1a202c; }
-
-  /* ── Executive Summary ── */
-  .exec-stats { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-  .exec-stat { flex: 1; padding: 16px 14px; text-align: center; border-right: 1px solid #e2e8f0; }
-  .exec-stat:last-child { border-right: none; }
-  .exec-stat-val { font-size: 26px; font-weight: 700; color: #1a202c; line-height: 1; margin-bottom: 4px; }
-  .exec-stat-label { font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #999; }
-  .exec-winner { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; }
-  .exec-winner-label { font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #276749; margin-bottom: 4px; }
-  .exec-winner-name { font-size: 20px; font-weight: 700; color: #276749; margin-bottom: 3px; }
-  .exec-winner-sub { font-size: 11px; color: #48bb78; }
-  .exec-dates { font-size: 12px; color: #555; }
-  .exec-dates div { margin-bottom: 5px; display: flex; gap: 0; }
-  .exec-dates .label { font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; width: 120px; flex-shrink: 0; padding-top: 1px; }
-
-  /* ── Tables ── */
-  .rpt-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
-  .rpt-table th { background: #1a202c; color: #fff; padding: 7px 10px; text-align: left; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .rpt-table td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-  .rpt-table tr:last-child td { border-bottom: none; }
-
-  /* ── Chip Grid (ilities / stakeholders) ── */
-  .chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .chip { background: #f7f8fa; border: 1px solid #e2e8f0; border-radius: 5px; padding: 9px 12px; }
-  .chip-name { font-weight: 700; font-size: 12px; color: #1a202c; margin-bottom: 2px; }
-  .chip-desc { font-size: 10px; color: #888; line-height: 1.4; }
-
-  /* ── Top-5 Chart (concept scoring) ── */
-  .top5-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
-  .top5-rank { width: 24px; font-size: 16px; text-align: center; flex-shrink: 0; }
-  .top5-name { width: 200px; flex-shrink: 0; font-weight: 600; font-size: 11px; }
-  .top5-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 3px; height: 14px; overflow: hidden; }
-  .top5-bar { height: 100%; background: #276749; border-radius: 3px; }
-  .top5-score { width: 40px; text-align: right; font-weight: 700; color: #276749; font-size: 12px; }
-
-  /* ── Full Bar Chart (concept rankings) ── */
-  .bar-chart { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-  .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid #f0f0f0; font-size: 11px; }
-  .bar-row:last-child { border-bottom: none; }
-  .bar-row-winner { background: #f0fff4; }
-  .bar-row-datum { background: #f7f8fa; color: #999; }
-  .bar-rank { width: 22px; text-align: center; font-weight: 700; color: #aaa; font-size: 10px; flex-shrink: 0; }
-  .bar-label { width: 200px; flex-shrink: 0; font-weight: 600; }
-  .bar-track { flex: 1; display: flex; height: 12px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
-  .bar-neg-fill { background: #fed7d7; border-radius: 3px 0 0 3px; }
-  .bar-pos-fill { background: #c6f6d5; border-radius: 0 3px 3px 0; }
-  .bar-score { width: 40px; text-align: right; font-weight: 700; font-size: 11px; flex-shrink: 0; }
-
-  /* ── Callouts & Subheads ── */
-  .rpt-callout { background: #f7f8fa; border-left: 3px solid #4a5568; padding: 12px 16px; font-size: 13px; border-radius: 0 4px 4px 0; }
-  .rpt-label-cell { font-weight: 700; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.08em; color: #666; white-space: nowrap; width: 70px; }
-  .rpt-subhead { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
-  .rpt-conv-status { display: inline-block; background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 4px; padding: 8px 14px; font-size: 11px; font-weight: 700; color: #276749; margin-bottom: 18px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; }
-  .rpt-badge { font-size: 10px; background: #e2e8f0; color: #4a5568; padding: 1px 5px; border-radius: 3px; margin-left: 5px; font-weight: 500; font-family: 'Courier New', monospace; vertical-align: middle; }
-  p { margin-bottom: 10px; }
-
-  /* ── Coverage Charts (requirements section) ── */
-  .cov-charts { display: flex; gap: 24px; margin-top: 24px; }
-  .cov-chart-col { flex: 1; min-width: 0; }
-  .cov-chart-label { font-family: 'Courier New', monospace; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #999; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
-  .cov-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 11px; }
-  .cov-bar-lbl { width: 120px; flex-shrink: 0; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cov-bar-track { flex: 1; height: 10px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
-  .cov-bar-fill { height: 100%; background: #3182ce; border-radius: 3px; }
-  .cov-bar-fill.conc { background: #dd6b20; }
-  .cov-bar-cnt { width: 18px; text-align: right; font-weight: 700; color: #555; flex-shrink: 0; }
-
-  /* ── RTM Tables (requirements traceability) ── */
-  .rtm-rpt-table { border-collapse: collapse; font-size: 10px; }
-  .rtm-rpt-corner { padding: 2px 6px 4px; min-width: 24px; vertical-align: bottom; text-align: right; font-size: 9px; color: #aaa; }
-  .rtm-rpt-req-col { min-width: 180px; max-width: 280px; padding: 2px 8px 4px; vertical-align: bottom; font-size: 10px; color: #999; white-space: nowrap; }
-  .rtm-rpt-col-header { padding: 0; width: 18px; vertical-align: bottom; }
-  .rtm-rpt-col-label { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 90px; font-size: 9px; color: #666; padding: 2px 3px; display: block; }
-  .rtm-rpt-num { text-align: right; color: #aaa; font-size: 9px; padding: 2px 6px; min-width: 24px; }
-  .rtm-rpt-req-text { font-size: 10px; padding: 2px 8px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #333; }
-  .rtm-rpt-cell { width: 18px; height: 16px; padding: 0; text-align: center; vertical-align: middle; border: 1px solid #e2e8f0; }
-  .rtm-rpt-filled { background: #ebf8ff; }
-  .rtm-rpt-dot { display: block; width: 8px; height: 8px; background: #3182ce; border-radius: 1px; margin: auto; }
-
-  /* ── Footer ── */
-  .rpt-footer { padding: 20px 64px; font-size: 10px; color: #ccc; font-family: 'Courier New', monospace; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; letter-spacing: 0.05em; }
-
+  p { margin-bottom: 10px; color: ${T.textPrimary}; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .cover { page-break-after: always; break-after: page; }
-    .section.page-break { page-break-before: always; break-before: page; }
-    .sub-page-break { page-break-before: always; break-before: page; }
+    .page-break { page-break-before: always; break-before: page; }
   }
 </style>
 </head>
 <body>
 
-<div class="cover">
-  <div class="cover-eyebrow">Design Analysis Report</div>
-  <div class="cover-title">${escHtml(projName)}</div>
-  <div class="cover-divider"></div>
-  <div class="cover-meta">
-    ${projOwner ? `<div class="row"><span class="label">Owner</span><span class="val">${escHtml(projOwner)}</span></div>` : ''}
-    ${projDesc  ? `<div class="row"><span class="label">Description</span><span class="val">${escHtml(projDesc)}</span></div>` : ''}
-    <div class="row"><span class="label">Generated</span><span class="val">${dateStr}</span></div>
+<!-- COVER -->
+<div style="background:${T.coverBg};min-height:100vh;page-break-after:always;break-after:page;display:flex;flex-direction:column;${coverBorderStyle}">
+  <div style="padding:56px 56px 0;flex:1">
+    <div style="font-size:10px;letter-spacing:0.18em;color:${T.coverAccent};font-family:'Courier New',monospace;margin-bottom:36px;text-transform:uppercase">Design Analysis Report</div>
+    <div style="font-size:34px;font-weight:700;color:${T.coverText};line-height:1.15;max-width:480px;margin-bottom:18px;font-family:'Playfair Display','Georgia',serif">${escHtml(projName)}</div>
+    <div style="width:36px;height:2px;background:${T.coverRule};margin-bottom:28px"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:48px">
+      ${projOwner ? `<div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.1em;color:${T.coverMeta};width:100px;flex-shrink:0;padding-top:1px;text-transform:uppercase">Owner</span><span style="font-size:12px;color:${T.coverSub}">${escHtml(projOwner)}</span></div>` : ''}
+      ${projDesc  ? `<div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.1em;color:${T.coverMeta};width:100px;flex-shrink:0;padding-top:1px;text-transform:uppercase">Description</span><span style="font-size:12px;color:${T.coverSub};max-width:400px">${escHtml(projDesc)}</span></div>` : ''}
+      <div style="display:flex;gap:0"><span style="font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.1em;color:${T.coverMeta};width:100px;flex-shrink:0;padding-top:1px;text-transform:uppercase">Generated</span><span style="font-size:12px;color:${T.coverSub}">${dateStr}</span></div>
+    </div>
   </div>
-  <div class="cover-url">controlledconvergence.com</div>
+  <div style="padding:14px 56px;border-top:1px solid ${T.stripBorder};display:flex;justify-content:space-between;align-items:center">
+    <span style="font-family:'Courier New',monospace;font-size:12px;color:${T.coverUrl};letter-spacing:0.06em">www.controlledconvergence.com</span>
+    <span style="font-family:'Courier New',monospace;font-size:10px;color:${T.coverBadgeTx};background:${T.coverBadgeBg};padding:3px 10px;border-radius:4px;border:1px solid ${T.coverBadgeBd};letter-spacing:0.08em">Pro Report</span>
+  </div>
 </div>
 
 ${sections}
-
-<div class="rpt-footer">
-  <span>controlledconvergence.com · ${escHtml(projName)}</span>
-  <span>${dateStr}</span>
-</div>
 
 <script>window.onload = function() { window.print(); };<\/script>
 </body>

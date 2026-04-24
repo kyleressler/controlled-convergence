@@ -1709,9 +1709,28 @@
 
 <!-- ── EXPORT REPORT MODAL ── -->
 <div class="modal-overlay" id="exportReportModal">
-  <div class="modal-box" style="max-width:480px">
+  <div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-title">Export Report</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Select the sections to include in your professional PDF report.</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">Select the sections and style for your professional PDF report.</div>
+
+    <!-- Theme picker -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px">Report Theme</div>
+      <div style="display:flex;gap:8px">
+        <label id="rptThemeLightLabel" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;cursor:pointer;padding:9px 10px;border-radius:7px;border:2px solid var(--accent);background:var(--accent-subtle);font-weight:600;color:var(--accent)">
+          <input type="radio" name="rptTheme" id="rptThemeLight" value="light" checked style="accent-color:var(--accent)"> Light
+        </label>
+        <label id="rptThemeDarkLabel" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;cursor:pointer;padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface)">
+          <input type="radio" name="rptTheme" id="rptThemeDark" value="dark" style="accent-color:var(--accent)"> Dark
+        </label>
+        <label id="rptThemeBwLabel" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:13px;cursor:pointer;padding:9px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface)">
+          <input type="radio" name="rptTheme" id="rptThemeBw" value="bw" style="accent-color:var(--accent)"> Black &amp; White
+        </label>
+      </div>
+    </div>
+
+    <!-- Sections -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px">Sections</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="rptTBUW" checked> Goal Statement
@@ -1744,6 +1763,22 @@
         <input type="checkbox" id="rptCONV" checked> Convergence Summary
       </label>
     </div>
+
+    <!-- Focus Concepts -->
+    <div id="rptFocusSection" style="display:none;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:4px">Focus Concepts <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-muted)">(optional — adds a deep-dive section)</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="rptQuickSelect(3)">Top 3</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="rptQuickSelect(5)">Top 5</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="rptQuickSelect(0)">Clear</button>
+      </div>
+      <div id="rptFocusList" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:10px;background:var(--surface)"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-top:8px;color:var(--text-muted)">
+        <input type="checkbox" id="rptFocusFilterCharts" checked> Filter scoring charts to selected concepts only
+      </label>
+    </div>
+
+    <!-- File name -->
     <div style="margin-bottom:20px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:6px">File Name</div>
       <input type="text" id="rptFileName" class="add-custom-input" style="width:100%;box-sizing:border-box" placeholder="e.g. Bridge_Design_Report">

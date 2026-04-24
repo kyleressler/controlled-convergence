@@ -136,11 +136,20 @@
 
 // ── Report helpers / Nav project name ────────────────────────
 
-  function rptSection(num, title, content, pageBreak) {
+  function rptSection(num, title, content, pageBreak, T) {
+    // T = theme token object (optional, falls back to light defaults)
+    const secBorder = T ? T.secBorder : '#e2e8f0';
+    const eyeColor  = T ? T.textTertiary : '#94a3b8';
+    const titleColor= T ? T.textPrimary  : '#0d1b2a';
+    const ghostColor= T ? T.ghost        : '#e8ecf0';
+    const numPad    = String(num).padStart(2, '0');
     return `<div class="section${pageBreak ? ' page-break' : ''}">
-      <div class="section-header">
-        <span class="section-num">SECTION ${num}</span>
-        <span class="section-title">${title}</span>
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid ${secBorder}">
+        <div>
+          <div style="font-size:10px;font-family:'Courier New',monospace;letter-spacing:0.12em;color:${eyeColor};margin-bottom:4px;text-transform:uppercase">Section ${numPad}</div>
+          <div style="font-size:18px;font-weight:700;color:${titleColor}">${title}</div>
+        </div>
+        <div style="font-size:60px;font-weight:700;color:${ghostColor};line-height:1;font-family:'Courier New',monospace;padding-bottom:2px;user-select:none">${numPad}</div>
       </div>
       ${content}
     </div>`;
