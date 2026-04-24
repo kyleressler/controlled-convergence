@@ -3988,6 +3988,7 @@ ${sections}
     initPairPairs();
     renderConceptCards();
     renderPughMatrix();
+    if (typeof renderConvPage === 'function') renderConvPage();
     renderProjPage(); // updates active project banner + list
 
     // Sync goal mode UI
