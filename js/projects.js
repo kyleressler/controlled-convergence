@@ -26,9 +26,12 @@ const COLLAB_LIMITS = {
  * @param {string} [opts.description]
  * @param {string} [opts.owner]
  * @param {string} [opts.userId] — set to appState.currentUser.id when auth is live
+ * @param {string} [opts.projectType] — 'quick' | 'full' (default 'full').
+ *        Quick and Full share the same JSON schema; Quick uses a subset of fields
+ *        so a Quick Project can be converted to a Full Project without data loss.
  * @returns {object} project
  */
-function createProjectModel({ name, description = '', owner = '', userId = null } = {}) {
+function createProjectModel({ name, description = '', owner = '', userId = null, projectType = 'full' } = {}) {
   return {
     id: 'proj_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     user_id: userId || (appState.currentUser ? appState.currentUser.id : null),
@@ -37,6 +40,9 @@ function createProjectModel({ name, description = '', owner = '', userId = null 
     name: name || 'Untitled Project',
     description,
     owner,
+    // 'quick' or 'full'. Existing projects with no projectType field are treated as 'full'
+    // by readers (loadProject, project card rendering, etc.).
+    projectType: projectType === 'quick' ? 'quick' : 'full',
     // Goal statement (TO/BY/USING/WHILE)
     goal: {
       to: '',
@@ -128,6 +134,9 @@ function snapshotCurrentState(existingProject) {
   return {
     ...existingProject,
     name: existingProject.name,
+    // Preserve projectType through every save. Default 'full' for legacy projects
+    // saved before this field existed.
+    projectType: existingProject.projectType === 'quick' ? 'quick' : 'full',
     goal: {
       to:    toEl    ? toEl.value    : (existingProject.goal && existingProject.goal.to)    || '',
       by:    byEl    ? byEl.value    : (existingProject.goal && existingProject.goal.by)    || '',
@@ -196,6 +205,10 @@ function snapshotCurrentState(existingProject) {
  * @param {object} project — standardized project object
  */
 function restoreProjectState(project) {
+  // Default missing projectType to 'full' so legacy projects load as Full Projects.
+  if (project && project.projectType !== 'quick' && project.projectType !== 'full') {
+    project.projectType = 'full';
+  }
   activeProject = project;
   appState.currentProject = project;
 

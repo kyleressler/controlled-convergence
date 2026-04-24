@@ -24,6 +24,9 @@ async function saveProject(project) {
       owner:       project.owner || '',
       description: project.description || '',
       data: {
+        // Project type — 'quick' | 'full'. Persisted in JSONB so old DB rows
+        // without this field load as 'full' (defaulted in restoreProjectState).
+        projectType:        project.projectType === 'quick' ? 'quick' : 'full',
         // Goal
         goal:               project.goal,
         goalMode:           project.goalMode,
