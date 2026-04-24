@@ -5793,6 +5793,21 @@ ${sections}
     renderReqTagSuggestions();
   }
 
+  function clearReqForm() {
+    // Clear all text inputs and selects in the form — does not affect saved requirements or edit state
+    [
+      'reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat','reqAgileSource',
+      'reqText','reqPrimaryIlity','reqSecondaryIlity','reqPrimaryStakeholder','reqSecondaryStakeholder',
+      'reqIncoseSource','reqScorer','reqTagsInput'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
+    reqType = '';
+    renderReqTagSuggestions();
+  }
+
   // ── PAIRWISE COMPARISON ──
   function setPairMode(mode, btn) {
     pairMode = mode;
@@ -6473,8 +6488,8 @@ ${sections}
     container.innerHTML = allTags.map(tag => {
       const active = currentTags.has(tag);
       return `<span class="req-tag req-tag-user" data-suggest-tag="${escHtml(tag)}"
-        title="${active ? 'Already added' : 'Click to add tag'}"
-        style="cursor:${active ? 'default' : 'pointer'};opacity:${active ? '0.4' : '1'}"
+        title="${active ? 'Click to remove tag' : 'Click to add tag'}"
+        style="cursor:pointer;opacity:${active ? '0.4' : '1'}"
       >${escHtml(tag)}</span>`;
     }).join('');
     container.querySelectorAll('[data-suggest-tag]').forEach(el => {
@@ -6486,11 +6501,14 @@ ${sections}
     const inputEl = document.getElementById('reqTagsInput');
     if (!inputEl) return;
     const existing = inputEl.value.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
-    if (!existing.includes(tag)) {
+    const idx = existing.indexOf(tag);
+    if (idx === -1) {
       existing.push(tag);
       existing.sort();
-      inputEl.value = existing.join(', ');
+    } else {
+      existing.splice(idx, 1);
     }
+    inputEl.value = existing.join(', ');
     renderReqTagSuggestions();
   }
 
