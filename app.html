@@ -1715,7 +1715,9 @@
       <div class="modal-label">Tags</div>
       <input class="modal-input" id="editConceptTagsInput" type="text"
         placeholder="e.g. aluminum, structural, welded"
-        onkeydown="if(event.key==='Enter')saveEditConcept()">
+        onkeydown="if(event.key==='Enter')saveEditConcept()"
+        oninput="renderConceptTagSuggestions()">
+      <div id="editConceptTagSuggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Separate tags with commas. Tags are ordered alphabetically.</div>
     </div>
     <div id="editConceptWarning" class="modal-warning" style="display:none"></div>

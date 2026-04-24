@@ -6702,6 +6702,42 @@ ${sections}
     return [...tagSet].sort();
   }
 
+  function renderConceptTagSuggestions() {
+    const container = document.getElementById('editConceptTagSuggestions');
+    if (!container) return;
+    const allTags = getAllConceptTags();
+    if (allTags.length === 0) { container.innerHTML = ''; return; }
+    const inputEl = document.getElementById('editConceptTagsInput');
+    const currentTags = new Set(
+      (inputEl?.value || '').split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0)
+    );
+    container.innerHTML = allTags.map(tag => {
+      const active = currentTags.has(tag);
+      return `<span class="req-tag req-tag-user" data-suggest-concept-tag="${escHtml(tag)}"
+        title="${active ? 'Click to remove tag' : 'Click to add tag'}"
+        style="cursor:pointer;opacity:${active ? '0.4' : '1'}"
+      >${escHtml(tag)}</span>`;
+    }).join('');
+    container.querySelectorAll('[data-suggest-concept-tag]').forEach(el => {
+      el.addEventListener('click', () => addConceptTagSuggestion(el.dataset.suggestConceptTag));
+    });
+  }
+
+  function addConceptTagSuggestion(tag) {
+    const inputEl = document.getElementById('editConceptTagsInput');
+    if (!inputEl) return;
+    const existing = inputEl.value.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+    const idx = existing.indexOf(tag);
+    if (idx === -1) {
+      existing.push(tag);
+      existing.sort();
+    } else {
+      existing.splice(idx, 1);
+    }
+    inputEl.value = existing.join(', ');
+    renderConceptTagSuggestions();
+  }
+
   function getVisibleConceptCount() {
     // Count non-datum concepts passing both the scorer filter and the tag filter.
     let filtered = pughConcepts.slice(1);
@@ -6919,6 +6955,7 @@ ${sections}
     // Populate tags field
     const tagsInput = document.getElementById('editConceptTagsInput');
     if (tagsInput) tagsInput.value = (c.tags || []).join(', ');
+    renderConceptTagSuggestions();
 
     document.getElementById('editConceptModal').classList.add('open');
     setTimeout(() => document.getElementById('editConceptNameInput').focus(), 50);
