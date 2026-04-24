@@ -7885,7 +7885,7 @@ ${sections}
       // Populate concept dropdown and restore saved values
       populateConvDropdown('convConceptDropdownStructured');
       const ratEl = document.getElementById('convRationaleStructured');
-      if (ratEl) ratEl.value = convRationale;
+      if (ratEl) { ratEl.value = convRationale; autoResize(ratEl); }
 
     } else {
       // Populate basic goal display
@@ -7896,11 +7896,11 @@ ${sections}
       // Populate concept dropdown and restore saved values
       populateConvDropdown('convConceptDropdownBasic');
       const ratEl = document.getElementById('convRationaleBasic');
-      if (ratEl) ratEl.value = convRationale;
+      if (ratEl) { ratEl.value = convRationale; autoResize(ratEl); }
     }
 
     // Lessons Learned
-    const lf = (id, key) => { const el = document.getElementById(id); if (el) el.value = convLessons[key] || ''; };
+    const lf = (id, key) => { const el = document.getElementById(id); if (el) { el.value = convLessons[key] || ''; autoResize(el); } };
     lf('convLessonReq',        'req');
     lf('convLessonConcepts',   'concepts');
     lf('convLessonAssumption', 'assumption');
@@ -7908,7 +7908,7 @@ ${sections}
 
     // Open Risks
     const risksEl = document.getElementById('convRisksField');
-    if (risksEl) risksEl.value = convRisks;
+    if (risksEl) { risksEl.value = convRisks; autoResize(risksEl); }
 
     // Next Steps
     renderConvNextSteps();
@@ -7950,16 +7950,24 @@ ${sections}
     convAutoSave();
   }
 
+  function autoResize(el) {
+    if (!el) return;
+    el.style.overflowY = 'hidden';
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
   function onConvRationaleInput() {
     const isStructured = goalMode === 'structured';
     const ratId = isStructured ? 'convRationaleStructured' : 'convRationaleBasic';
     const el = document.getElementById(ratId);
     convRationale = el ? el.value : '';
+    autoResize(el);
     convAutoSave();
   }
 
   function onConvSave() {
-    const lv = (id) => document.getElementById(id)?.value || '';
+    const lv = (id) => { const el = document.getElementById(id); autoResize(el); return el?.value || ''; };
     convLessons.req        = lv('convLessonReq');
     convLessons.concepts   = lv('convLessonConcepts');
     convLessons.assumption = lv('convLessonAssumption');
