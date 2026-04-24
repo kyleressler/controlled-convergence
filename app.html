@@ -2637,6 +2637,20 @@
   </div>
 </div>
 
+<!-- ── CONVERT QUICK → FULL MODAL ── -->
+<div class="modal-overlay" id="convertProjectModal" onclick="if(event.target===this)closeConvertProjectModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Convert to Full Project?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      Are you sure? This will convert your Quick Project to a Full Project. This cannot be undone.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmConvertQuickToFull()">Yes, Convert</button>
+      <button class="btn btn-secondary" onclick="closeConvertProjectModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── CANCEL SCHEDULED DELETION MODAL ── -->
 <div class="modal-overlay" id="cancelDeleteModal" onclick="if(event.target===this)closeCancelDeleteModal()">
   <div class="modal-box" style="max-width:460px">

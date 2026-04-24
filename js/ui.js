@@ -314,16 +314,28 @@
       collabHtml = `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();openTeamAccessModal()" title="View and manage team access">${label}</button></div>`;
     }
 
+    // Type badge — small icon + short label. Defaults to 'full' when missing.
+    const projType = (p.projectType === 'quick') ? 'quick' : 'full';
+    const badge = projType === 'quick'
+      ? `<span class="proj-type-badge proj-type-quick" title="Quick Project — single-page workflow">⚡ Quick</span>`
+      : `<span class="proj-type-badge proj-type-full" title="Full Project — multi-page workflow">◈ Full</span>`;
+
+    // Convert action — only on Quick cards. One-way (Quick → Full).
+    const convertBtn = projType === 'quick'
+      ? `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();convertQuickToFull('${p.id}')" title="Convert this Quick Project to a Full Project (data is preserved)">Convert to Full Project</button>`
+      : '';
+
     return `
     <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">
       <div style="flex:1;min-width:0">
-        <div class="proj-item-name">${activeIndicator}${p.name}</div>
+        <div class="proj-item-name">${activeIndicator}${badge} ${p.name}</div>
         ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
         <div class="proj-item-meta">${_projDateStr(p)}${p.owner ? ' · ' + p.owner : ''}</div>
         ${collabHtml}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         ${activateBtn}
+        ${convertBtn}
         ${inviteBtn}
         <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();editProject('${p.id}')" title="Edit project">Edit</button>
         <button class="proj-item-delete" onclick="event.stopPropagation();deleteProject('${p.id}')" title="Delete">×</button>

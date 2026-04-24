@@ -4272,6 +4272,61 @@ ${sections}
     renderProjPage();
   }
 
+  // ── CONVERT QUICK → FULL ─────────────────────────────────────
+  // One-way conversion. Quick and Full share the same JSON schema, so this
+  // is just a projectType flip — no data is dropped or transformed. There is
+  // intentionally no "convert Full to Quick" path.
+  var _pendingConvertId = null;
+
+  function convertQuickToFull(id) {
+    var proj = savedProjects.find(function(p) { return p.id === id; });
+    if (!proj) return;
+    if ((proj.projectType || 'full') !== 'quick') return; // already Full
+    _pendingConvertId = id;
+    var modal = document.getElementById('convertProjectModal');
+    if (modal) {
+      modal.classList.add('open');
+    } else {
+      // Fallback if the modal HTML is missing
+      if (!confirm('Are you sure? This will convert your Quick Project to a Full Project. This cannot be undone.')) return;
+      _executeConvertQuickToFull(id);
+    }
+  }
+
+  function closeConvertProjectModal() {
+    var modal = document.getElementById('convertProjectModal');
+    if (modal) modal.classList.remove('open');
+    _pendingConvertId = null;
+  }
+
+  async function confirmConvertQuickToFull() {
+    var id = _pendingConvertId;
+    closeConvertProjectModal();
+    if (!id) return;
+    await _executeConvertQuickToFull(id);
+  }
+
+  async function _executeConvertQuickToFull(id) {
+    var proj = savedProjects.find(function(p) { return p.id === id; });
+    if (!proj) return;
+    proj.projectType = 'full';
+    proj.updated_at = new Date().toISOString();
+    // If this is the active project, also flip activeProject so subsequent
+    // saves snapshot it as 'full'.
+    if (activeProject && activeProject.id === id) {
+      activeProject.projectType = 'full';
+    }
+    // Persist (signed-in users only — anonymous projects aren't in savedProjects).
+    if (appState.currentUser) {
+      try {
+        await saveProject(proj);
+      } catch (e) {
+        console.warn('[convertQuickToFull] save failed', e);
+      }
+    }
+    renderProjPage();
+  }
+
   // Double-click on a project card: activate it and navigate to GOAL
   function activateProjectAndGo(id) {
     loadProject(id);
