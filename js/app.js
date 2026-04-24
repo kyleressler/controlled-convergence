@@ -2473,11 +2473,21 @@
 
     // Navigate to Full Mode so the user lands somewhere useful
     if (autoLoad) {
-      // Coming from the marketing demo button — call _doSetMode directly to bypass
-      // the _anonHasBasicData() guard (which would show a blocking modal because the
-      // example data we just loaded looks like existing user data), then land on Stakeholders
-      _doSetMode('full');
-      switchPage('stak', document.querySelector('[data-page="stak"]'));
+      // Manually apply Full Mode state — avoids _doSetMode which fires switchPage('home')
+      // as a side-effect, AND avoids the _anonHasBasicData modal that would otherwise
+      // block mode switching for an anonymous user who just loaded example data.
+      appMode = 'full';
+      goalMode = 'basic';
+      document.body.classList.remove('mode-basic');
+      document.body.classList.add('mode-full');
+      document.getElementById('modeBtnBasic') && document.getElementById('modeBtnBasic').classList.remove('active');
+      document.getElementById('modeBtnFull')  && document.getElementById('modeBtnFull').classList.add('active');
+      // Defer navigation with setTimeout so it fires after ALL synchronous app init
+      // code in this file has finished (e.g. the appMode / _lastFullPage re-assignments
+      // further down the file that could otherwise race with this call).
+      setTimeout(function() {
+        switchPage('stak', document.querySelector('[data-page="stak"]'));
+      }, 0);
     } else {
       setMode('full');
       switchPage('proj', document.querySelector('[data-page=proj]'));
