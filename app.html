@@ -365,10 +365,10 @@
 
   <div class="qs-header">
     <div>
-      <div class="qs-title">Basic Mode</div>
+      <div class="qs-title">Quick Project</div>
       <div class="qs-subtitle">Jump straight in — the matrix updates as you type.</div>
     </div>
-    <div class="qs-save-hint">Switch to Full Mode for structured coaching, ility weighting, and PDF export.</div>
+    <div class="qs-save-hint">Start a Full Project from the Project Manager for structured coaching, ility weighting, and PDF export.</div>
   </div>
 
   <!-- Project name + Goal -->
@@ -442,10 +442,10 @@
       <h1 class="home-headline">Make Better Design Decisions</h1>
       <p class="home-tagline">A structured methodology for evaluating design concepts against real engineering requirements — objectively, systematically, and collaboratively.</p>
       <div class="home-cta-row">
-        <button class="home-cta-quick" onclick="setMode('basic')">⚡ Basic Mode →</button>
-        <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Mode →</button>
+        <button class="home-cta-quick" onclick="setMode('basic')">⚡ Quick Project →</button>
+        <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Project →</button>
       </div>
-      <p class="home-cta-sub">Basic Mode: All on one page analysis &nbsp;|&nbsp; Full Mode: Structured complete workflow</p>
+      <p class="home-cta-sub">Quick Project: All on one page analysis &nbsp;|&nbsp; Full Project: Structured complete workflow</p>
       <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
         <button class="home-cta-example" onclick="loadExampleProject()">Explore Example Project</button>
       </div>
@@ -2546,14 +2546,14 @@
   <div class="modal-box" style="max-width:460px">
     <div class="modal-title">Save Your Work?</div>
     <div class="data-warn-modal-body">
-      You have data entered in Basic Mode. <strong>Without an account, your work will be lost if you close or refresh this page.</strong>
+      You have data entered in your Quick Project. <strong>Without an account, your work will be lost if you close or refresh this page.</strong>
       <br><br>
       Create a free account to save your project and pick up where you left off anytime.
     </div>
     <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch">
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeBasicDataWarnModal();handleAccountCTA()">Create Free Account</button>
       <button class="btn btn-secondary" style="width:100%;justify-content:center" id="basicDataWarnContinueBtn" onclick="closeBasicDataWarnModal()">Continue Without Saving</button>
-      <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="closeBasicDataWarnModal(true)">Stay in Basic Mode</button>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="closeBasicDataWarnModal(true)">Stay in Quick Project</button>
     </div>
   </div>
 </div>
