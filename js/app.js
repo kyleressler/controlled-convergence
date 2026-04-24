@@ -2485,6 +2485,11 @@
     // When coming from the #demo hash, the outer setTimeout already deferred us past all sync init.
     _applyFullMode();
     switchPage('proj', document.querySelector('[data-page="proj"]'));
+
+    // Trigger the guided product tour modal (tour.js — no-op if tour.js failed to load)
+    if (window.ccTour && typeof window.ccTour.onExampleLoaded === 'function') {
+      window.ccTour.onExampleLoaded();
+    }
   }
 
   function clearAllWithWarning() {
