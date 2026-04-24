@@ -113,15 +113,21 @@ let convNextSteps         = [];   // [{ id, what, who, when }]
 let convClosedAt          = null;
 let _convNSCounter        = 0;
 
-// ── Requirements page filter state ───────────────────────────
-// Declared here (loaded before app.js) so they exist when the hash handler
-// fires loadExampleProject() → renderRequirements() → getReqPageFilteredReqs().
+// ── Page-level filter state ───────────────────────────────────
+// Declared here (loaded before app.js) so they exist when the #demo hash
+// handler fires loadExampleProject() before app.js finishes executing.
+// Requirements page filters
 let reqPageIlityFilter          = [];
 let reqPageIlityMatchMode       = 'any';
 let reqPageStakeholderFilter    = [];
 let reqPageStakeholderMatchMode = 'any';
 let reqPageTagFilter            = [];
 let reqPageTagMatchMode         = 'any';
+// Concept Scoring page filters
+let scorTagFilter               = [];
+let scorTagMatchMode            = 'any';
+let scorReqTagFilter            = [];
+let scorReqTagMatchMode         = 'any';
 
 // ── Central state object (Supabase-ready shape) ───────────────
 // currentUser: populated by auth.js on login

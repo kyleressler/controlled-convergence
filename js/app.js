@@ -6237,22 +6237,27 @@ ${sections}
       loadProjects(appState.currentUser.id).then(function(result) {
         if (!result.error) {
           renderProjList();
-          // Restore last active project + page from localStorage (refresh recovery)
-          try {
-            const lastId   = localStorage.getItem('cc_activeProjectId');
-            const lastPage = localStorage.getItem('cc_lastPage');
-            if (lastId) {
-              const last = savedProjects.find(p => p.id === lastId);
-              if (last) {
-                loadProject(lastId);
-                // Restore the page the user was on before refresh
-                if (lastPage && lastPage !== 'home' && lastPage !== 'proj') {
-                  const navBtn = document.querySelector('[data-page="' + lastPage + '"]');
-                  switchPage(lastPage, navBtn || null);
+          // Restore last active project + page from localStorage (refresh recovery).
+          // Skip if we're already in example mode — the hash handler already loaded
+          // the demo project and navigated; restoring a stale saved project here
+          // would overwrite the demo data and land the user on the wrong page.
+          if (!exampleMode) {
+            try {
+              const lastId   = localStorage.getItem('cc_activeProjectId');
+              const lastPage = localStorage.getItem('cc_lastPage');
+              if (lastId) {
+                const last = savedProjects.find(p => p.id === lastId);
+                if (last) {
+                  loadProject(lastId);
+                  // Restore the page the user was on before refresh
+                  if (lastPage && lastPage !== 'home' && lastPage !== 'proj') {
+                    const navBtn = document.querySelector('[data-page="' + lastPage + '"]');
+                    switchPage(lastPage, navBtn || null);
+                  }
                 }
               }
-            }
-          } catch(e) {}
+            } catch(e) {}
+          }
         }
       });
       // Auto-open Tasks panel on page load if pending tasks exist
