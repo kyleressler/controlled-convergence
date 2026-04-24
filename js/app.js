@@ -8119,10 +8119,8 @@ ${sections}
     // Update body class (controls nav-tools visibility via CSS)
     document.body.classList.toggle('mode-basic', mode === 'basic');
     document.body.classList.toggle('mode-full',  mode === 'full');
-
-    // Update toggle buttons
-    document.getElementById('modeBtnBasic')?.classList.toggle('active', mode === 'basic');
-    document.getElementById('modeBtnFull') ?.classList.toggle('active', mode === 'full');
+    // The visible nav mode toggle was removed; setMode() is now only called
+    // programmatically (project create/load), so no toggle-button class updates needed.
 
     if (mode === 'basic') {
       // Save last full-mode page so we can return to it

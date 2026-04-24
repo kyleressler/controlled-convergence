@@ -514,34 +514,6 @@
     .toggle input:checked + .toggle-track { background: var(--accent); }
     .toggle input:checked + .toggle-track::before { transform: translateX(14px); }
 
-    .mode-toggle {
-      display: flex;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 16px;
-    }
-    .mode-btn {
-      flex: 1;
-      padding: 6px;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      border: none;
-      background: none;
-      transition: background 0.1s, color 0.1s;
-    }
-    .mode-btn.active {
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      border-radius: 7px;
-      margin: 2px;
-    }
-
     .action-btn {
       display: flex;
       align-items: center;
@@ -3161,25 +3133,9 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
     .home-cta-example:hover { background: var(--surface); color: var(--text); border-color: var(--text-muted); }
 
-    /* ── MODE TOGGLE (in nav) ── */
-    .mode-toggle {
-      display: flex; gap: 2px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 7px; padding: 2px; flex-shrink: 0; margin-right: 10px;
-    }
-    .mode-btn {
-      padding: 4px 13px; border: none; border-radius: 5px;
-      font-size: 11px; font-weight: 600; cursor: pointer;
-      background: transparent; color: var(--text-muted); font-family: var(--font);
-      letter-spacing: 0.02em; transition: background 0.1s, color 0.1s, box-shadow 0.1s;
-      white-space: nowrap;
-    }
-    .mode-btn:hover { color: var(--text); }
-    .mode-btn.active {
-      background: var(--surface); color: var(--accent); font-weight: 700;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    /* hide guided nav tools in quick mode */
+    /* hide guided nav tools when a Quick Project is active (body.mode-basic class
+       is still toggled by setMode() — the visible toggle UI was removed but the
+       per-mode behaviors remain) */
     body.mode-basic .nav-tools-dropdown { display: none; }
 
     /* ── QUICK START PAGE ── */

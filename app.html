@@ -21,13 +21,8 @@
 <!-- ── NAV ── -->
 <nav class="nav">
   <div class="nav-logo" onclick="switchPage('home', null)" title="Home" style="cursor:pointer"><span>CC</span></div>
-  <!-- MODE TOGGLE: switches between Basic Mode and Full Mode -->
-  <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn" id="modeBtnBasic" onclick="setMode('basic')">⚡ Basic Mode</button>
-    <button class="mode-btn active" id="modeBtnFull" onclick="setMode('full')">◈ Full Mode</button>
-  </div>
 
-  <!-- TOOLS DROPDOWN — hidden in Basic Mode via CSS -->
+  <!-- TOOLS DROPDOWN — hidden when a Quick Project is active via CSS (body.mode-basic) -->
   <div class="nav-tools-dropdown" id="navToolsDropdown">
     <button class="nav-tools-trigger" id="navToolsTrigger" onclick="toggleNavDropdown()">Tools <span class="nav-chevron">▾</span></button>
     <div class="nav-tools-menu" id="navToolsMenu">
