@@ -53,6 +53,7 @@ let pughConcepts = [];
 let pughScores = {};
 let pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: false };
 let pughCollapsedIlities = new Set(); // tracks which ility IDs (and '__ungrouped__') are collapsed in the Pugh Matrix
+let pughUserInteractedCollapse = false; // true once user manually expands/collapses a group
 let pughChartSort = 'order'; // 'order' | 'utility' | 'minus'
 let pughConceptCounter = 0;
 let scoringConceptId = null;
