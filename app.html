@@ -545,9 +545,11 @@
 
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      ← Return to Project Manager
+    </button>
     <button class="btn btn-continue" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
       Continue to Stakeholders →
     </button>
@@ -677,9 +679,11 @@
     <div class="page-subtitle">Select the lifecycle properties relevant to your project. You can categorize requirements against these properties to track coverage.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('stak', document.querySelector('[data-page=stak]'))">
+      ← Return to Stakeholders
+    </button>
     <button class="btn btn-continue" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
       Continue to Requirements →
     </button>
@@ -736,9 +740,11 @@
     <div class="page-subtitle">Select the stakeholders relevant to your project. These will be used for traceability in your requirements. Every requirement can be linked to who it serves or affects.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
+      ← Return to Goal Statement
+    </button>
     <button class="btn btn-continue" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
       Continue to Lifecycle Properties →
     </button>
@@ -819,9 +825,11 @@
     <div class="page-subtitle">Write requirements and classify them. The coverage charts can help you spot gaps in your requirements.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
+      ← Return to Lifecycle Properties
+    </button>
     <button class="btn btn-continue" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
       Continue to Weighting →
     </button>
@@ -1101,9 +1109,11 @@
     <div class="page-subtitle" id="pairSubtitle">If desired, you can apply weights to either Ilities or Requirements in your Pugh Matrix scoring.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
+      ← Return to Requirements
+    </button>
     <button class="btn btn-continue" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
       Continue to Concept Scoring →
     </button>
@@ -1207,9 +1217,11 @@
     <div class="page-subtitle">Add the design concepts you want to evaluate. The first concept added becomes the Datum — your fixed baseline. Score concepts requirement by requirement. The results will be shown in the Pugh Matrix.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
+      ← Return to Weighting
+    </button>
     <button class="btn btn-continue" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
       Continue to Pugh Matrix →
     </button>
@@ -1455,9 +1467,11 @@
     <div class="page-subtitle">Your concepts scored against requirements in one view.</div>
   </div>
 
-  <!-- Top navigation button -->
+  <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <div></div>
+    <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
+      ← Return to Concept Scoring
+    </button>
     <button class="btn btn-continue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
       Continue to Convergence Summary →
     </button>
@@ -1522,6 +1536,16 @@
   <div class="page-header">
     <div class="page-title">Convergence Summary <button class="info-icon" onclick="openSidebarToSlide('conv', 0)" title="What is Convergence?">ⓘ</button></div>
     <div class="page-subtitle">Record your chosen concept, complete your lessons learned, identify any open risks or assumptions, assign next steps, and log your convergence date.</div>
+  </div>
+
+  <!-- Top navigation buttons -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      ← Return to Pugh Matrix
+    </button>
+    <button class="btn btn-continue" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      Return to Project Manager →
+    </button>
   </div>
 
   <!-- ── BASIC GOAL MODE ────────────────────────────────────── -->
@@ -1663,6 +1687,9 @@
   <div class="continue-btn-wrap" style="margin-top:16px">
     <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
       ← Return to Pugh Matrix
+    </button>
+    <button class="btn btn-continue" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      Return to Project Manager →
     </button>
   </div>
 
