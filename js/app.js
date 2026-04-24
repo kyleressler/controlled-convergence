@@ -7547,11 +7547,6 @@ ${sections}
 
   // ── SIDEBAR PREFERENCES ──
 
-  function prefSetGoalMode(mode) {
-    switchGoalMode(mode);
-    syncSidebarPrefs();
-  }
-
   function prefSetReqFormat(format) {
     switchReqFormat(format);
     syncSidebarPrefs();
@@ -7601,8 +7596,6 @@ ${sections}
 
   function syncSidebarPrefs() {
     const sb = (id, active) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', active); };
-    sb('prefGoalBasicBtn',       goalMode    === 'basic');
-    sb('prefGoalToByBtn',        goalMode    === 'structured');
     sb('prefReqAgileBtn',        reqFormat   === 'agile');
     sb('prefReqSystemBtn',       reqFormat   === 'incose');
     sb('prefPairNonWeightedBtn', pairMode    === 'nonweighted');
