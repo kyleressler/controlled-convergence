@@ -280,14 +280,21 @@
   <div class="proj-form-card" id="projFormCard">
     <div style="margin-bottom:12px">
       <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
-      <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
+      <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="req-form-label">Owner</div>
+      <input type="text" class="add-custom-input" id="projOwnerInput" placeholder="Your name (or team / organization)" style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
     </div>
     <div style="margin-bottom:12px">
       <div class="req-form-label">Description</div>
-      <input type="text" class="add-custom-input" id="projDescInput" placeholder="Brief description of the project goal or context..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject()">
+      <input type="text" class="add-custom-input" id="projDescInput" placeholder="Brief description of the project goal or context..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
     </div>
     <div id="projFormError" style="color:var(--danger,#e53e3e);font-size:12px;margin-bottom:8px;display:none"></div>
-    <button class="btn btn-primary" onclick="createProject()">Start Project</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="createProject('quick')" title="Single-page rapid analysis — no account required">⚡ Start Quick Project</button>
+      <button class="btn btn-primary" onclick="createProject('full')" title="Full multi-page workflow — no account required">◈ Start Full Project</button>
+    </div>
     <div class="proj-tier-note" id="projTierNote"></div>
   </div>
 

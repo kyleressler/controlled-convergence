@@ -3897,9 +3897,19 @@ ${sections}
   // ── PROJ PAGE FUNCTIONS ──
 
 
-  function createProject() {
+  /**
+   * Create a new project of the given type.
+   * @param {string} [projectType='full'] — 'quick' | 'full'
+   *
+   * Anonymous users get an in-memory-only project (not saved to Supabase
+   * and not pushed to savedProjects, so it never shows up in the owned list).
+   * Signed-in users get the existing save flow, with per-type limits enforced.
+   */
+  function createProject(projectType) {
+    projectType = (projectType === 'quick') ? 'quick' : 'full';
     const input = document.getElementById('projNameInput');
-    const descInput = document.getElementById('projDescInput');
+    const ownerInput = document.getElementById('projOwnerInput');
+    const descInput  = document.getElementById('projDescInput');
     const errEl = document.getElementById('projFormError');
     if (!input) return;
     const name = input.value.trim();
@@ -3911,23 +3921,28 @@ ${sections}
       input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
-    // Default this entry point to a Full Project. Change 4 replaces this
-    // call site with two type-specific entry points (Quick / Full).
-    const projectType = 'full';
-    const ownedCount = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === projectType).length;
-    if (userTier === 'account' && ownedCount >= getProjectLimit('account', projectType)) {
+
+    // Per-type limit check (account tier only — Pro is effectively unlimited;
+    // anonymous users don't save, so no enforcement needed).
+    const ownedSameType = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === projectType).length;
+    if (userTier === 'account' && ownedSameType >= getProjectLimit('account', projectType)) {
       showUpgradePrompt('account-project-limit');
       return;
     }
+
     const description = descInput ? descInput.value.trim() : '';
-    // Owner is always the logged-in user's display name — not a free-text field
-    const owner = (appState.currentUser && appState.currentUser.name) ? appState.currentUser.name : '';
+    // Owner: prefer the signed-in user's name; otherwise the typed value.
+    const typedOwner = ownerInput ? ownerInput.value.trim() : '';
+    const owner = (appState.currentUser && appState.currentUser.name)
+      ? appState.currentUser.name
+      : typedOwner;
 
     // Use the canonical project model
     const project = createProjectModel({
       name,
       description,
       owner,
+      projectType,
       userId: appState.currentUser ? appState.currentUser.id : null
     });
 
@@ -3958,24 +3973,36 @@ ${sections}
     activeProject = project;
     appState.currentProject = project;
 
-    // Save the project (async, fire-and-forget)
-    if (userTier !== 'free' || appState.currentUser) {
+    // Persist + save only for signed-in users. Anonymous users get an
+    // in-memory-only project that never enters savedProjects (and so
+    // never appears as an owned project in the Project Manager list).
+    if (appState.currentUser) {
       savedProjects.push(project);
       appState.projects = savedProjects.slice();
       saveProject(project).catch(e => console.warn('save failed', e));
+      try { localStorage.setItem('cc_activeProjectId', project.id); } catch(e) {}
+    } else {
+      // Anonymous: do not persist the active id — work is session-only.
+      try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     }
 
-    // Persist the active project ID so a refresh can restore it
-    try { localStorage.setItem('cc_activeProjectId', project.id); } catch(e) {}
-
     input.value = '';
-    if (descInput) descInput.value = '';
+    if (ownerInput) ownerInput.value = '';
+    if (descInput)  descInput.value  = '';
     updateNavProjectName();
     renderProjPage();
 
-    // Navigate directly to the GOAL tool
-    const goalNavBtn = document.querySelector('[data-page="tbus"]');
-    switchPage('tbus', goalNavBtn);
+    // Route based on project type. setMode handles its own page switch:
+    //   'quick' → switchPage('basic') and applies Quick Project defaults
+    //   'full'  → returns to the last full-mode page (or HOME)
+    if (projectType === 'quick') {
+      setMode('basic');
+    } else {
+      setMode('full');
+      // Navigate directly to the GOAL tool for Full Projects.
+      const goalNavBtn = document.querySelector('[data-page="tbus"]');
+      switchPage('tbus', goalNavBtn);
+    }
   }
 
   function loadProject(id) {
