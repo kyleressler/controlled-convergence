@@ -1121,7 +1121,7 @@
       transition: border-color 0.15s, background 0.15s;
       user-select: none;
     }
-    .ility-chip:hover { border-color: var(--accent); background: var(--accent-light); }
+    .ility-chip:hover { border-color: var(--border-strong); }
     .ility-chip.selected {
       border-color: var(--accent);
       background: var(--accent-light);
@@ -1429,7 +1429,7 @@
       transition: border-color 0.15s, background 0.15s;
       user-select: none;
     }
-    .stak-chip:hover { border-color: var(--accent); background: var(--accent-light); }
+    .stak-chip:hover { border-color: var(--border-strong); }
     .stak-chip.selected { border-color: var(--accent); background: var(--accent-light); }
     .stak-chip-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
     .stak-chip.selected .stak-chip-name { color: var(--accent); }
