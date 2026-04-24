@@ -7547,11 +7547,6 @@ ${sections}
 
   // ── SIDEBAR PREFERENCES ──
 
-  function prefSetReqFormat(format) {
-    switchReqFormat(format);
-    syncSidebarPrefs();
-  }
-
   function prefSetPairMode(mode) {
     if (mode === 'weighted' && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
     pairMode = mode;
@@ -7596,8 +7591,6 @@ ${sections}
 
   function syncSidebarPrefs() {
     const sb = (id, active) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', active); };
-    sb('prefReqAgileBtn',        reqFormat   === 'agile');
-    sb('prefReqSystemBtn',       reqFormat   === 'incose');
     sb('prefPairNonWeightedBtn', pairMode    === 'nonweighted');
     sb('prefPairWeightedBtn',    pairMode    === 'weighted');
     sb('prefPairIlitiesBtn',     pairSubject === 'ilities');

@@ -647,17 +647,15 @@
         // Build ility tags with hover tooltip
         const primaryIlityName = getIlityName(r.primary);
         const primaryIlityDesc = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])].find(i => i.id === r.primary)?.desc || '';
-        const ilityTag = r.format === 'agile'
-          ? '' // already in sentence display; don't duplicate
-          : `<span class="req-tag req-tag-primary" data-tooltip="${escHtml(primaryIlityName + (primaryIlityDesc ? ': ' + primaryIlityDesc : ''))}">${escHtml(primaryIlityName)}</span>`;
-        const secondaryTags = (r.format !== 'agile' ? (r.secondaries || []) : []).map(sid => {
+        const ilityTag = `<span class="req-tag req-tag-primary" data-tooltip="${escHtml(primaryIlityName + (primaryIlityDesc ? ': ' + primaryIlityDesc : ''))}">${escHtml(primaryIlityName)}</span>`;
+        const secondaryTags = (r.secondaries || []).map(sid => {
           const sn = getIlityName(sid);
           const sd = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])].find(i => i.id === sid)?.desc || '';
           return `<span class="req-tag req-tag-secondary" data-tooltip="${escHtml(sn + (sd ? ': ' + sd : ''))}">${escHtml(sn)}</span>`;
         }).join('');
 
         // Stakeholder tags with hover tooltip
-        const stakeholderTags = (r.format !== 'agile' ? (r.stakeholders || []) : []).map(sid => {
+        const stakeholderTags = (r.stakeholders || []).map(sid => {
           const sn = getStakeholderName(sid);
           const sd = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])].find(s => s.id === sid)?.desc || '';
           return `<span class="req-tag req-tag-stakeholder" data-tooltip="${escHtml(sn + (sd ? ': ' + sd : ''))}">${escHtml(sn)}</span>`;
