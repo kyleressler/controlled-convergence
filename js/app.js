@@ -2481,18 +2481,10 @@
       if (btnFull)  btnFull.classList.add('active');
     }
 
-    if (autoLoad) {
-      // Coming from the marketing demo link — land on Stakeholders.
-      // Use setTimeout so this fires after all synchronous app init code has run.
-      _applyFullMode();
-      setTimeout(function() {
-        switchPage('stak', document.querySelector('[data-page="stak"]'));
-      }, 0);
-    } else {
-      // In-app "Load Example Project" button — land on Project Manager.
-      _applyFullMode();
-      switchPage('proj', document.querySelector('[data-page="proj"]'));
-    }
+    // Always land on Project Manager — gives the user the full context and example mode banner.
+    // When coming from the #demo hash, the outer setTimeout already deferred us past all sync init.
+    _applyFullMode();
+    switchPage('proj', document.querySelector('[data-page="proj"]'));
   }
 
   function clearAllWithWarning() {
@@ -6098,11 +6090,10 @@ ${sections}
   updateNavProjectName();
 
   // ── Hero page deep-links ─────────────────────────────────────
-  // Runs right after synchronous init so DOM and all functions are ready.
-  // Does NOT wait for Supabase — modal/mode functions are purely local.
-  // Supported hashes: #login  → open login modal
-  //                   #signup → open signup modal
-  //                   #basic  → switch to Basic Mode
+  // #login / #signup / #basic run synchronously — they only need DOM + functions.
+  // #demo is deferred with setTimeout(fn,0) so it fires AFTER all synchronous
+  // app.js initialization code has run (variable assignments, etc.), exactly
+  // matching the environment the in-app "Load Example Project" button has.
   (function () {
     var h = window.location.hash;
     if (!h) return;
@@ -6110,7 +6101,7 @@ ${sections}
     if      (h === '#login')  { openAuthModal('login'); }
     else if (h === '#signup') { openAuthModal('signup'); }
     else if (h === '#basic')  { setMode('basic'); }
-    else if (h === '#demo')   { loadExampleProject(true); }
+    else if (h === '#demo')   { setTimeout(function() { loadExampleProject(true); }, 0); }
   })();
 
   // ── IMMEDIATE SAVE HELPER ──
