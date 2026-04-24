@@ -2471,26 +2471,32 @@
     populateReqForms();
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
 
-    // Navigate to Full Mode so the user lands somewhere useful
-    if (autoLoad) {
-      // Manually apply Full Mode state — avoids _doSetMode which fires switchPage('home')
-      // as a side-effect, AND avoids the _anonHasBasicData modal that would otherwise
-      // block mode switching for an anonymous user who just loaded example data.
-      appMode = 'full';
+    // Activate Full Mode without going through setMode() — setMode() would trigger
+    // the _anonHasBasicData "Save Your Work?" modal (because we just loaded data),
+    // and that modal's "Continue" button navigates back to home, making it look like
+    // nothing loaded. We bypass it entirely by applying the mode state directly.
+    function _applyFullMode() {
+      appMode  = 'full';
       goalMode = 'basic';
       document.body.classList.remove('mode-basic');
       document.body.classList.add('mode-full');
-      document.getElementById('modeBtnBasic') && document.getElementById('modeBtnBasic').classList.remove('active');
-      document.getElementById('modeBtnFull')  && document.getElementById('modeBtnFull').classList.add('active');
-      // Defer navigation with setTimeout so it fires after ALL synchronous app init
-      // code in this file has finished (e.g. the appMode / _lastFullPage re-assignments
-      // further down the file that could otherwise race with this call).
+      var btnBasic = document.getElementById('modeBtnBasic');
+      var btnFull  = document.getElementById('modeBtnFull');
+      if (btnBasic) btnBasic.classList.remove('active');
+      if (btnFull)  btnFull.classList.add('active');
+    }
+
+    if (autoLoad) {
+      // Coming from the marketing demo link — land on Stakeholders.
+      // Use setTimeout so this fires after all synchronous app init code has run.
+      _applyFullMode();
       setTimeout(function() {
         switchPage('stak', document.querySelector('[data-page="stak"]'));
       }, 0);
     } else {
-      setMode('full');
-      switchPage('proj', document.querySelector('[data-page=proj]'));
+      // In-app "Load Example Project" button — land on Project Manager.
+      _applyFullMode();
+      switchPage('proj', document.querySelector('[data-page="proj"]'));
     }
   }
 
