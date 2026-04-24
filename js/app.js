@@ -4321,8 +4321,10 @@ ${sections}
     proj.projectType = 'full';
     proj.updated_at = new Date().toISOString();
     // If this is the active project, also flip activeProject so subsequent
-    // saves snapshot it as 'full'.
-    if (activeProject && activeProject.id === id) {
+    // saves snapshot it as 'full', and switch the app mode so the nav Tools
+    // dropdown reappears (body.mode-basic is removed by setMode('full')).
+    var wasActive = activeProject && activeProject.id === id;
+    if (wasActive) {
       activeProject.projectType = 'full';
     }
     // Persist (signed-in users only — anonymous projects aren't in savedProjects).
@@ -4332,6 +4334,9 @@ ${sections}
       } catch (e) {
         console.warn('[convertQuickToFull] save failed', e);
       }
+    }
+    if (wasActive && typeof setMode === 'function') {
+      setMode('full');
     }
     renderProjPage();
   }
