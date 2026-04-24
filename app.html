@@ -353,6 +353,13 @@
 -->
 <main class="main page" id="page-basic" style="display:none">
 
+  <!-- Top-right return button — keeps the user one click away from the Project Manager -->
+  <div class="qs-return-bar qs-return-bar-top">
+    <button class="btn btn-back" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      ← Return to Project Manager
+    </button>
+  </div>
+
   <!-- Sign-up CTA banner — shown only to anonymous users -->
   <div id="basicModeSignupBanner" class="basic-signup-banner" style="display:none">
     <div class="basic-signup-banner-text">
@@ -432,6 +439,13 @@
   <div class="qs-basic-report-bar">
     <button class="btn btn-secondary" onclick="generateBasicPdfReport()" title="Generate a simple printable report of your current analysis">
       Generate Basic PDF Report
+    </button>
+  </div>
+
+  <!-- Bottom-right return button — paired with the top-right one for symmetry -->
+  <div class="qs-return-bar qs-return-bar-bottom">
+    <button class="btn btn-back" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
+      ← Return to Project Manager
     </button>
   </div>
 

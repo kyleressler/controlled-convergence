@@ -3162,6 +3162,15 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     body.mode-basic .nav-tools-dropdown { display: none; }
 
     /* ── QUICK START PAGE ── */
+    /* Return-to-Project-Manager button bar (Quick Project view).
+       Mirrors the top/bottom continue-btn-wrap pattern used on Full pages. */
+    .qs-return-bar {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .qs-return-bar-top    { margin-bottom: 12px; }
+    .qs-return-bar-bottom { margin-top: 16px; }
+
     .qs-header {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
