@@ -615,6 +615,7 @@
       list.innerHTML = '';
       list.appendChild(empty);
       empty.style.display = '';
+      renderChart(); // keep coverage charts / RTMs in sync even when list is empty
       return;
     }
 
@@ -1748,6 +1749,7 @@
     if (pughConcepts.length < 2) {
       if (tableWrap)  tableWrap.style.display  = 'none';
       if (emptyState) emptyState.style.display = '';
+      renderPughConceptChart(); // hides/clears the chart even when concept count is too low
       // nav buttons always active — no disable
       return;
     }
