@@ -271,6 +271,21 @@
     </button>
   </div>
 
+  <!-- Example mode banner — shown when user is browsing the built-in demo project -->
+  <div id="exampleModeBanner" style="display:none;margin-bottom:16px">
+    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.04));border:1px solid rgba(245,158,11,0.35);border-left:4px solid #f59e0b;border-radius:8px;padding:16px 20px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:20px;flex-shrink:0;margin-top:1px">🚲</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px;color:var(--text-primary);margin-bottom:4px">You're browsing the <em>UCI Road Bike Frame Design</em> example project</div>
+          <div id="exampleModeBannerSub" style="font-size:13px;color:var(--text-light);line-height:1.5"></div>
+          <div id="exampleModeBannerActions" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
+        </div>
+        <button onclick="discardExample()" title="Discard example and return to clean slate" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:2px;flex-shrink:0">×</button>
+      </div>
+    </div>
+  </div>
+
   <div id="projActiveBanner" style="display:none">
     <div class="proj-active-card" id="projActiveCard">
       <div class="proj-active-label">ACTIVE PROJECT</div>

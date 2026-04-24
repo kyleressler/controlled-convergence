@@ -98,6 +98,12 @@ let reqReviewTasks = [];
 let appMode = 'full'; // 'full' | 'basic'
 let _lastFullPage = 'home';
 
+// ── Example / demo mode ───────────────────────────────────────
+// True while the user is browsing the built-in example project.
+// Prevents auto-save / nav-save from silently persisting it until
+// the user explicitly chooses "Save to My Projects" in the banner.
+let exampleMode = false;
+
 // ── Convergence Summary ───────────────────────────────────────
 let convSelectedConceptId = '';
 let convRationale         = '';

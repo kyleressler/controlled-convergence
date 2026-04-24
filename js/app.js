@@ -2452,20 +2452,15 @@
         return Math.max(max, n);
       }, 0);
     }
+    // Enter example mode — banner on Project Manager lets the user decide
+    // whether to save or discard. We deliberately skip the Supabase save and
+    // localStorage write here so the project doesn't silently land in their
+    // saved list. nav-save and auto-save are also gated on exampleMode below.
+    exampleMode = true;
     if (data.project) {
       activeProject = data.project;
-      // Stamp with the current user so RLS allows saving
       if (appState.currentUser) activeProject.user_id = appState.currentUser.id;
       updateNavProjectName();
-      // Save it like any other project so it persists in the Project Manager
-      if (appState.currentUser || userTier !== 'free') {
-        const existing = savedProjects.findIndex(p => p.id === activeProject.id);
-        if (existing < 0) savedProjects.push(activeProject);
-        else savedProjects[existing] = activeProject;
-        appState.projects = savedProjects.slice();
-        saveProject(activeProject).catch(e => console.warn('example save failed', e));
-        try { localStorage.setItem('cc_activeProjectId', activeProject.id); } catch(e) {}
-      }
     }
     if (typeof renderProjPage === 'function') renderProjPage();
     populateReqForms();
@@ -2574,6 +2569,7 @@
     if (typeof updateNavCompletion === 'function') updateNavCompletion();
 
     // ── Project / Nav ──
+    exampleMode = false;
     activeProject = null; updateNavProjectName(); if (typeof _clearProjectRole === 'function') _clearProjectRole();
     populateReqForms();
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
@@ -3985,6 +3981,9 @@ ${sections}
     const proj = savedProjects.find(p => p.id === id);
     if (!proj) return;
 
+    // Leaving example mode when a real project is loaded
+    exampleMode = false;
+
     // Restore all state from the saved project
     restoreProjectState(proj);
 
@@ -4256,6 +4255,51 @@ ${sections}
     try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     updateNavProjectName();
     renderProjPage();
+  }
+
+  // ── EXAMPLE MODE HANDLERS ─────────────────────────────────────
+
+  function saveExampleToAccount() {
+    if (!appState.currentUser) {
+      // Not logged in — send them to sign up; project stays loaded in session
+      openAuthModal('signup');
+      return;
+    }
+    exampleMode = false;
+    // Take a full snapshot so requirements, pugh, convergence etc. are embedded
+    const snap = snapshotCurrentState(activeProject);
+    const existing = savedProjects.findIndex(p => p.id === snap.id);
+    if (existing < 0) savedProjects.push(snap);
+    else savedProjects[existing] = snap;
+    appState.projects = savedProjects.slice();
+    try { localStorage.setItem('cc_activeProjectId', snap.id); } catch(e) {}
+    saveProject(snap).catch(e => console.warn('[saveExample] failed', e));
+    renderProjPage();
+  }
+
+  function discardExample() {
+    exampleMode = false;
+    activeProject = null;
+    // Clear all working state so the app returns to a clean slate
+    requirements = []; reqIdCounter = 0; _editingReqId = null;
+    selectedIlities = new Set(); customIlities = []; ilityOrder = [];
+    selectedStakeholders = new Set(); customStakeholders = []; stakOrder = [];
+    pughConcepts = []; pughScores = {}; pughAdvBackup = {};
+    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
+    datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
+    conceptCustomFields = []; _cfIdCounter = 0;
+    convSelectedConceptId = ''; convRationale = '';
+    convLessons = { req: '', concepts: '', assumption: '', different: '' };
+    convRisks = ''; convNextSteps = []; convClosedAt = null; _convNSCounter = 0;
+    pairComparisons = {};
+    ['to','by','using','while'].forEach(f => {
+      const el = document.getElementById('input-' + f); if (el) el.value = '';
+    });
+    const basicEl = document.getElementById('input-goal-basic'); if (basicEl) basicEl.value = '';
+    try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
+    updateNavProjectName();
+    renderProjPage();
+    switchPage('proj', document.querySelector('[data-page="proj"]'));
   }
 
   function editActiveProject() {
@@ -5411,7 +5455,8 @@ ${sections}
 
   function switchPage(pageId, navBtn) {
     // Save current state before leaving (nav-save)
-    if (activeProject && _currentPage && _currentPage !== pageId) {
+    // Skip while in example mode — the user hasn't chosen to keep the project yet.
+    if (!exampleMode && activeProject && _currentPage && _currentPage !== pageId) {
       const snap = snapshotCurrentState(activeProject);
       saveProject(snap).catch(err => console.warn('[nav-save] failed', err));
       // Also persist active project ID
@@ -6175,7 +6220,7 @@ ${sections}
 
   // ── AUTO-SAVE: every 60 seconds if there is an active project ──
   setInterval(function() {
-    if (activeProject) {
+    if (activeProject && !exampleMode) {
       const snap = snapshotCurrentState(activeProject);
       // Update in-memory array so list reflects latest name/state
       const idx = savedProjects.findIndex(p => p.id === snap.id);

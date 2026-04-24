@@ -183,11 +183,37 @@
     renderProjList();
     renderTemplateList && renderTemplateList();
     updateProjAdvisor();
+
+    // ── Example mode banner ───────────────────────────────────
+    const exBanner  = document.getElementById('exampleModeBanner');
+    const exSub     = document.getElementById('exampleModeBannerSub');
+    const exActions = document.getElementById('exampleModeBannerActions');
+    if (exBanner) {
+      if (exampleMode) {
+        exBanner.style.display = '';
+        if (exSub) {
+          exSub.textContent = appState.currentUser
+            ? 'Explore the full tool with real data. Save it to your account when you\'re ready, or discard it to start fresh.'
+            : 'Explore the full tool with real data. It will be cleared when you log in or click Clear All. Create a free account to save your own projects.';
+        }
+        if (exActions) {
+          exActions.innerHTML = appState.currentUser
+            ? `<button class="btn btn-primary" style="font-size:13px;padding:6px 16px" onclick="saveExampleToAccount()">Save to My Projects</button>
+               <button class="btn btn-ghost"   style="font-size:13px;padding:6px 16px" onclick="discardExample()">Discard</button>`
+            : `<button class="btn btn-primary" style="font-size:13px;padding:6px 16px" onclick="openAuthModal('signup')">Create Free Account</button>
+               <button class="btn btn-ghost"   style="font-size:13px;padding:6px 16px" onclick="discardExample()">Discard</button>`;
+        }
+      } else {
+        exBanner.style.display = 'none';
+      }
+    }
+
+    // ── Active project banner (hidden in example mode — banner above replaces it) ──
     const banner = document.getElementById('projActiveBanner');
     const activeNameEl = document.getElementById('projActiveName');
     const activeMetaEl = document.getElementById('projActiveMeta');
     const activeDescEl = document.getElementById('projActiveDesc');
-    if (activeProject && banner) {
+    if (activeProject && !exampleMode && banner) {
       banner.style.display = '';
       if (activeNameEl) activeNameEl.textContent = activeProject.name;
       const ownerPart = activeProject.owner ? ' · ' + activeProject.owner : '';
