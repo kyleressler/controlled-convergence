@@ -2472,11 +2472,14 @@
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
 
     // Navigate to Full Mode so the user lands somewhere useful
-    setMode('full');
     if (autoLoad) {
-      // Coming from the marketing demo button — drop directly onto Stakeholders
-      switchPage('stak', document.querySelector('[data-page=stak]'));
+      // Coming from the marketing demo button — call _doSetMode directly to bypass
+      // the _anonHasBasicData() guard (which would show a blocking modal because the
+      // example data we just loaded looks like existing user data), then land on Stakeholders
+      _doSetMode('full');
+      switchPage('stak', document.querySelector('[data-page="stak"]'));
     } else {
+      setMode('full');
       switchPage('proj', document.querySelector('[data-page=proj]'));
     }
   }
