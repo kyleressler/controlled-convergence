@@ -3842,6 +3842,7 @@ ${sections}
     'templates':            { title: 'Templates is a Pro Feature',              body: 'Pro users can save reusable templates — a named snapshot of ilities, stakeholders, and requirements that can be loaded as the starting point for any future project.',                                      cta: 'Upgrade to Pro',      action: 'pro'    },
     'pro-contact-fields':   { title: 'Contact Title & Email require Pro',        body: 'Pro users can add full contact details (name, title, email) to each stakeholder. These fields are private and feed the Responsible Scorer feature in Requirements.',                                       cta: 'Upgrade to Pro',      action: 'pro'    },
     'pro-scorer':           { title: 'Responsible Scorer requires Pro',          body: 'Pro users can assign a responsible scorer to each requirement. That person\'s requirements are highlighted during Concept Scoring, keeping large teams focused on their section.',                          cta: 'Upgrade to Pro',      action: 'pro'    },
+    'forcedrank':           { title: 'Forced Rank is an Account Feature',        body: 'Create a free Account to use Forced Rank — a structured method for ranking ilities or requirements from most to least important without head-to-head comparisons.',                                           cta: 'Create Free Account', action: 'signup' },
   };
 
   function showUpgradePrompt(type) {
@@ -6388,7 +6389,7 @@ ${sections}
 
   function setScoringMode(mode, btn) {
     if (mode === 'advanced' && userTier === 'free') {
-      showUpgradePrompt('weighted-pair');
+      showUpgradePrompt('pugh-settings');
       return;
     }
     if (mode === 'advanced') {
@@ -7435,11 +7436,11 @@ ${sections}
   pughAdvBackup = {}; // {key: number}
 
   function togglePughMTHUS(cb) {
-    if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }
+    if (userTier === 'free') { cb.checked = false; showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMTHUS = cb.checked; renderPughMatrix();
   }
   function togglePughMAS(cb) {
-    if (userTier === 'free') { cb.checked = false; showUpgradePrompt('weighted-pair'); return; }
+    if (userTier === 'free') { cb.checked = false; showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMAS = cb.checked; renderPughMatrix();
   }
 
@@ -7576,14 +7577,14 @@ ${sections}
   }
 
   function prefSetMAS(on) {
-    if (on && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
+    if (on && userTier === 'free') { showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMAS = on;
     renderPughMatrix();
     syncSidebarPrefs();
   }
 
   function prefSetMTHUS(on) {
-    if (on && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
+    if (on && userTier === 'free') { showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMTHUS = on;
     renderPughMatrix();
     syncSidebarPrefs();
