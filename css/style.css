@@ -118,6 +118,70 @@
       color-scheme: dark;
     }
 
+    /* Red & Black: forward (continue) buttons → grey with white text */
+    body.theme-red-black .btn-continue {
+      background: #555555;
+      border-color: #555555;
+      color: #ffffff;
+    }
+    body.theme-red-black .btn-continue:hover {
+      background: #6a6a6a;
+      border-color: #6a6a6a;
+    }
+
+    /* Red & Black: concept score chart — light grey panel so bars/lines are visible */
+    body.theme-red-black .pugh-chart-wrap {
+      background: #e0e0e0;
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    /* ── THEME: GREEN & YELLOW ── */
+    body.theme-green-yellow {
+      --bg: #f2f7f0;
+      --surface: #ffffff;
+      --border: #c4d8bc;
+      --border-strong: #7aaa70;
+      --text: #1a1a18;
+      --text-muted: #4a5a48;
+      --text-light: #7a8a78;
+      --accent: #367c2b;
+      --accent-light: #e6f4e2;
+      --accent-border: #96cc8c;
+      --success: #2a6820;
+      --success-light: #d8f0d4;
+      --success-border: #6ab868;
+      --warn: #b07800;
+      --warn-light: #fffbe0;
+      --warn-border: #ffde00;
+      --danger: #c81e1e;
+      --danger-light: #fef2f2;
+      --danger-border: #fecaca;
+      --success-rgb: 42,104,32;
+      --danger-rgb: 200,30,30;
+      --accent-rgb: 54,124,43;
+      --warn-rgb: 176,120,0;
+      --accent-hover: #2a6220;
+      --success-hover: #22601a;
+      --kw-to: #367c2b;
+      --kw-by: #b07800;
+      --kw-using: #2a6820;
+      --kw-while: #c09000;
+      --font: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color-scheme: light;
+    }
+
+    /* Green & Yellow: forward (continue) buttons → JD Yellow with dark text */
+    body.theme-green-yellow .btn-continue {
+      background: #ffde00;
+      border-color: #e6c800;
+      color: #1a1a18;
+    }
+    body.theme-green-yellow .btn-continue:hover {
+      background: #f0d000;
+      border-color: #d4b800;
+    }
+
     /* ── THEME: ENGINEERING ── */
     body.theme-engineering {
       --bg: #ddeedd;
@@ -209,6 +273,9 @@
     .theme-swatch-red-black {
       background: linear-gradient(135deg, #e31837 50%, #0d0d0d 50%);
       border-color: rgba(255,255,255,0.1);
+    }
+    .theme-swatch-green-yellow {
+      background: linear-gradient(135deg, #367c2b 50%, #ffde00 50%);
     }
 
     /* ── NAV ── */

@@ -8,10 +8,10 @@
   <!-- App styles -->
   <link rel="stylesheet" href="css/style.css" />
 
-  <!-- Oswald font (used by Red & Black theme) -->
+  <!-- Theme fonts: Oswald (Red & Black), Open Sans (Green & Yellow) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
 
   <!-- Chart.js (Pugh concept score chart) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -116,6 +116,9 @@
       </button>
       <button class="theme-btn" data-theme="red-black" onclick="setTheme('red-black', this)">
         <div class="theme-swatch theme-swatch-red-black"></div>Red &amp; Black
+      </button>
+      <button class="theme-btn" data-theme="green-yellow" onclick="setTheme('green-yellow', this)">
+        <div class="theme-swatch theme-swatch-green-yellow"></div>Green &amp; Yellow
       </button>
       <button class="theme-btn" data-theme="dark" onclick="setTheme('dark', this)">
         <div class="theme-swatch theme-swatch-dark"></div>Dark

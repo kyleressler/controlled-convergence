@@ -5720,7 +5720,7 @@ ${sections}
   // ── THEME ──
   function setTheme(theme, btn) {
     // Remove any existing theme class
-    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black');
+    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black', 'theme-green-yellow');
     if (theme !== 'light') document.body.classList.add('theme-' + theme);
 
     // Update active button state
