@@ -2672,16 +2672,51 @@
   <meta charset="UTF-8">
   <title>${escHtml(projName)} — Quick Report</title>
   <style>
+    @page { size: portrait; margin: 18mm 16mm 22mm 16mm; }
     body { font-family: Georgia, serif; margin: 0; padding: 40px; color: #1a1a18; background: #fff; }
-    @media print { body { padding: 20px; } }
+    h2 { page-break-after: avoid; break-after: avoid; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    table { page-break-inside: auto; border-collapse: collapse; }
+    .section-break { page-break-before: always; break-before: page; }
+    .print-header, .print-footer { display: none; }
+    @media print {
+      body { padding: 0; margin: 0; }
+      .no-print { display: none !important; }
+      .print-header {
+        display: flex !important; position: fixed; top: 0; left: 0; right: 0;
+        background: #fff; border-bottom: 1px solid #d4e0ff;
+        padding: 5px 16mm; justify-content: space-between; align-items: center;
+        font-size: 10px; z-index: 9999;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      .print-footer {
+        display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
+        background: #fff; border-top: 1px solid #e2e2df;
+        padding: 5px 16mm; justify-content: space-between; align-items: center;
+        font-size: 10px; color: #9b9b94; font-family: Georgia, serif; z-index: 9999;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Fixed print header (every page) -->
+  <div class="print-header">
+    <span style="font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a56db">ControlledConvergence.com</span>
+    <span style="color:#6b6b65">${escHtml(projName)}</span>
+  </div>
+
+  <!-- Fixed print footer (every page) -->
+  <div class="print-footer">
+    <span>ControlledConvergence.com &nbsp;·&nbsp; Quick Analysis Report</span>
+    <span>${dateStr}</span>
+  </div>
+
   <!-- Header / branding -->
   <div style="border-bottom:2px solid #1a56db;padding-bottom:14px;margin-bottom:24px">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a56db;margin-bottom:6px">ControlledConvergence.com</div>
     <h1 style="font-size:22px;font-weight:700;margin:0 0 4px">${escHtml(projName)}</h1>
-    <div style="font-size:13px;color:#6b6b65">Basic Analysis Report &nbsp;·&nbsp; Generated ${dateStr}</div>
+    <div style="font-size:13px;color:#6b6b65">Quick Analysis Report &nbsp;·&nbsp; Generated ${dateStr}</div>
   </div>
 
   ${goalText ? `
@@ -2693,11 +2728,11 @@
     <tbody>${reqRows}</tbody>
   </table>
 
-  ${pughHtml}
-  ${scoreHtml}
+  ${pughHtml  ? `<div class="section-break">${pughHtml}</div>`  : ''}
+  ${scoreHtml ? `<div class="section-break">${scoreHtml}</div>` : ''}
 
-  <!-- Footer branding -->
-  <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
+  <!-- Screen-only footer -->
+  <div class="no-print" style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
     Report Generated with <strong>ControlledConvergence.com</strong>
   </div>
 </body>
@@ -3124,7 +3159,7 @@
       const chips = selIlities.map((il, idx) => {
         const borderColor = T.cardColors[idx % T.cardColors.length];
         const desc = (il.desc || '').substring(0, 80) + ((il.desc||'').length > 80 ? '…' : '');
-        return `<div style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
+        return `<div class="avoid-break" style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
           <div style="font-size:12px;font-weight:700;color:${T.textPrimary};margin-bottom:3px">${escHtml(il.name)}</div>
           <div style="font-size:11px;color:${T.textSecondary};line-height:1.4">${escHtml(desc)}</div>
         </div>`;
@@ -3141,7 +3176,7 @@
       const chips = selStakeholders.map((s, idx) => {
         const borderColor = T.cardColors[idx % T.cardColors.length];
         const desc = (s.desc || '').substring(0, 80) + ((s.desc||'').length > 80 ? '…' : '');
-        return `<div style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
+        return `<div class="avoid-break" style="border:1px solid ${T.cardBorder};border-left:3px solid ${borderColor};border-radius:0 6px 6px 0;padding:11px 14px;background:${T.cardBg}">
           <div style="font-size:12px;font-weight:700;color:${T.textPrimary};margin-bottom:3px">${escHtml(s.name)}</div>
           <div style="font-size:11px;color:${T.textSecondary};line-height:1.4">${escHtml(desc)}</div>
         </div>`;
@@ -3335,7 +3370,7 @@
       const scoreColor= s.net > 0 ? T.barPosText : s.net < 0 ? T.barNegText : T.textTertiary;
       const rankCircleBg = i === 0 ? T.barPos1 : i === 1 ? T.barPos2 : i === 2 ? T.barPos3 : T.cardBg;
       const rankCircleTx = i < 3 ? T.winnerBg : T.textTertiary;
-      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      return `<div class="avoid-break" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <div style="width:26px;height:26px;border-radius:50%;background:${rankCircleBg};border:1px solid ${T.cardBorder};display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <span style="font-size:11px;font-weight:700;color:${rankCircleTx}">${i+1}</span>
         </div>
@@ -3407,7 +3442,7 @@
           const isWinner= selConcept && String(s.c.id) === String(convSelectedConceptId);
           const rowBg   = isWinner ? T.winnerBg : (i % 2 === 1 ? T.tblRowAlt : T.bodyBg);
           const netColor= s.net > 0 ? T.barPosText : s.net < 0 ? T.barNegText : T.textTertiary;
-          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid ${T.tblBorder};background:${rowBg};font-size:11px">
+          return `<div class="avoid-break" style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid ${T.tblBorder};background:${rowBg};font-size:11px">
             <div style="width:22px;text-align:center;font-weight:700;color:${T.textTertiary};font-size:10px;flex-shrink:0">${i + 1}</div>
             <div style="width:200px;flex-shrink:0;font-weight:${isWinner?'700':'400'};color:${isWinner ? T.winnerText : T.textPrimary};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.c.name)}${isWinner ? ` <span style="font-size:9px;background:${T.winnerText};color:${T.winnerBg};padding:1px 5px;border-radius:3px;margin-left:4px">Selected</span>` : ''}</div>
             <div style="flex:1;display:flex;height:12px;background:${T.barPosBg};border-radius:3px;overflow:hidden">
@@ -3613,19 +3648,41 @@
 <title>${escHtml(exportFileName)}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
+  @page { size: portrait; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif; color: ${T.textPrimary}; background: ${T.bodyBg}; font-size: 13px; line-height: 1.65; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .section { padding: 32px 48px; border-bottom: 1px solid ${T.secBorder}; background: ${T.bodyBg}; }
   .section.page-break { page-break-before: always; break-before: page; }
   .section:last-of-type { border-bottom: none; }
   p { margin-bottom: 10px; color: ${T.textPrimary}; }
+  tr { page-break-inside: avoid; break-inside: avoid; }
+  thead { display: table-header-group; }
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+  .rpt-fixed-footer { display: none; }
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page-break { page-break-before: always; break-before: page; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    thead { display: table-header-group; }
+    .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+    .rpt-fixed-footer {
+      display: flex !important; position: fixed; bottom: 0; left: 0; right: 0;
+      background: ${T.footerBg}; border-top: 1px solid ${T.stripBorder};
+      padding: 6px 48px; justify-content: space-between; align-items: center;
+      font-family: 'Courier New', monospace; font-size: 9px; color: ${T.footerText};
+      letter-spacing: 0.05em; z-index: 9999;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
   }
 </style>
 </head>
 <body>
+
+<!-- Fixed print footer: appears on every printed page -->
+<div class="rpt-fixed-footer">
+  <span>Controlled Convergence &nbsp;·&nbsp; www.controlledconvergence.com &nbsp;·&nbsp; Pro Report</span>
+  <span>${dateStr}</span>
+</div>
 
 <!-- COVER -->
 <div style="background:${T.coverBg};min-height:100vh;page-break-after:always;break-after:page;display:flex;flex-direction:column;${coverBorderStyle}">
