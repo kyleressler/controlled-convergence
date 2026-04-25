@@ -2670,7 +2670,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${escHtml(projName)} — Basic Report</title>
+  <title>${escHtml(projName)} — Quick Report</title>
   <style>
     body { font-family: Georgia, serif; margin: 0; padding: 40px; color: #1a1a18; background: #fff; }
     @media print { body { padding: 20px; } }
