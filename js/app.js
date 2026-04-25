@@ -5576,6 +5576,13 @@ ${sections}
     // Persist current page so a browser refresh can restore it
     try { localStorage.setItem('cc_lastPage', pageId); } catch(e) {}
 
+    // Set a body class for the active page so CSS can target it (e.g. hide the
+    // Tools dropdown on the basic page only, regardless of body.mode-basic).
+    Array.from(document.body.classList).forEach(c => {
+      if (c.indexOf('page-current-') === 0) document.body.classList.remove(c);
+    });
+    document.body.classList.add('page-current-' + pageId);
+
     // If the right sidebar is open, refresh its content for the new page
     if (document.getElementById('rightSidebar').classList.contains('open')) {
       loadSidebarContent(pageId, 0);

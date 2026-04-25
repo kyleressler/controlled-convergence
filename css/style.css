@@ -3156,10 +3156,12 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
     .home-cta-example:hover { background: var(--surface); color: var(--text); border-color: var(--text-muted); }
 
-    /* hide guided nav tools when a Quick Project is active (body.mode-basic class
-       is still toggled by setMode() — the visible toggle UI was removed but the
-       per-mode behaviors remain) */
-    body.mode-basic .nav-tools-dropdown { display: none; }
+    /* Hide the guided-tools dropdown only on the Quick Project page itself.
+       (Earlier this was tied to body.mode-basic, which kept the dropdown hidden
+       in the Project Manager when navigating from a Quick Project.) Using a
+       per-page body class means the dropdown reappears on PM and every Full
+       Project page regardless of appMode. */
+    body.page-current-basic .nav-tools-dropdown { display: none; }
 
     /* ── QUICK START PAGE ── */
     /* Return-to-Project-Manager button bar (Quick Project view).
