@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · Controlled Convergence</title>
+
+  <!-- Supabase JS SDK (auth + database) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- PostHog (behavioral analytics + UTM attribution) -->
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId captureTraceFeedback captureTraceMetric".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  </script>
+
+  <style>
+    :root {
+      --bg:        #f9f9f8;
+      --surface:   #ffffff;
+      --border:    #e2e2df;
+      --text:      #1a1a18;
+      --text-mut:  #6b6b66;
+      --accent:    #1a56db;
+      --accent-bg: #eaf0fb;
+      --shadow:    0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Loading + gate states — visible until the auth check resolves. */
+    #adminGate {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+      color: var(--text-mut);
+      font-size: 13px;
+      z-index: 100;
+    }
+    body.admin-ready #adminGate { display: none; }
+
+    /* Hide the shell until the gate resolves so the page never flashes content
+       to a non-admin viewer. */
+    #adminShell { display: none; }
+    body.admin-ready #adminShell { display: block; }
+
+    .admin-topbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+
+    .admin-brand {
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .admin-brand a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .admin-brand .admin-tag {
+      color: var(--accent);
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+      margin-left: 24px;
+    }
+    .admin-tab {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--text-mut);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 500;
+    }
+    .admin-tab:hover { background: var(--accent-bg); color: var(--accent); }
+    .admin-tab.active {
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+
+    .admin-user {
+      color: var(--text-mut);
+      font-size: 13px;
+    }
+    .admin-user a {
+      color: var(--text-mut);
+      text-decoration: none;
+      margin-left: 12px;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .admin-user a:hover { background: var(--surface); color: var(--text); }
+
+    .admin-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .admin-pane { display: none; }
+    .admin-pane.active { display: block; }
+
+    .admin-pane h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 6px 0;
+    }
+    .admin-pane .pane-sub {
+      color: var(--text-mut);
+      margin-bottom: 20px;
+    }
+
+    .empty-card {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
+      color: var(--text-mut);
+    }
+    .empty-card strong { color: var(--text); display: block; margin-bottom: 6px; }
+  </style>
+</head>
+
+<body>
+  <!-- Gate: shown until isAdmin() resolves. Replaced by shell on success;
+       redirects to app.html on failure. Prevents any flash of admin chrome. -->
+  <div id="adminGate">Verifying admin access…</div>
+
+  <div id="adminShell">
+    <header class="admin-topbar">
+      <div class="admin-brand">
+        <a href="app.html#home">Controlled Convergence</a><span class="admin-tag">Admin</span>
+      </div>
+
+      <nav class="admin-tabs" role="tablist">
+        <button class="admin-tab active" data-tab="insights" role="tab" aria-selected="true">Insights</button>
+        <button class="admin-tab" data-tab="blog" role="tab" aria-selected="false">Blog</button>
+        <button class="admin-tab" data-tab="email" role="tab" aria-selected="false">Email</button>
+      </nav>
+
+      <div class="admin-user">
+        <span id="adminUserEmail"></span>
+        <a href="app.html#home">← Back to app</a>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <section id="pane-insights" class="admin-pane active" role="tabpanel">
+        <h1>Insights</h1>
+        <p class="pane-sub">Prescriptive analytics — what to do next, not just what happened.</p>
+        <div class="empty-card">
+          <strong>Insights dashboard coming in Chunk 2.</strong>
+          Once PostHog has a week of traffic and Supabase has signups, this page will surface
+          funnel summary, action cards, channel performance, and top-content cards.
+        </div>
+      </section>
+
+      <section id="pane-blog" class="admin-pane" role="tabpanel">
+        <h1>Blog</h1>
+        <p class="pane-sub">Write, publish, and re-promote content.</p>
+        <div class="empty-card">
+          <strong>Blog editor + content hub coming in Chunk 3.</strong>
+          Quill editor, campaign lineage (v1, v2…), associated content pieces, and publishing
+          schedule will live here.
+        </div>
+      </section>
+
+      <section id="pane-email" class="admin-pane" role="tabpanel">
+        <h1>Email</h1>
+        <p class="pane-sub">Kit subscriber stats and campaign attribution.</p>
+        <div class="empty-card">
+          <strong>Kit integration coming later.</strong>
+          Wire your Kit API secret in to surface subscriber counts and campaign performance.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Foundation scripts (must load before the gate runs) -->
+  <script src="js/state.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/analytics.js"></script>
+
+  <script>
+    // ── Initialize PostHog (mirrors app.html init) ─────────────────────────
+    if (typeof POSTHOG_KEY === 'string' && POSTHOG_KEY && window.posthog && typeof window.posthog.init === 'function') {
+      window.posthog.init(POSTHOG_KEY, {
+        api_host: POSTHOG_HOST,
+        person_profiles: 'identified_only',
+        capture_pageview: true
+      });
+    }
+
+    // ── Admin gate ────────────────────────────────────────────────────────
+    // Self-contained: doesn't pull in auth.js (which has UI deps that don't
+    // exist on this page). On success, identifies the user with PostHog and
+    // reveals the shell. On failure, redirects to app.html.
+    (async function adminGate() {
+      try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session || !session.user) {
+          window.location.href = 'app.html#login';
+          return;
+        }
+
+        const { data: profile, error } = await _supabase
+          .from('user_profiles')
+          .select('tier, name, email')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error || !profile || profile.tier !== 'admin') {
+          window.location.href = 'app.html#home';
+          return;
+        }
+
+        // Hydrate the shared appState so analytics.js sees the right tier/user.
+        appState.currentUser = {
+          id:    session.user.id,
+          email: session.user.email,
+          name:  profile.name || session.user.email.split('@')[0],
+          tier:  profile.tier
+        };
+        userTier = 'admin';
+
+        if (typeof identifyUser === 'function') identifyUser(appState.currentUser);
+
+        // Show user email in the topbar.
+        const emailEl = document.getElementById('adminUserEmail');
+        if (emailEl) emailEl.textContent = appState.currentUser.email;
+
+        document.body.classList.add('admin-ready');
+
+        // Custom page view event (PostHog also auto-captures $pageview).
+        if (typeof trackEvent === 'function') trackEvent('page_viewed', { page: '#admin' });
+      } catch (e) {
+        // On any unexpected failure, bounce out rather than expose admin chrome.
+        console.error('[admin-gate] error:', e);
+        window.location.href = 'app.html#home';
+      }
+    })();
+
+    // ── Tab switching ─────────────────────────────────────────────────────
+    document.querySelectorAll('.admin-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const tab = btn.getAttribute('data-tab');
+        document.querySelectorAll('.admin-tab').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        document.querySelectorAll('.admin-pane').forEach(function (p) {
+          p.classList.toggle('active', p.id === 'pane-' + tab);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

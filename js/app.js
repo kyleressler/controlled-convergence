@@ -5643,6 +5643,20 @@ ${sections}
   }
 
   function switchPage(pageId, navBtn) {
+    // Admin lives in its own top-level shell (admin.html) so the gate logic,
+    // tab nav, and styles stay isolated from the main app shell. Anyone who
+    // tries to route to '#admin' from inside app.html gets redirected; the
+    // admin gate (isAdmin()) runs there, not here.
+    if (pageId === 'admin') {
+      if (typeof isAdmin === 'function' && !isAdmin()) {
+        // Not signed in as admin — bounce to home rather than land on a gated page.
+        window.location.hash = '#home';
+        return;
+      }
+      window.location.href = 'admin.html';
+      return;
+    }
+
     // Notify easter-eggs.js of page navigation (resets page-scoped Contra theme)
     if (typeof window._easterEggSwitchPage === 'function') window._easterEggSwitchPage();
 
@@ -6333,6 +6347,17 @@ ${sections}
     // hash now nudges the visitor to sign up instead.
     else if (h === '#basic')  { openAuthModal('signup'); }
     else if (h === '#demo')   { setTimeout(function() { loadExampleProject(true); }, 0); }
+    // #admin → admin.html (only if signed in as admin; otherwise nothing happens
+    // and the user stays on the cleaned-up app.html URL).
+    else if (h === '#admin')  {
+      // initAuth() runs async in init(); defer the gate check so the session
+      // has a chance to restore before we decide whether to redirect.
+      setTimeout(function () {
+        if (typeof isAdmin === 'function' && isAdmin()) {
+          window.location.href = 'admin.html';
+        }
+      }, 250);
+    }
   })();
 
   // ── IMMEDIATE SAVE HELPER ──

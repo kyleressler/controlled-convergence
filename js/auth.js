@@ -17,6 +17,7 @@ async function login(email, password) {
   const user = await _buildUserFromSession(data.user);
   appState.currentUser = user;
   userTier = user.tier || 'free';
+  if (typeof identifyUser === 'function') identifyUser(user);
   return { user, error: null };
 }
 
@@ -47,6 +48,7 @@ async function register(email, password, name) {
     const user = await _buildUserFromSession(data.user);
     appState.currentUser = user;
     userTier = user.tier || 'free';
+    if (typeof identifyUser === 'function') identifyUser(user);
     return { user, error: null, requiresEmailConfirm: false };
   }
 
@@ -70,6 +72,7 @@ async function logout() {
   } catch (e) { /* localStorage may be restricted in some Safari contexts */ }
   appState.currentUser = null;
   userTier = 'free';
+  if (typeof resetAnalyticsUser === 'function') resetAnalyticsUser();
   return { error: error ? error.message : null };
 }
 
@@ -92,6 +95,7 @@ async function initAuth() {
     const user = await _buildUserFromSession(session.user);
     appState.currentUser = user;
     userTier = user.tier || 'free';
+    if (typeof identifyUser === 'function') identifyUser(user);
     // Update UI immediately — don't wait for onAuthStateChange to fire.
     // Without this, there's a visible "logged out" flash on every page refresh.
     _onAuthStateUpdated();
@@ -103,13 +107,28 @@ async function initAuth() {
       const user = await _buildUserFromSession(session.user);
       appState.currentUser = user;
       userTier = user.tier || 'free';
+      if (typeof identifyUser === 'function') identifyUser(user);
     } else {
       appState.currentUser = null;
       userTier = 'free';
+      if (typeof resetAnalyticsUser === 'function') resetAnalyticsUser();
     }
     // Refresh UI to reflect the new auth state
     _onAuthStateUpdated();
   });
+}
+
+/**
+ * True iff the currently authenticated user has the 'admin' tier.
+ * Reads from appState.currentUser.tier (populated by _buildUserFromSession,
+ * which fetches user_profiles.tier on every session restore + auth state change).
+ *
+ * Used to gate admin.html and the #admin route in app.js.
+ *
+ * @returns {boolean}
+ */
+function isAdmin() {
+  return !!(appState && appState.currentUser && appState.currentUser.tier === 'admin');
 }
 
 // ── Internal helpers ──────────────────────────────────────────
