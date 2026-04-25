@@ -3247,12 +3247,14 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
     .home-cta-quick:hover { opacity: 0.88; }
     .home-cta-guided {
-      display: inline-block; background: #2d7a4f; color: #fff;
+      display: inline-block; background: var(--text); color: var(--surface);
       border: none; border-radius: 6px; padding: 14px 32px;
       font-size: 1rem; font-weight: 600; cursor: pointer; font-family: var(--font);
       transition: opacity 0.15s;
     }
     .home-cta-guided:hover { opacity: 0.88; }
+    body.theme-red-black .home-cta-guided { background: #555555; color: #ffffff; }
+    body.theme-green-yellow .home-cta-guided { background: var(--accent); color: #ffffff; }
     .home-cta-sub { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px; }
     .home-cta-example {
       display: inline-block; background: transparent; color: var(--text-muted);

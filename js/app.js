@@ -5734,7 +5734,7 @@ ${sections}
 
   function loadTheme() {
     try {
-      const t = (appState.currentUser && appState.currentUser.theme) || 'engineering';
+      const t = (appState.currentUser && appState.currentUser.theme) || 'light';
       setTheme(t, null);
     } catch(e) {}
   }
