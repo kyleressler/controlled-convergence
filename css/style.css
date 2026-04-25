@@ -227,6 +227,77 @@
       background-attachment: fixed;
     }
 
+    /* ── THEME: CONTRA (Easter Egg — Konami / Theme Cycling) ── */
+    body.theme-contra {
+      --bg: #010c01;
+      --surface: #021402;
+      --border: #0a2a0a;
+      --border-strong: #1a5a1a;
+      --text: #33ff33;
+      --text-muted: #1a8a1a;
+      --text-light: #0f5a0f;
+      --accent: #00ff41;
+      --accent-light: #001a00;
+      --accent-border: #004d00;
+      --success: #00ff41;
+      --success-light: #001200;
+      --success-border: #003300;
+      --warn: #ffff00;
+      --warn-light: #1a1a00;
+      --warn-border: #666600;
+      --danger: #ff3333;
+      --danger-light: #1a0000;
+      --danger-border: #660000;
+      --success-rgb: 0,255,65;
+      --danger-rgb: 255,51,51;
+      --accent-rgb: 0,255,65;
+      --warn-rgb: 255,255,0;
+      --accent-hover: #00cc33;
+      --success-hover: #00cc33;
+      --kw-to: #00ff41;
+      --kw-by: #00ccff;
+      --kw-using: #00ff41;
+      --kw-while: #ffff00;
+      --font: 'Courier New', 'Courier', monospace;
+      color-scheme: dark;
+    }
+
+    /* CRT scanline overlay */
+    body.theme-contra::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.12) 2px,
+        rgba(0, 0, 0, 0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9990;
+    }
+
+    /* Phosphor text glow */
+    body.theme-contra h1,
+    body.theme-contra h2,
+    body.theme-contra h3,
+    body.theme-contra .nav-logo {
+      text-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
+    }
+
+    /* Contra: forward buttons → green with black text */
+    body.theme-contra .btn-continue {
+      background: #00ff41;
+      border-color: #00cc33;
+      color: #010c01;
+    }
+    body.theme-contra .btn-continue:hover {
+      background: #00cc33;
+      border-color: #009922;
+    }
+
     /* ── THEME PICKER ── */
     .theme-picker { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
     .theme-btn {

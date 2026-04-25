@@ -5586,6 +5586,9 @@ ${sections}
   }
 
   function switchPage(pageId, navBtn) {
+    // Notify easter-eggs.js of page navigation (resets page-scoped Contra theme)
+    if (typeof window._easterEggSwitchPage === 'function') window._easterEggSwitchPage();
+
     // Save current state before leaving (nav-save)
     // Skip while in example mode — the user hasn't chosen to keep the project yet.
     if (!exampleMode && activeProject && _currentPage && _currentPage !== pageId) {
@@ -5719,8 +5722,8 @@ ${sections}
 
   // ── THEME ──
   function setTheme(theme, btn) {
-    // Remove any existing theme class
-    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black', 'theme-green-yellow');
+    // Remove any existing theme class (include theme-contra so easter egg clears on manual switch)
+    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black', 'theme-green-yellow', 'theme-contra');
     if (theme !== 'light') document.body.classList.add('theme-' + theme);
 
     // Update active button state
@@ -5730,6 +5733,9 @@ ${sections}
     if (activeBtn) activeBtn.classList.add('active');
 
     saveThemePreference(theme); // api.js — persists when user is logged in
+
+    // Notify easter-eggs.js (no-op if file isn't loaded)
+    if (typeof window._easterEggThemeChanged === 'function') window._easterEggThemeChanged(theme);
   }
 
   function loadTheme() {
