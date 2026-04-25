@@ -5791,6 +5791,43 @@ ${sections}
   });
 
 
+  // ── NAV ADMIN DROPDOWN ──
+  // Mirrors the Tools dropdown pattern. The dropdown's container is hidden by
+  // default (style="display:none" in app.html) and revealed by updateTierBadges()
+  // when isAdmin() is true.
+  function toggleAdminDropdown() {
+    const menu    = document.getElementById('navAdminMenu');
+    const trigger = document.getElementById('navAdminTrigger');
+    if (!menu || !trigger) return;
+    const open = menu.classList.toggle('open');
+    trigger.classList.toggle('open', open);
+  }
+
+  function closeAdminDropdown() {
+    const menu    = document.getElementById('navAdminMenu');
+    const trigger = document.getElementById('navAdminTrigger');
+    if (menu)    menu.classList.remove('open');
+    if (trigger) trigger.classList.remove('open');
+  }
+
+  // Close admin dropdown when clicking outside it
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#navAdminDropdown')) closeAdminDropdown();
+  });
+
+  // Navigate to a specific admin tab. Defers to switchPage('admin') for the
+  // gate check (isAdmin()), and passes the desired tab via location.hash so
+  // admin.html can pre-select it on load.
+  function goToAdmin(tab) {
+    if (typeof isAdmin === 'function' && !isAdmin()) {
+      // Should never happen — the dropdown is hidden for non-admins — but
+      // guard anyway so a stale DOM doesn't leak admin chrome.
+      return;
+    }
+    window.location.href = 'admin.html#' + (tab || 'insights');
+  }
+
+
   // ── THEME ──
   function setTheme(theme, btn) {
     // Remove any existing theme class (include theme-contra so easter egg clears on manual switch)
@@ -7890,6 +7927,15 @@ ${sections}
     document.querySelectorAll('.account-badge-inline').forEach(el => {
       el.style.display = isAboveFree ? 'none' : '';
     });
+
+    // Admin Tools dropdown: only visible to admins. updateTierBadges() runs on
+    // every auth state change (login, logout, session restore), so this stays
+    // in sync without a separate observer.
+    const adminDropdown = document.getElementById('navAdminDropdown');
+    if (adminDropdown) {
+      const showAdmin = (typeof isAdmin === 'function') && isAdmin();
+      adminDropdown.style.display = showAdmin ? '' : 'none';
+    }
   }
 
   // ══════════════════════════════════════════════════════

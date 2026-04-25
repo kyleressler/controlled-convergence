@@ -61,6 +61,16 @@
     </div>
   </div>
 
+  <!-- ADMIN TOOLS DROPDOWN — visible only when isAdmin() is true. Toggled by updateTierBadges() in app.js. -->
+  <div class="nav-tools-dropdown" id="navAdminDropdown" style="display:none">
+    <button class="nav-tools-trigger" id="navAdminTrigger" onclick="toggleAdminDropdown()">Admin Tools <span class="nav-chevron">▾</span></button>
+    <div class="nav-tools-menu" id="navAdminMenu">
+      <button class="nav-tool" onclick="goToAdmin('insights');closeAdminDropdown()">Insights</button>
+      <button class="nav-tool" onclick="goToAdmin('blog');closeAdminDropdown()">Blog</button>
+      <button class="nav-tool" onclick="goToAdmin('email');closeAdminDropdown()">Email</button>
+    </div>
+  </div>
+
   <button class="nav-blog">Blog</button>
   <button class="nav-tasks-btn" id="navTasksBtn" onclick="openTasksPanel()" title="Your tasks">
     Tasks

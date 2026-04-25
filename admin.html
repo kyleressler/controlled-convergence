@@ -256,6 +256,14 @@
 
         document.body.classList.add('admin-ready');
 
+        // Pre-select tab from hash (e.g. admin.html#blog) so deep-links from
+        // the main app's Admin Tools dropdown land on the right pane.
+        const validTabs = ['insights', 'blog', 'email'];
+        const hashTab = (window.location.hash || '').replace('#', '').toLowerCase();
+        if (validTabs.indexOf(hashTab) !== -1) {
+          activateAdminTab(hashTab);
+        }
+
         // Custom page view event (PostHog also auto-captures $pageview).
         if (typeof trackEvent === 'function') trackEvent('page_viewed', { page: '#admin' });
       } catch (e) {
@@ -266,16 +274,25 @@
     })();
 
     // ── Tab switching ─────────────────────────────────────────────────────
+    function activateAdminTab(tab) {
+      document.querySelectorAll('.admin-tab').forEach(function (b) {
+        const match = b.getAttribute('data-tab') === tab;
+        b.classList.toggle('active', match);
+        b.setAttribute('aria-selected', match ? 'true' : 'false');
+      });
+      document.querySelectorAll('.admin-pane').forEach(function (p) {
+        p.classList.toggle('active', p.id === 'pane-' + tab);
+      });
+      // Sync hash so refreshes / back-button keep the user on the same tab
+      // and copying the URL deep-links correctly.
+      if (window.location.hash !== '#' + tab) {
+        history.replaceState(null, '', window.location.pathname + '#' + tab);
+      }
+    }
+
     document.querySelectorAll('.admin-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const tab = btn.getAttribute('data-tab');
-        document.querySelectorAll('.admin-tab').forEach(function (b) {
-          b.classList.toggle('active', b === btn);
-          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
-        });
-        document.querySelectorAll('.admin-pane').forEach(function (p) {
-          p.classList.toggle('active', p.id === 'pane-' + tab);
-        });
+        activateAdminTab(btn.getAttribute('data-tab'));
       });
     });
   </script>
