@@ -204,6 +204,14 @@
 
     .pricing-cta { width: 100%; padding: 12px 20px; font-size: 15px; font-weight: 600; border-radius: 10px; text-align: center; }
     .pricing-note { margin-top: 10px; font-size: 12px; color: var(--text-muted); text-align: center; }
+    .pricing-billing { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+    .pricing-savings { font-size: 13px; color: var(--teal); font-weight: 600; margin-bottom: 28px; }
+    .pricing-monthly-box {
+      background: var(--bg-subtle, #f7f8f6); border-radius: 10px;
+      padding: 14px 16px; font-size: 14px; color: var(--text-muted);
+      line-height: 1.6; margin-bottom: 32px;
+    }
+    .pricing-monthly-nudge { display: block; margin-top: 8px; font-size: 13px; color: var(--teal); font-weight: 600; }
 
     /* ─── Coming Soon toast (Get Pro) ──────────────────────────────────── */
     .coming-soon-toast {
@@ -370,7 +378,7 @@
       </a>
       <div class="nav-actions">
         <a href="app.html#login"  class="btn btn-ghost">Log In</a>
-        <a href="app.html#basic"   class="btn btn-primary">Start for Free</a>
+        <a href="app.html#signup"   class="btn btn-primary">Start for Free</a>
       </div>
     </div>
   </nav>
@@ -394,10 +402,9 @@
       Turn Voice of Customer inputs into traceable, stakeholder-linked requirements — then score concepts against them.
     </p>
     <div class="hero-cta">
-      <a href="app.html#basic" class="btn btn-primary btn-primary-lg">Start for Free</a>
-      <p class="hero-cta-note">No credit card. No commitment. Works right now.</p>
-      <p class="hero-cta-note">Built on 30+ years of proven engineering practice — used by teams who care about making the right call before detailed design begins.</p>
-      <p class="hero-cta-note">We handle concept selection — so your team arrives at detailed design with confidence.</p>
+      <a href="app.html#signup" class="btn btn-primary btn-primary-lg">Start for Free</a>
+      <p class="hero-cta-note">No credit card. Works now.</p>
+      <p class="hero-cta-note"><a href="app.html#demo">Try a Live Example</a></p>
     </div>
   </section>
 
@@ -468,135 +475,137 @@
 
   <!-- ═══ PRICING ═══════════════════════════════════════════════════════ -->
   <section class="section-pricing" aria-labelledby="pricing-heading">
-    <h2 id="pricing-heading" class="section-heading">Simple, Honest Pricing</h2>
+    <h2 id="pricing-heading" class="section-heading">Free to start. Built to scale.</h2>
     <p class="pricing-intro">
-      Run a full analysis right now — no account needed. Create a free account
-      to save your work and unlock advanced tools. Upgrade to Pro only when
-      you're ready for more.
+      Start a full analysis right now — no account needed. Create a free account
+      to save your work. Upgrade to Pro for unlimited projects, collaboration, and exports.
     </p>
 
     <div class="pricing-cards">
 
-      <!-- ── Free ── -->
+      <!-- ── Free Account ── -->
       <div class="pricing-card">
         <div class="pricing-badge-spacer" aria-hidden="true"></div>
-        <div class="pricing-tier">Free</div>
+        <div class="pricing-tier">Free Account</div>
         <div class="pricing-price">$0</div>
-        <p class="pricing-tagline">No account. No signup. Start a full analysis right now.</p>
+        <p class="pricing-tagline">No credit card. Save your work, collaborate on shared projects, and run the full methodology.</p>
         <hr class="pricing-divider" />
-        <ul class="pricing-features" aria-label="Free tier features">
+        <ul class="pricing-features" aria-label="Free Account tier features">
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Full methodology
+            3 Quick Projects
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Basic concept scoring
+            3 Full Projects
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Score summary chart
+            3 collaborations (received)
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Import &amp; Export your work
+            5 custom lifecycle properties
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Pre-loaded stakeholders &amp; system quality library
+            5 custom stakeholders
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Full Pugh matrix access
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Full weighting methods
           </li>
         </ul>
-        <a href="app.html#basic" class="btn btn-outline pricing-cta">Try It Free</a>
-        <p class="pricing-note">No account required</p>
+        <a href="app.html#signup" class="btn btn-outline pricing-cta">Get started free</a>
+        <p class="pricing-note">No credit card required</p>
       </div>
 
-      <!-- ── Account ── -->
-      <div class="pricing-card">
-        <div class="pricing-badge-spacer" aria-hidden="true"></div>
-        <div class="pricing-tier">Account</div>
-        <div class="pricing-price">$0</div>
-        <p class="pricing-tagline">Just an email. Unlocks the full advanced toolset at no cost.</p>
-        <hr class="pricing-divider" />
-        <ul class="pricing-features" aria-label="Account tier features">
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Everything in Free
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Save projects — work persists between sessions
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Advanced concept scoring
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Weighted comparisons
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Minimum acceptable score tracking
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Deep matrix analytics
-          </li>
-          <li>
-            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Custom stakeholders &amp; system qualities
-          </li>
-        </ul>
-        <a href="app.html#signup" class="btn btn-outline pricing-cta">Create Free Account</a>
-        <p class="pricing-note">No credit card · No commitment</p>
-      </div>
-
-      <!-- ── Pro (featured) ── -->
+      <!-- ── Pro Annual (featured) ── -->
       <div class="pricing-card featured" aria-label="Recommended tier">
-        <div class="pricing-badge">The Best</div>
+        <div class="pricing-badge">Best value</div>
         <div class="pricing-tier">Pro</div>
-        <div class="pricing-price">$9 <span>/ month</span></div>
-        <p class="pricing-tagline">Perfect for advanced individuals and teams working on multiple projects. Generate reports, save templates, and create custom stakeholders and lifecycle properties.</p>
+        <div class="pricing-price">$10 <span>/ month</span></div>
+        <p class="pricing-billing">Billed $120/year</p>
+        <p class="pricing-savings">Save 33% vs. monthly billing</p>
         <hr class="pricing-divider" />
-        <ul class="pricing-features" aria-label="Pro tier features">
+        <ul class="pricing-features" aria-label="Pro Annual tier features">
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Everything in Free &amp; Account
+            100 Quick Projects
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Save more projects
+            100 Full Projects
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            PDF report export — full audit trail, ready to present
+            100 custom lifecycle properties
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Project templates — save and reuse your best workflows
+            100 custom stakeholders
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Unlimited custom stakeholders &amp; system qualities
+            Stakeholder contact info
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Assign responsible scorers to requirements
+            Team Project Invites
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Stakeholder name and contact info assignment
+            Project Collaboration
           </li>
           <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            Team sharing, collaboration, and assigned tasks
+            Assign Scoring Tasks
           </li>
-          <li class="muted">
+          <li>
             <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
-            AI coaching for goals and concept scoring — coming soon
+            Assign Review Tasks
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Custom requirement tags
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            PDF Report Export
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Excel export
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            100 saved templates
+          </li>
+          <li>
+            <svg class="check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+            Everything in Free Account
           </li>
         </ul>
-        <button onclick="showComingSoon()" class="btn btn-primary pricing-cta">Get Pro</button>
+        <button onclick="showComingSoon()" class="btn btn-primary pricing-cta">Start Pro — annual</button>
+        <p class="pricing-note">Billing coming soon — create a free account now</p>
+      </div>
+
+      <!-- ── Pro Monthly ── -->
+      <div class="pricing-card">
+        <div class="pricing-badge-spacer" aria-hidden="true"></div>
+        <div class="pricing-tier">Pro</div>
+        <div class="pricing-price">$15 <span>/ month</span></div>
+        <p class="pricing-billing">Billed monthly</p>
+        <hr class="pricing-divider" />
+        <div class="pricing-monthly-box">
+          Every feature in Pro Annual — same tool, same limits, month-to-month flexibility.
+          <span class="pricing-monthly-nudge">← Annual saves you $60/year</span>
+        </div>
+        <button onclick="showComingSoon()" class="btn btn-outline pricing-cta">Start Pro — monthly</button>
         <p class="pricing-note">Billing coming soon — create a free account now</p>
       </div>
 
@@ -688,8 +697,8 @@
     <h2 id="cta-heading" class="cta-heading">
       Did We Mention It is <em>Free?</em><br>What Are You Waiting For?
     </h2>
-    <a href="app.html#basic" class="btn btn-primary btn-primary-lg">Start for Free</a>
-    <p class="cta-note">No credit card. No commitment. Works right now.</p>
+    <a href="app.html#signup" class="btn btn-primary btn-primary-lg">Start for Free</a>
+    <p class="cta-note">No credit card. Works now.</p>
   </section>
 
   <!-- ═══ FOOTER ════════════════════════════════════════════════════════ -->

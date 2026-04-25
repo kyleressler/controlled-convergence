@@ -8265,9 +8265,6 @@ ${sections}
     if (mode === 'basic') {
       // Save last full-mode page so we can return to it
       if (_currentPage !== 'basic') _lastFullPage = _currentPage;
-      // Enforce Basic Mode defaults (non-weighted pair, basic scoring, no advanced pugh)
-      pairMode = 'nonweighted';
-      pughSettings = { ...pughSettings, advancedScoring: false, showMTHUS: false, showMAS: false };
       // Sync full-mode data into Basic Mode display
       syncGuidedToQS();
       switchPage('basic', null);
