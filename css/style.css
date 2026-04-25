@@ -3179,11 +3179,6 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     }
     .qs-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
     .qs-subtitle { font-size: 0.84rem; color: var(--text-muted); }
-    .qs-save-hint {
-      font-size: 0.75rem; color: var(--warn); background: var(--warn-light);
-      border: 1px solid var(--warn-border); border-radius: 6px; padding: 8px 14px;
-      max-width: 280px; line-height: 1.5;
-    }
     .qs-top-grid {
       display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 20px;
     }
