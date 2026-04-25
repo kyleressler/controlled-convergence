@@ -230,12 +230,13 @@
     const ownedQuickCount = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === 'quick').length;
     const ownedFullCount  = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === 'full').length;
     const collabCount     = savedProjects.filter(p => p.is_owner === false).length;
-    const quickLimit = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'quick') : 0;
-    const fullLimit  = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'full')  : 0;
+    const quickLimit  = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'quick') : 0;
+    const fullLimit   = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'full')  : 0;
+    const collabLimit = (typeof COLLAB_LIMITS !== 'undefined' && COLLAB_LIMITS[userTier] !== undefined) ? COLLAB_LIMITS[userTier] : 0;
     if (!appState.currentUser) {
-      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to own up to 3 Quick + 3 Full Projects and collaborate on up to 5 more.';
+      note.textContent = 'Free tier: Your project runs in-session only. Use Export Project Data to save your work. Sign up for a free account to own up to 3 Quick + 3 Full Projects and collaborate on up to 3 more.';
     } else if (userTier === 'account') {
-      note.textContent = 'Free Account: ' + ownedQuickCount + ' of ' + quickLimit + ' Quick · ' + ownedFullCount + ' of ' + fullLimit + ' Full owned · ' + collabCount + ' of 5 collaborating. Upgrade to Pro for more.';
+      note.textContent = 'Free Account: ' + ownedQuickCount + ' of ' + quickLimit + ' Quick · ' + ownedFullCount + ' of ' + fullLimit + ' Full owned · ' + collabCount + ' of ' + collabLimit + ' collaborating. Upgrade to Pro for more.';
     } else {
       note.textContent = 'Pro tier: ' + ownedQuickCount + ' of ' + quickLimit + ' Quick · ' + ownedFullCount + ' of ' + fullLimit + ' Full owned. Unlimited collaboration.';
     }
@@ -470,12 +471,13 @@
     const ownedQuickCount = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === 'quick').length;
     const ownedFullCount  = savedProjects.filter(p => p.is_owner !== false && (p.projectType || 'full') === 'full').length;
     const collabCount     = savedProjects.filter(p => p.is_owner === false).length;
-    const quickLimit = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'quick') : 0;
-    const fullLimit  = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'full')  : 0;
+    const quickLimit  = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'quick') : 0;
+    const fullLimit   = (typeof getProjectLimit === 'function') ? getProjectLimit(userTier, 'full')  : 0;
+    const collabLimit = (typeof COLLAB_LIMITS !== 'undefined' && COLLAB_LIMITS[userTier] !== undefined) ? COLLAB_LIMITS[userTier] : 0;
     if (userTier === 'free') {
       msg.innerHTML = '<strong>Free tier:</strong> Your work is not automatically saved. Use <em>Export Project Data</em> in the sidebar to download a JSON file you can re-upload in a future session. Creating a free account unlocks saving up to 3 Quick + 3 Full Projects — no credit card required.';
     } else if (userTier === 'account') {
-      msg.innerHTML = '<strong>Free Account:</strong> Own up to ' + quickLimit + ' Quick Projects (' + ownedQuickCount + ' of ' + quickLimit + ' used) and ' + fullLimit + ' Full Projects (' + ownedFullCount + ' of ' + fullLimit + ' used). Collaborate on up to 5 more (' + collabCount + ' of 5 used). Upgrade to Pro for more.';
+      msg.innerHTML = '<strong>Free Account:</strong> Own up to ' + quickLimit + ' Quick Projects (' + ownedQuickCount + ' of ' + quickLimit + ' used) and ' + fullLimit + ' Full Projects (' + ownedFullCount + ' of ' + fullLimit + ' used). Collaborate on up to ' + collabLimit + ' more (' + collabCount + ' of ' + collabLimit + ' used). Upgrade to Pro for more.';
     } else {
       msg.innerHTML = '<strong>Pro tier:</strong> Own up to ' + quickLimit + ' Quick + ' + fullLimit + ' Full Projects. Collaboration features — inviting team members to review and contribute — are on the roadmap.';
     }

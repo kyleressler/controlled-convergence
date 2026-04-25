@@ -503,7 +503,7 @@ BEGIN
   IF v_user_tier = 'pro' OR v_user_tier = 'admin' THEN
     v_collab_limit := 2147483647; -- effectively unlimited
   ELSE
-    v_collab_limit := 5; -- account tier: up to 5 collaborating projects
+    v_collab_limit := 3; -- free Account tier: up to 3 collaborating projects
   END IF;
 
   -- Count projects the invitee is already a collaborator on.

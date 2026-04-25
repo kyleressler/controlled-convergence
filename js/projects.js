@@ -25,7 +25,7 @@ function getProjectLimit(tier, projectType) {
 // Collaborating projects (projects this user was invited to)
 const COLLAB_LIMITS = {
   free:    0,        // free = not logged in; cannot collaborate
-  account: 5,        // account tier: up to 5 collaborating projects
+  account: 3,        // free Account tier: up to 3 collaborating projects
   pro:     Infinity  // pro: unlimited
 };
 
