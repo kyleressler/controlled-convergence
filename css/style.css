@@ -83,6 +83,41 @@
       color-scheme: dark; /* tells browser to render selects, inputs, scrollbars in dark mode */
     }
 
+    /* ── THEME: RED & BLACK ── */
+    body.theme-red-black {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --border: #2d2d2d;
+      --border-strong: #3d3d3d;
+      --text: #ffffff;
+      --text-muted: #a0a0a0;
+      --text-light: #5a5a5a;
+      --accent: #e31837;
+      --accent-light: #2a0808;
+      --accent-border: #6b0f1a;
+      --success: #34d399;
+      --success-light: #062a1a;
+      --success-border: #065f46;
+      --warn: #fbbf24;
+      --warn-light: #271a00;
+      --warn-border: #92400e;
+      --danger: #f87171;
+      --danger-light: #2a0808;
+      --danger-border: #7f1d1d;
+      --success-rgb: 52,211,153;
+      --danger-rgb: 248,113,113;
+      --accent-rgb: 227,24,55;
+      --warn-rgb: 251,191,36;
+      --accent-hover: #ff1f3d;
+      --success-hover: #2bc78c;
+      --kw-to: #ff6b6b;
+      --kw-by: #38bdf8;
+      --kw-using: #34d399;
+      --kw-while: #fbbf24;
+      --font: 'Oswald', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+      color-scheme: dark;
+    }
+
     /* ── THEME: ENGINEERING ── */
     body.theme-engineering {
       --bg: #ddeedd;
@@ -170,6 +205,10 @@
         linear-gradient(90deg, rgba(0,100,0,0.25) 1px, transparent 1px),
         linear-gradient(135deg, #eaf5ea 50%, #ddeedd 50%);
       background-size: 6px 6px, 6px 6px, 100% 100%;
+    }
+    .theme-swatch-red-black {
+      background: linear-gradient(135deg, #e31837 50%, #0d0d0d 50%);
+      border-color: rgba(255,255,255,0.1);
     }
 
     /* ── NAV ── */

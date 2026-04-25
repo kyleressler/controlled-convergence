@@ -283,7 +283,7 @@ async function getCoaching(page, context) {
 
 /**
  * Save user's theme preference.
- * @param {string} theme — 'engineering' | 'light' | 'dark'
+ * @param {string} theme — 'light' | 'red-black' | 'dark' | 'engineering'
  * @returns {Promise<{error: string|null}>}
  */
 async function saveThemePreference(theme) {

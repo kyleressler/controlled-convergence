@@ -8,6 +8,11 @@
   <!-- App styles -->
   <link rel="stylesheet" href="css/style.css" />
 
+  <!-- Oswald font (used by Red & Black theme) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
   <!-- Chart.js (Pugh concept score chart) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -106,14 +111,17 @@
 
     <div class="sidebar-label" style="margin-top:18px">Theme</div>
     <div class="theme-picker">
-      <button class="theme-btn active" data-theme="engineering" onclick="setTheme('engineering', this)">
-        <div class="theme-swatch theme-swatch-engineering"></div>Engineering
-      </button>
       <button class="theme-btn" data-theme="light" onclick="setTheme('light', this)">
         <div class="theme-swatch theme-swatch-light"></div>Light
       </button>
+      <button class="theme-btn" data-theme="red-black" onclick="setTheme('red-black', this)">
+        <div class="theme-swatch theme-swatch-red-black"></div>Red &amp; Black
+      </button>
       <button class="theme-btn" data-theme="dark" onclick="setTheme('dark', this)">
         <div class="theme-swatch theme-swatch-dark"></div>Dark
+      </button>
+      <button class="theme-btn active" data-theme="engineering" onclick="setTheme('engineering', this)">
+        <div class="theme-swatch theme-swatch-engineering"></div>Engineering
       </button>
     </div>
 
