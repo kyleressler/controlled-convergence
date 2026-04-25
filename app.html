@@ -2650,6 +2650,24 @@
   </div>
 </div>
 
+<!-- ── ANONYMOUS CLOSE PROJECT WARNING MODAL ── -->
+<div class="modal-overlay" id="anonCloseProjectModal" onclick="if(event.target===this)closeAnonCloseProjectModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">Close Project — Lose Your Work?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      <strong>You're not signed in.</strong> Closing this project will permanently delete every requirement, concept, and score you've entered — there is no recovery.
+      <br><br>
+      Create a free account or sign in first to save this project, or close it anyway to start over.
+    </div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px;align-items:stretch">
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeAnonCloseProjectModal();handleAccountCTA()">Create Free Account</button>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="closeAnonCloseProjectModal();openAuthModal('login')">Sign In</button>
+      <button class="btn btn-danger" style="width:100%;justify-content:center" onclick="confirmAnonCloseProject()">Close Project Anyway</button>
+      <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="closeAnonCloseProjectModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── CONVERT QUICK → FULL MODAL ── -->
 <div class="modal-overlay" id="convertProjectModal" onclick="if(event.target===this)closeConvertProjectModal()">
   <div class="modal-box" style="max-width:460px">

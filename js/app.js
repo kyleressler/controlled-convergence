@@ -4356,10 +4356,37 @@ ${sections}
   }
 
   function deactivateProject() {
+    // Anonymous users: their project lives only in memory (createProject for
+    // anon does NOT push to savedProjects or save to Supabase). Closing it
+    // wipes the work permanently — show a warning + signup nudge first.
+    var isAnon = !(appState && appState.currentUser);
+    if (isAnon && activeProject) {
+      var modal = document.getElementById('anonCloseProjectModal');
+      if (modal) {
+        modal.classList.add('open');
+        return;
+      }
+      // Fallback if the modal HTML is missing
+      if (!confirm('Closing this project will permanently delete the data you\'ve entered (you\'re not signed in). Continue?')) return;
+    }
+    _executeDeactivateProject();
+  }
+
+  function _executeDeactivateProject() {
     activeProject = null;
     try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     updateNavProjectName();
     renderProjPage();
+  }
+
+  // Modal handlers for the anonymous Close Project warning
+  function closeAnonCloseProjectModal() {
+    var modal = document.getElementById('anonCloseProjectModal');
+    if (modal) modal.classList.remove('open');
+  }
+  function confirmAnonCloseProject() {
+    closeAnonCloseProjectModal();
+    _executeDeactivateProject();
   }
 
   // ── EXAMPLE MODE HANDLERS ─────────────────────────────────────
