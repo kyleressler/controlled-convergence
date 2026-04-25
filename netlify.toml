@@ -1,0 +1,23 @@
+# ============================================================
+# netlify.toml — Netlify build + functions configuration
+#
+# The site is a static HTML/JS app, so there's no build command.
+# Functions live in netlify/functions/ and are deployed automatically
+# on every git push.
+#
+# Required environment variables (set in Netlify dashboard →
+# Site settings → Environment variables; see .env.example):
+#   POSTHOG_PERSONAL_API_KEY  — read-only PostHog Personal API Key (phx_…)
+#   POSTHOG_PROJECT_ID        — numeric PostHog project ID
+#   POSTHOG_HOST              — usually https://us.i.posthog.com
+#   SUPABASE_URL              — same value as in js/config.js
+#   SUPABASE_ANON_KEY         — same value as in js/config.js
+# ============================================================
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  # Use the modern serverless runtime (Node 18+, native fetch available).
+  node_bundler = "esbuild"

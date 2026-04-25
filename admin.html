@@ -143,6 +143,95 @@
       color: var(--text-mut);
     }
     .empty-card strong { color: var(--text); display: block; margin-bottom: 6px; }
+
+    /* ── Insights dashboard ─────────────────────────────────── */
+    .insights-section { margin-bottom: 28px; }
+    .insights-section h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-mut);
+      margin: 0 0 12px;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .metric-card .metric-label {
+      font-size: 12px;
+      color: var(--text-mut);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .metric-card .metric-value {
+      font-size: 26px;
+      font-weight: 600;
+      margin-top: 4px;
+      line-height: 1.1;
+    }
+    .metric-card .metric-sub {
+      font-size: 12px;
+      color: var(--text-mut);
+      margin-top: 6px;
+    }
+    .metric-card.loading .metric-label { color: var(--text-mut); }
+
+    .action-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .action-card.action-amber { border-left-color: #d97706; }
+    .action-card.action-blue  { border-left-color: var(--accent); }
+    .action-title { font-weight: 600; margin-bottom: 2px; }
+    .action-body  { color: var(--text-mut); font-size: 13px; }
+
+    .insights-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .insights-table th,
+    .insights-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .insights-table th {
+      background: var(--bg);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-mut);
+      font-weight: 600;
+    }
+    .insights-table tr:last-child td { border-bottom: 0; }
+    .insights-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .insights-table code {
+      font-size: 12px;
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .muted { color: var(--text-mut); font-size: 13px; }
   </style>
 </head>
 
@@ -170,15 +259,9 @@
     </header>
 
     <main class="admin-main">
-      <section id="pane-insights" class="admin-pane active" role="tabpanel">
-        <h1>Insights</h1>
-        <p class="pane-sub">Prescriptive analytics — what to do next, not just what happened.</p>
-        <div class="empty-card">
-          <strong>Insights dashboard coming in Chunk 2.</strong>
-          Once PostHog has a week of traffic and Supabase has signups, this page will surface
-          funnel summary, action cards, channel performance, and top-content cards.
-        </div>
-      </section>
+      <!-- Insights pane is fully rendered by js/admin-insights.js → renderAdminInsights().
+           Initial scaffold lives there too so loading states are local to the JS file. -->
+      <section id="pane-insights" class="admin-pane active" role="tabpanel"></section>
 
       <section id="pane-blog" class="admin-pane" role="tabpanel">
         <h1>Blog</h1>
@@ -205,6 +288,7 @@
   <script src="js/state.js"></script>
   <script src="js/config.js"></script>
   <script src="js/analytics.js"></script>
+  <script src="js/admin-insights.js"></script>
 
   <script>
     // ── Initialize PostHog (mirrors app.html init) ─────────────────────────
@@ -266,6 +350,14 @@
 
         // Custom page view event (PostHog also auto-captures $pageview).
         if (typeof trackEvent === 'function') trackEvent('page_viewed', { page: '#admin' });
+
+        // Render the Insights dashboard now that the gate has succeeded and
+        // the Supabase session is fully hydrated. Errors inside renderAdminInsights
+        // are caught locally — we still want the shell visible if a single
+        // section fails.
+        if (typeof window.renderAdminInsights === 'function') {
+          window.renderAdminInsights();
+        }
       } catch (e) {
         // On any unexpected failure, bounce out rather than expose admin chrome.
         console.error('[admin-gate] error:', e);
