@@ -8,6 +8,10 @@
   <!-- Supabase JS SDK (auth + database) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- Quill rich-text editor (used by the Blog tab) -->
+  <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css">
+  <script src="https://cdn.quilljs.com/1.3.6/quill.min.js" defer></script>
+
   <!-- PostHog (behavioral analytics + UTM attribution) -->
   <script>
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId captureTraceFeedback captureTraceMetric".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -232,6 +236,164 @@
     }
 
     .muted { color: var(--text-mut); font-size: 13px; }
+
+    /* ── Blog tab ───────────────────────────────────────────── */
+    .blog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .blog-header h1 { margin: 0 0 4px; }
+
+    .btn-primary, .btn-secondary, .btn-link {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { filter: brightness(0.95); }
+    .btn-secondary:hover { background: var(--bg); }
+    .btn-link {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      padding: 4px 0;
+    }
+    .btn-link:hover { text-decoration: underline; }
+
+    .blog-list-table td a { color: var(--text); text-decoration: none; }
+    .blog-list-table td a:hover { color: var(--accent); }
+    .blog-list-table .tag-chip {
+      display: inline-block;
+      background: var(--accent-bg);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      margin-right: 2px;
+    }
+    .evergreen-badge { color: #d97706; font-weight: 600; }
+
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      background: var(--bg);
+      color: var(--text-mut);
+      border: 1px solid var(--border);
+    }
+    .status-pill.status-published {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+    .status-pill.status-draft {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fde68a;
+    }
+
+    /* ── Editor ─────────────────────────────────────────────── */
+    .editor-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 880px) {
+      .editor-grid { grid-template-columns: 1fr; }
+    }
+    .editor-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .editor-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-mut);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin: 14px 0 6px;
+    }
+    .editor-text {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .editor-text:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+
+    .editor-side .side-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .editor-side .side-section .editor-label:first-child { margin-top: 0; }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .tag-input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--accent-bg);
+      color: var(--accent);
+      padding: 2px 4px 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .tag-pill-x {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 4px;
+    }
+    .tag-pill-x:hover { color: #b91c1c; }
+
+    /* Quill container — give it height + match border style */
+    #editorQuillContainer { background: var(--surface); border-radius: 8px; }
+    #editorQuill { min-height: 360px; background: var(--surface); }
+    .ql-toolbar.ql-snow, .ql-container.ql-snow {
+      border-color: var(--border) !important;
+    }
+    .ql-toolbar.ql-snow { border-radius: 6px 6px 0 0; }
+    .ql-container.ql-snow { border-radius: 0 0 6px 6px; }
   </style>
 </head>
 
@@ -263,15 +425,10 @@
            Initial scaffold lives there too so loading states are local to the JS file. -->
       <section id="pane-insights" class="admin-pane active" role="tabpanel"></section>
 
-      <section id="pane-blog" class="admin-pane" role="tabpanel">
-        <h1>Blog</h1>
-        <p class="pane-sub">Write, publish, and re-promote content.</p>
-        <div class="empty-card">
-          <strong>Blog editor + content hub coming in Chunk 3.</strong>
-          Quill editor, campaign lineage (v1, v2…), associated content pieces, and publishing
-          schedule will live here.
-        </div>
-      </section>
+      <!-- Blog pane is fully rendered by js/admin-blog.js → renderAdminBlog().
+           Initial render happens lazily when the user clicks the Blog tab so
+           Quill's CDN script has time to load. -->
+      <section id="pane-blog" class="admin-pane" role="tabpanel"></section>
 
       <section id="pane-email" class="admin-pane" role="tabpanel">
         <h1>Email</h1>
@@ -289,6 +446,7 @@
   <script src="js/config.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/admin-insights.js"></script>
+  <script src="js/admin-blog.js"></script>
 
   <script>
     // ── Initialize PostHog (mirrors app.html init) ─────────────────────────
@@ -379,6 +537,11 @@
       // and copying the URL deep-links correctly.
       if (window.location.hash !== '#' + tab) {
         history.replaceState(null, '', window.location.pathname + '#' + tab);
+      }
+      // Lazy-render per-tab logic. Insights renders eagerly on gate success;
+      // Blog renders here so Quill's CDN has time to settle before init.
+      if (tab === 'blog' && typeof window.renderAdminBlog === 'function') {
+        window.renderAdminBlog();
       }
     }
 
