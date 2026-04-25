@@ -2415,6 +2415,7 @@
 
     if (requirements.length === 0) {
       wrap.innerHTML = '<p class="qs-matrix-empty">Add requirements above to see the matrix.</p>';
+      renderQSConceptChart();  // destroy any stale chart from a previous project
       return;
     }
 
