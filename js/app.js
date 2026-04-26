@@ -2589,6 +2589,12 @@
     const goalText  = document.getElementById('qsGoal')?.value?.trim() || '';
     const dateStr   = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
 
+    // Capture the live Concept Score Chart canvas as a PNG image
+    const _chartCanvas = document.getElementById('pughConceptChart');
+    const chartImgSrc  = (_chartCanvas && _chartCanvas.width > 0 && _chartCanvas.height > 0)
+      ? (() => { try { return _chartCanvas.toDataURL('image/png'); } catch(e) { return null; } })()
+      : null;
+
     // Build requirements rows
     let reqRows = '';
     if (requirements.length === 0) {
@@ -2748,6 +2754,13 @@
     <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Project Goal</h2>
     <div style="background:#f0f4ff;border:1px solid #c3d4f8;border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.6;margin-bottom:24px">${escHtml(goalText)}</div>` : ''}
 
+    ${chartImgSrc ? `
+    <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Concept Score Summary</h2>
+    <div style="border:1px solid #e2e2df;border-radius:6px;overflow:hidden;margin-bottom:8px;background:#fafaf9">
+      <img src="${chartImgSrc}" style="width:100%;height:auto;display:block" alt="Concept Score Chart">
+    </div>
+    <div style="font-size:10px;color:#9b9b94;margin-bottom:24px">Utility Score (black) · + Count (green) · − Count (red)</div>` : ''}
+
     ${scoreHtml ? `${scoreHtml}<div style="margin-top:32px"></div>` : ''}
 
     <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Requirements (${requirements.length})</h2>
@@ -2852,6 +2865,12 @@
 
   function generateReport() {
     document.getElementById('exportReportModal').classList.remove('open');
+
+    // Capture the live Concept Score Chart canvas before anything else
+    const _rptChartCanvas = document.getElementById('pughConceptChart');
+    const rptChartImgSrc  = (_rptChartCanvas && _rptChartCanvas.width > 0 && _rptChartCanvas.height > 0)
+      ? (() => { try { return _rptChartCanvas.toDataURL('image/png'); } catch(e) { return null; } })()
+      : null;
 
     // ── Theme ──
     const themeVal = document.querySelector('input[name="rptTheme"]:checked')?.value || 'light';
@@ -3485,8 +3504,15 @@
 
         const subhead = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:24px 0 12px;padding-bottom:7px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
 
+        const chartBlock = rptChartImgSrc ? `
+          <div style="border:1px solid ${T.cardBorder};border-radius:6px;overflow:hidden;margin-bottom:20px;background:${T.cardBg};-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            <img src="${rptChartImgSrc}" style="width:100%;height:auto;display:block" alt="Concept Score Chart">
+          </div>
+          <div style="font-size:9px;font-family:'Courier New',monospace;color:${T.textTertiary};margin-bottom:20px;letter-spacing:0.04em">Utility Score (net) &nbsp;·&nbsp; + Count (better than datum) &nbsp;·&nbsp; − Count (worse than datum)</div>` : '';
+
         sections += rptSection(++sn, `Concept Score Summary (${pughConcepts.length - 1} concepts + datum)`,
-          `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
+          `${chartBlock}
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
             ${scoringTblHead(`<th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:50px">Rank</th>`)}
             <tbody>${rows}</tbody>
           </table>
