@@ -4202,6 +4202,8 @@ ${sections}
     // Clear all tool state so the new project starts fresh
     selectedIlities.clear(); customIlities = [];  ilityOrder = [];
     selectedStakeholders.clear(); customStakeholders = []; stakOrder = [];
+    // Reset contact fields on built-in stakeholders so they don't bleed into the new project's first save.
+    STAKEHOLDERS.forEach(s => { s.contactName = ''; s.contactTitle = ''; s.contactEmail = ''; });
     requirements = []; reqIdCounter = 0; _editingReqId = null;
     pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
@@ -4678,6 +4680,8 @@ ${sections}
     requirements = []; reqIdCounter = 0; _editingReqId = null;
     selectedIlities = new Set(); customIlities = []; ilityOrder = [];
     selectedStakeholders = new Set(); customStakeholders = []; stakOrder = [];
+    // Reset contact fields on built-in stakeholders so they don't bleed into a subsequent project.
+    STAKEHOLDERS.forEach(s => { s.contactName = ''; s.contactTitle = ''; s.contactEmail = ''; });
     pughConcepts = []; pughScores = {}; pughAdvBackup = {};
     pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false };
     datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
