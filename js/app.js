@@ -2673,14 +2673,18 @@
   <title>${escHtml(projName)} — Quick Report</title>
   <style>
     @page { size: portrait; margin: 18mm 16mm 22mm 16mm; }
-    body { font-family: Georgia, serif; margin: 0; padding: 40px; color: #1a1a18; background: #fff; }
+    body { font-family: Georgia, serif; margin: 0; padding: 0; color: #1a1a18; background: #fff; }
+    .content { padding: 40px; }
     h2 { page-break-after: avoid; break-after: avoid; }
     tr { page-break-inside: avoid; break-inside: avoid; }
     table { page-break-inside: auto; border-collapse: collapse; }
-    .section-break { page-break-before: always; break-before: page; }
+    .section-break { page-break-before: always; break-before: page; padding: 40px; }
     .print-header, .print-footer { display: none; }
     @media print {
       body { padding: 0; margin: 0; }
+      .content { padding: 0; }
+      .section-break { padding: 0; }
+      .cover-page { page-break-after: always; break-after: page; }
       .no-print { display: none !important; }
       .print-header {
         display: flex !important; position: fixed; top: 0; left: 0; right: 0;
@@ -2696,11 +2700,13 @@
         font-size: 10px; color: #9b9b94; font-family: Georgia, serif; z-index: 9999;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
+      .pf-page-num::before { content: "Page " counter(page); }
+      .cover-page { min-height: 100vh; }
     }
   </style>
 </head>
 <body>
-  <!-- Fixed print header (every page) -->
+  <!-- Fixed print header (every page after cover) -->
   <div class="print-header">
     <span style="font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a56db">ControlledConvergence.com</span>
     <span style="color:#6b6b65">${escHtml(projName)}</span>
@@ -2709,30 +2715,52 @@
   <!-- Fixed print footer (every page) -->
   <div class="print-footer">
     <span>ControlledConvergence.com &nbsp;·&nbsp; Quick Analysis Report</span>
+    <span class="pf-page-num" style="color:#9b9b94">&nbsp;</span>
     <span>${dateStr}</span>
   </div>
 
-  <!-- Header / branding -->
-  <div style="border-bottom:2px solid #1a56db;padding-bottom:14px;margin-bottom:24px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a56db;margin-bottom:6px">ControlledConvergence.com</div>
-    <h1 style="font-size:22px;font-weight:700;margin:0 0 4px">${escHtml(projName)}</h1>
-    <div style="font-size:13px;color:#6b6b65">Quick Analysis Report &nbsp;·&nbsp; Generated ${dateStr}</div>
+  <!-- ── COVER PAGE ── -->
+  <div class="cover-page" style="min-height:100vh;display:flex;flex-direction:column;justify-content:space-between;padding:60px 48px 32px;background:#fff;page-break-after:always;break-after:page;box-sizing:border-box">
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:#1a56db;margin-bottom:40px;font-family:Georgia,serif">Quick Analysis Report</div>
+      <h1 style="font-size:38px;font-weight:700;color:#1a1a18;margin:0 0 16px;line-height:1.15;font-family:Georgia,serif">${escHtml(projName)}</h1>
+      <div style="width:40px;height:3px;background:#1a56db;margin-bottom:28px"></div>
+      ${goalText ? `<div style="font-size:14px;color:#4a4a44;line-height:1.65;max-width:520px;margin-bottom:20px;font-style:italic">${escHtml(goalText)}</div>` : ''}
+      <div style="font-size:13px;color:#9b9b94;margin-top:8px">Generated ${dateStr}</div>
+    </div>
+    <div style="border-top:1px solid #e2e2df;padding-top:14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a56db">ControlledConvergence.com</span>
+      <span style="font-size:11px;color:#9b9b94">${requirements.length} requirement${requirements.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${pughConcepts.length > 1 ? pughConcepts.length - 1 + ' concept' + (pughConcepts.length - 1 !== 1 ? 's' : '') + ' evaluated' : 'No concepts yet'}</span>
+    </div>
   </div>
 
-  ${goalText ? `
-  <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Project Goal</h2>
-  <div style="background:#f0f4ff;border:1px solid #c3d4f8;border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.6;margin-bottom:24px">${escHtml(goalText)}</div>` : ''}
+  <!-- ── MAIN CONTENT ── -->
+  <div class="content" style="padding:40px">
 
-  <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Requirements (${requirements.length})</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px">
-    <tbody>${reqRows}</tbody>
-  </table>
+    <!-- Header / branding -->
+    <div style="border-bottom:2px solid #1a56db;padding-bottom:14px;margin-bottom:24px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#1a56db;margin-bottom:6px">ControlledConvergence.com</div>
+      <h1 style="font-size:22px;font-weight:700;margin:0 0 4px">${escHtml(projName)}</h1>
+      <div style="font-size:13px;color:#6b6b65">Quick Analysis Report &nbsp;·&nbsp; Generated ${dateStr}</div>
+    </div>
 
-  ${pughHtml  ? `<div class="section-break">${pughHtml}</div>`  : ''}
-  ${scoreHtml ? `<div class="section-break">${scoreHtml}</div>` : ''}
+    ${goalText ? `
+    <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Project Goal</h2>
+    <div style="background:#f0f4ff;border:1px solid #c3d4f8;border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.6;margin-bottom:24px">${escHtml(goalText)}</div>` : ''}
+
+    ${scoreHtml ? `${scoreHtml}<div style="margin-top:32px"></div>` : ''}
+
+    <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Requirements (${requirements.length})</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px">
+      <tbody>${reqRows}</tbody>
+    </table>
+
+  </div>
+
+  ${pughHtml ? `<div class="section-break">${pughHtml}</div>` : ''}
 
   <!-- Screen-only footer -->
-  <div class="no-print" style="margin-top:40px;padding-top:12px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
+  <div class="no-print" style="margin-top:40px;padding:12px 40px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
     Report Generated with <strong>ControlledConvergence.com</strong>
   </div>
 </body>
@@ -3114,6 +3142,48 @@
           <div style="display:flex;border:1px solid ${T.tblBorder};border-radius:6px;overflow:hidden;margin-bottom:18px;background:${T.cardBg}">
             ${statsRow.replace(/border-right:1px solid [^;]+;(?=.*<\/div><\/div>$)/, '')}
           </div>
+          ${(() => {
+            // ── Compact concept score summary in exec summary ──
+            if (!rankedConcepts.length || !requirements.length) return '';
+            const showConcepts = rankedConcepts.slice(0, 7);
+            const miniRows = showConcepts.map((s, i) => {
+              const isWin = selConcept && String(s.c.id) === String(convSelectedConceptId);
+              const rowBg = isWin ? T.winnerBg : (i % 2 === 1 ? T.tblRowAlt : T.bodyBg);
+              const netColor = s.net > 0 ? T.barPosText : s.net < 0 ? T.barNegText : T.textTertiary;
+              const maxAbsLocal = Math.max(...showConcepts.map(x => Math.abs(x.net)), 1);
+              const barPct = Math.max(Math.round((Math.abs(s.net) / maxAbsLocal) * 100), 2);
+              const barColor = s.net < 0 ? T.barNeg : T.barPos1;
+              return `<tr class="avoid-break" style="background:${rowBg}">
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};font-family:'Courier New',monospace;font-size:10px;font-weight:700;color:${T.textTertiary};width:28px;text-align:center">${i+1}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};font-size:12px;color:${isWin ? T.winnerText : T.textPrimary};font-weight:${isWin?'700':'400'}">${escHtml(s.c.name)}${isWin ? `&nbsp;<span style="font-size:9px;background:${T.winnerText};color:${T.winnerBg};padding:1px 5px;border-radius:3px">Selected</span>` : ''}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};text-align:center;font-size:11px;color:${T.barPosText};font-weight:700;width:28px">${s.plus}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};text-align:center;font-size:11px;color:${T.barNegText};font-weight:700;width:28px">${s.minus}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};width:80px">
+                  <div style="background:${T.barPosBg};border-radius:2px;height:8px;overflow:hidden">
+                    <div style="width:${barPct}%;height:100%;background:${barColor};border-radius:2px"></div>
+                  </div>
+                </td>
+                <td style="padding:5px 8px;border-bottom:1px solid ${T.tblBorder};text-align:right;font-size:12px;font-weight:700;color:${netColor};width:48px">${s.net>=0?'+':''}${s.net}</td>
+              </tr>`;
+            }).join('');
+            const caption = rankedConcepts.length > 7
+              ? `Concept Score Summary — Top 7 of ${rankedConcepts.length} concepts`
+              : `Concept Score Summary — ${rankedConcepts.length} concept${rankedConcepts.length!==1?'s':''} vs. datum`;
+            return `<div style="margin-bottom:18px">
+              <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${T.secBorder}">${caption}</div>
+              <table style="width:100%;border-collapse:collapse">
+                <thead><tr>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:center;width:28px">#</th>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:left">Concept</th>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:center;width:28px">+</th>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:center;width:28px">−</th>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:left;width:80px">Score</th>
+                  <th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:5px 8px;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;text-align:right;width:48px">Net</th>
+                </tr></thead>
+                <tbody>${miniRows}</tbody>
+              </table>
+            </div>`;
+          })()}
           ${selConcept ? `<div style="border:1px solid ${T.winnerBorder};border-radius:6px;padding:15px 18px;background:${T.winnerBg};margin-bottom:16px">
             <div style="font-size:10px;font-family:'Courier New',monospace;letter-spacing:0.1em;color:${T.winnerText};margin-bottom:4px;text-transform:uppercase">Selected Concept</div>
             <div style="font-size:19px;font-weight:700;color:${T.winnerText};margin-bottom:3px">${escHtml(selConcept.name)}</div>
@@ -3384,7 +3454,7 @@
 
     if (inc.scor) {
       if (!pughConcepts.length) {
-        sections += rptSection(++sn, 'Concept Scoring', `<p style="color:${T.textTertiary}"><em>No concepts defined.</em></p>`, true, T);
+        sections += rptSection(++sn, 'Concept Score Summary', `<p style="color:${T.textTertiary}"><em>No concepts defined.</em></p>`, true, T);
       } else {
         // Which concepts to show in table (filter if focus + filter charts active)
         const tableList = (focusIds.size > 0 && focusFilterCharts)
@@ -3415,7 +3485,7 @@
 
         const subhead = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:24px 0 12px;padding-bottom:7px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
 
-        sections += rptSection(++sn, `Concept Scoring (${pughConcepts.length - 1} concepts + datum)`,
+        sections += rptSection(++sn, `Concept Score Summary (${pughConcepts.length - 1} concepts + datum)`,
           `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
             ${scoringTblHead(`<th style="background:${T.tblHeadBg};color:${T.tblHeadText};padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;width:50px">Rank</th>`)}
             <tbody>${rows}</tbody>
@@ -3673,6 +3743,7 @@
       letter-spacing: 0.05em; z-index: 9999;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
+    .rpt-page-num::before { content: "p." counter(page); }
   }
 </style>
 </head>
@@ -3681,6 +3752,7 @@
 <!-- Fixed print footer: appears on every printed page -->
 <div class="rpt-fixed-footer">
   <span>Controlled Convergence &nbsp;·&nbsp; www.controlledconvergence.com &nbsp;·&nbsp; Pro Report</span>
+  <span class="rpt-page-num"></span>
   <span>${dateStr}</span>
 </div>
 
