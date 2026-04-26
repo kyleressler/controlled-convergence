@@ -2584,16 +2584,121 @@
   }
 
   // ── BASIC PDF REPORT (free, simplified, print-based) ──────────
+  // ── Concept Score Chart: build as inline SVG from raw data ──────────────────
+  // Renders the same grouped bar chart shown on screen: three vertical bars per
+  // concept (Utility Score / + Count / − Count), concepts along the x-axis.
+  // Works regardless of whether the Chart.js canvas has been rendered.
+  function buildConceptScoreChartSvg(themeColors) {
+    const nonDatum = pughConcepts.slice(1);
+    if (nonDatum.length === 0 || requirements.length === 0) return '';
+
+    const T = themeColors || {};  // optional theme token object for Pro report colors
+    const colUtil  = T.textPrimary  || '#1a1a18';
+    const colPlus  = T.barPos1      || '#057a55';
+    const colMinus = T.barNeg       || '#c81e1e';
+    const colGrid  = T.secBorder    || '#e8e8e6';
+    const colTick  = T.textTertiary || '#888888';
+    const colLabel = T.textSecondary|| '#444444';
+    const colBg    = T.bodyBg       || '#ffffff';
+    const colZero  = T.accentLine   || '#aaaaaa';
+
+    // Compute data for each non-datum concept
+    const data = nonDatum.map(c => {
+      let plus = 0, minus = 0;
+      requirements.forEach(r => {
+        const s = pughScores[c.id + '_' + r.id];
+        if (s === '+' || (typeof s === 'number' && s > 0)) plus++;
+        else if (s === '-' || (typeof s === 'number' && s < 0)) minus++;
+      });
+      return { name: c.name, plus, minusNeg: -minus, net: plus - minus };
+    });
+
+    // SVG layout constants
+    const SVG_W    = 760;
+    const ML = 44, MR = 16, MT = 36, MB = 110;
+    const chartW   = SVG_W - ML - MR;
+    const chartH   = 240;
+    const SVG_H    = MT + chartH + MB;
+
+    // Y scale
+    const allVals  = [...data.flatMap(d => [d.plus, d.minusNeg, d.net]), 0];
+    const yRawMax  = Math.max(...allVals, 1);
+    const yRawMin  = Math.min(...allVals, -1);
+    const yPad     = Math.max(Math.ceil((yRawMax - yRawMin) * 0.08), 1);
+    const yMax     = yRawMax + yPad;
+    const yMin     = yRawMin - yPad;
+    const yRange   = yMax - yMin;
+    const yScale   = v => MT + (1 - (v - yMin) / yRange) * chartH;
+    const zeroY    = yScale(0);
+
+    // Bar geometry: 3 bars per group, slim gaps between them
+    const groupW   = chartW / data.length;
+    const barW     = Math.max(Math.min(groupW * 0.22, 18), 3);
+    const gap      = Math.max(barW * 0.15, 1);
+
+    const _esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let out = '';
+
+    // Background
+    out += `<rect x="0" y="0" width="${SVG_W}" height="${SVG_H}" fill="${colBg}"/>`;
+
+    // Y-axis grid lines + tick labels
+    const tickCount = 6;
+    for (let i = 0; i <= tickCount; i++) {
+      const v  = yMin + (yRange / tickCount) * i;
+      const vy = yScale(v);
+      out += `<line x1="${ML}" y1="${vy.toFixed(1)}" x2="${SVG_W - MR}" y2="${vy.toFixed(1)}" stroke="${colGrid}" stroke-width="1"/>`;
+      out += `<text x="${(ML - 5).toFixed(1)}" y="${(vy + 3.5).toFixed(1)}" font-size="9" text-anchor="end" fill="${colTick}" font-family="Courier New,monospace">${Math.abs(Math.round(v))}</text>`;
+    }
+
+    // Zero baseline
+    out += `<line x1="${ML}" y1="${zeroY.toFixed(1)}" x2="${SVG_W - MR}" y2="${zeroY.toFixed(1)}" stroke="${colZero}" stroke-width="1.5"/>`;
+
+    // Bars + x-axis labels
+    data.forEach((d, i) => {
+      const cx = ML + (i + 0.5) * groupW;
+      const b0 = cx - barW * 1.5 - gap;   // utility bar x
+      const b1 = cx - barW * 0.5;          // plus bar x
+      const b2 = cx + barW * 0.5 + gap;    // minus bar x
+
+      const drawBar = (bx, val, color) => {
+        const y1 = yScale(Math.max(val, 0));
+        const y2 = yScale(Math.min(val, 0));
+        const bh = Math.max(Math.abs(y2 - y1), 1);
+        out += `<rect x="${bx.toFixed(1)}" y="${Math.min(y1,y2).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="0.88"/>`;
+      };
+
+      drawBar(b0, d.net,      colUtil);
+      drawBar(b1, d.plus,     colPlus);
+      drawBar(b2, d.minusNeg, colMinus);
+
+      // Rotated concept name label
+      const lx = cx.toFixed(1);
+      const ly = (MT + chartH + 8).toFixed(1);
+      const label = d.name.length > 24 ? d.name.substring(0, 24) + '…' : d.name;
+      out += `<text x="${lx}" y="${ly}" font-size="9" text-anchor="end" fill="${colLabel}" font-family="Arial,sans-serif" transform="rotate(-45 ${lx} ${ly})">${_esc(label)}</text>`;
+    });
+
+    // Y-axis title
+    const midY = (MT + chartH / 2).toFixed(1);
+    out += `<text x="11" y="${midY}" font-size="10" text-anchor="middle" fill="${colTick}" font-family="Arial,sans-serif" transform="rotate(-90 11 ${midY})">Utility / Count</text>`;
+
+    // Legend
+    const lY = 18;
+    out += `<circle cx="${ML + 8}"   cy="${lY}" r="5" fill="${colUtil}"/>`;
+    out += `<text x="${ML + 16}"  y="${lY + 4}" font-size="10" fill="${colLabel}" font-family="Arial,sans-serif">Utility Score</text>`;
+    out += `<circle cx="${ML + 102}" cy="${lY}" r="5" fill="${colPlus}"/>`;
+    out += `<text x="${ML + 110}" y="${lY + 4}" font-size="10" fill="${colLabel}" font-family="Arial,sans-serif">+ Count</text>`;
+    out += `<circle cx="${ML + 168}" cy="${lY}" r="5" fill="${colMinus}"/>`;
+    out += `<text x="${ML + 176}" y="${lY + 4}" font-size="10" fill="${colLabel}" font-family="Arial,sans-serif">− Count</text>`;
+
+    return `<svg viewBox="0 0 ${SVG_W} ${SVG_H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">${out}</svg>`;
+  }
+
   function generateBasicPdfReport() {
     const projName  = document.getElementById('qsProjectName')?.value?.trim() || 'Untitled Project';
     const goalText  = document.getElementById('qsGoal')?.value?.trim() || '';
     const dateStr   = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
-
-    // Capture the live Concept Score Chart canvas as a PNG image
-    const _chartCanvas = document.getElementById('pughConceptChart');
-    const chartImgSrc  = (_chartCanvas && _chartCanvas.width > 0 && _chartCanvas.height > 0)
-      ? (() => { try { return _chartCanvas.toDataURL('image/png'); } catch(e) { return null; } })()
-      : null;
 
     // Build requirements rows
     let reqRows = '';
@@ -2754,12 +2859,11 @@
     <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Project Goal</h2>
     <div style="background:#f0f4ff;border:1px solid #c3d4f8;border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.6;margin-bottom:24px">${escHtml(goalText)}</div>` : ''}
 
-    ${chartImgSrc ? `
+    ${(() => { const svg = buildConceptScoreChartSvg(); return svg ? `
     <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:0 0 10px">Concept Score Summary</h2>
-    <div style="border:1px solid #e2e2df;border-radius:6px;overflow:hidden;margin-bottom:8px;background:#fafaf9">
-      <img src="${chartImgSrc}" style="width:100%;height:auto;display:block" alt="Concept Score Chart">
-    </div>
-    <div style="font-size:10px;color:#9b9b94;margin-bottom:24px">Utility Score (black) · + Count (green) · − Count (red)</div>` : ''}
+    <div style="border:1px solid #e2e2df;border-radius:6px;overflow:hidden;margin-bottom:24px;background:#fff">
+      ${svg}
+    </div>` : ''; })()}
 
     ${scoreHtml ? `${scoreHtml}<div style="margin-top:32px"></div>` : ''}
 
@@ -2865,12 +2969,6 @@
 
   function generateReport() {
     document.getElementById('exportReportModal').classList.remove('open');
-
-    // Capture the live Concept Score Chart canvas before anything else
-    const _rptChartCanvas = document.getElementById('pughConceptChart');
-    const rptChartImgSrc  = (_rptChartCanvas && _rptChartCanvas.width > 0 && _rptChartCanvas.height > 0)
-      ? (() => { try { return _rptChartCanvas.toDataURL('image/png'); } catch(e) { return null; } })()
-      : null;
 
     // ── Theme ──
     const themeVal = document.querySelector('input[name="rptTheme"]:checked')?.value || 'light';
@@ -3504,11 +3602,11 @@
 
         const subhead = (txt) => `<div style="font-size:10px;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:0.1em;color:${T.subheadColor};margin:24px 0 12px;padding-bottom:7px;border-bottom:1px solid ${T.secBorder}">${txt}</div>`;
 
-        const chartBlock = rptChartImgSrc ? `
-          <div style="border:1px solid ${T.cardBorder};border-radius:6px;overflow:hidden;margin-bottom:20px;background:${T.cardBg};-webkit-print-color-adjust:exact;print-color-adjust:exact">
-            <img src="${rptChartImgSrc}" style="width:100%;height:auto;display:block" alt="Concept Score Chart">
-          </div>
-          <div style="font-size:9px;font-family:'Courier New',monospace;color:${T.textTertiary};margin-bottom:20px;letter-spacing:0.04em">Utility Score (net) &nbsp;·&nbsp; + Count (better than datum) &nbsp;·&nbsp; − Count (worse than datum)</div>` : '';
+        const _scoreSvg = buildConceptScoreChartSvg(T);
+        const chartBlock = _scoreSvg ? `
+          <div style="border:1px solid ${T.cardBorder};border-radius:6px;overflow:hidden;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+            ${_scoreSvg}
+          </div>` : '';
 
         sections += rptSection(++sn, `Concept Score Summary (${pughConcepts.length - 1} concepts + datum)`,
           `${chartBlock}
