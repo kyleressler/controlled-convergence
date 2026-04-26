@@ -8331,6 +8331,7 @@ ${sections}
     requirements.push({ id, format: 'incose', text: '', type: '', primary: 'other', secondaries: [], stakeholders: [] });
     renderQSLists();
     renderQSMatrix();
+    _autoSaveNow();
     // Focus the new input
     setTimeout(() => {
       const inputs = document.querySelectorAll('#qsRequirementsList .qs-row-input');
@@ -8343,6 +8344,7 @@ ${sections}
     if (idx !== -1) requirements.splice(idx, 1);
     renderQSLists();
     renderQSMatrix();
+    _autoSaveNow();
   }
 
   function updateQSRequirement(reqId, text) {
@@ -8357,6 +8359,7 @@ ${sections}
     pughConcepts.push({ id, name: '' });
     renderQSLists();
     renderQSMatrix();
+    _autoSaveNow();
     setTimeout(() => {
       const inputs = document.querySelectorAll('#qsConceptsList .qs-row-input');
       if (inputs.length) inputs[inputs.length - 1].focus();
