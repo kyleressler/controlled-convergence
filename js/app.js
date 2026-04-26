@@ -353,6 +353,17 @@
 
   async function handleLogout() {
     if (!appState.currentUser) return;
+    // Flush any unsaved in-memory state to Supabase before signing out.
+    // This prevents data loss when the user logs out without having navigated
+    // away from the current page (which would otherwise trigger a nav-save).
+    if (activeProject && !exampleMode) {
+      try {
+        const snap = snapshotCurrentState(activeProject);
+        await saveProject(snap);
+      } catch(e) {
+        console.warn('[handleLogout] pre-logout save failed:', e);
+      }
+    }
     // Best-effort server-side sign-out. If the JWT has already expired Supabase
     // may return an error, but logout() still clears localStorage and wipes
     // appState.currentUser — so the user is logged out locally regardless.
@@ -3979,6 +3990,7 @@ ${sections}
     syncPairView();
     // Keep Pugh matrix in sync when method changes (affects weight computation)
     if (typeof renderPughMatrix === 'function') renderPughMatrix();
+    _autoSaveNow();
   }
 
   // Show/hide the correct content section based on all three toggle states.
@@ -5828,6 +5840,7 @@ ${sections}
     }
 
     renderRequirements();
+    _autoSaveNow();
   }
 
   function deleteRequirement(id) {
@@ -5837,6 +5850,7 @@ ${sections}
     if (!confirm(`Delete this requirement?\n\n"${preview}"\n\nThis cannot be undone.`)) return;
     requirements = requirements.filter(r => r.id !== id);
     renderRequirements();
+    _autoSaveNow();
   }
 
   function getIlityName(id) {
@@ -6329,6 +6343,7 @@ ${sections}
     syncPairView();
     // Keep Pugh matrix in sync — weighted toggle changes summary rows and chart
     if (typeof renderPughMatrix === 'function') renderPughMatrix();
+    _autoSaveNow();
   }
 
   function initPairPairs() {
@@ -7709,6 +7724,7 @@ ${sections}
     // Called on blur — saves data and then updates the concept cards.
     saveDatumField();
     renderConceptCards();
+    _autoSaveNow();
   }
 
   function setDatumMAS(value) {
@@ -7723,6 +7739,7 @@ ${sections}
     }
     renderDatumDefView(); // re-render to highlight active button
     renderPughMatrix();
+    _autoSaveNow();
   }
 
 
@@ -8194,6 +8211,7 @@ ${sections}
     pairMode = mode;
     syncPairView();
     syncSidebarPrefs();
+    _autoSaveNow();
   }
 
   function prefSetPairSubject(subject) {
@@ -8203,6 +8221,7 @@ ${sections}
     initForcedRankOrder();
     syncPairView();
     syncSidebarPrefs();
+    _autoSaveNow();
   }
 
   function prefSetPairMethod(method) {
@@ -8210,6 +8229,7 @@ ${sections}
     if (method === 'forcedrank') initForcedRankOrder();
     syncPairView();
     syncSidebarPrefs();
+    _autoSaveNow();
   }
 
   function prefSetScoringMode(mode) {
