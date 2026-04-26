@@ -4068,6 +4068,41 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
 
 .muted { color: var(--text-muted); font-size: 13px; }
 
+/* ── Performance by Editorial Tag (Insights) ───────────────────
+   Four small tables stacked in a 2-column grid on wide screens,
+   collapsing to one column under 720px. Each card is a self-contained
+   panel matching the existing .metric-card / .insights-table aesthetic. */
+.perf-by-tag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.perf-by-tag-card {
+  background: var(--card-bg, var(--surface, var(--bg)));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.perf-by-tag-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.perf-by-tag-card .insights-table {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.perf-by-tag-card .insights-table th {
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.perf-by-tag-card .insights-table td { padding: 6px 8px; font-size: 12px; }
+
 /* ── Admin Blog (list + editor) ─────────────────────────────── */
 .blog-header {
   display: flex;
@@ -4206,6 +4241,76 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
   padding: 0 4px;
 }
 .tag-pill-x:hover { color: #b91c1c; }
+
+/* ── Editorial chip pickers (post editor) ───────────────────────
+   Used for hook_type, audience_target, format (single-select) and
+   frameworks (multi-select). Chips are visually identical regardless
+   of select cardinality — the click logic in admin-blog.js decides
+   whether toggling a chip replaces or augments the field value.
+   Custom values typed into .chip-add-input render as additional
+   active chips with the same visual treatment as predefined ones. */
+.chip-picker { margin-bottom: 10px; }
+.chip-picker .editor-label { margin-top: 10px; }
+.chip-picker:first-child .editor-label { margin-top: 0; }
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--card-bg, var(--bg));
+  color: var(--text-muted);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1.5;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.chip-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.chip-active:hover {
+  background: var(--accent-hover, var(--accent));
+  color: #fff;
+}
+/* Custom chips get a subtle "×" suffix so the user knows clicking
+   removes them. Predefined chips don't show this — clicking just
+   toggles selected state in place. */
+.chip-custom::after {
+  content: ' ×';
+  margin-left: 2px;
+  opacity: 0.7;
+}
+.chip-add-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  background: var(--card-bg, var(--bg));
+  color: var(--text);
+}
+.chip-add-input::placeholder {
+  color: var(--text-light, var(--text-muted));
+  font-style: italic;
+}
+.chip-add-input:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
 
 #editorQuillContainer { background: var(--card-bg, var(--bg)); border-radius: 8px; }
 #editorQuill { min-height: 360px; background: var(--card-bg, var(--bg)); }

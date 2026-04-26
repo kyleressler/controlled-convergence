@@ -1,7 +1,8 @@
 // ============================================================
 // admin-blog.js — Blog post list + editor (Stage 1 of Chunk 3)
 //
-// Admin-only. Loaded by admin.html. Responsible for:
+// Admin-only. Loaded by app.html into the in-app admin route
+// (#admin/blog). Responsible for:
 //   • Rendering the post list in the Blog tab
 //   • Creating, editing, saving, and publishing blog posts
 //   • Quill rich-text editing with image upload to blog-images bucket
@@ -12,10 +13,10 @@
 // and the publishing schedule. We expose a small render hook
 // (renderAdminBlog) and a few helpers that those stages will reuse.
 //
-// Dependencies (already loaded by admin.html):
+// Dependencies (already loaded by app.html):
 //   _supabase    — from js/config.js
 //   trackEvent   — from js/analytics.js
-//   appState     — from js/state.js (hydrated by admin gate)
+//   appState     — from js/state.js (hydrated by app.js admin gate)
 //   Quill        — loaded from CDN before this file
 // ============================================================
 
@@ -76,8 +77,8 @@
   const AUTOSAVE_INTERVAL_MS = 30 * 1000;
   const STORAGE_BUCKET = 'blog-images';
 
-  // ── Public entry point — admin.html calls this after gate succeeds
-  // and whenever the Blog tab is activated.
+  // ── Public entry point — admin-shell.js calls this whenever the
+  // Blog tab is activated (and on initial #admin/blog deep-link).
   window.renderAdminBlog = async function () {
     const root = document.getElementById('pane-blog');
     if (!root) return;
@@ -91,7 +92,7 @@
     }
   };
 
-  // Used by the topbar refresh button in admin.html — lets the shell skip
+  // Used by admin-shell.js's refresh button — lets the shell skip
   // re-render while the user is mid-edit so unsaved changes aren't lost.
   window.adminBlogIsEditing = function () {
     return _view === 'editor' || _view === 'campaign';
@@ -650,17 +651,25 @@
     { value: 'personal',    label: 'Personal' }
   ];
 
+  // Each editorial-metadata field is rendered as a chip picker:
+  // predefined values + a small "or custom" input. The same visual
+  // treatment applies regardless of single vs multi-select cardinality —
+  // click logic decides whether toggling a chip replaces or augments
+  // the underlying field value. Field config below drives both render
+  // and click handlers so the two stay in sync.
+  const EDITORIAL_FIELDS = [
+    { id: 'frameworks',      label: 'Frameworks',      options: FRAMEWORK_OPTIONS, multi: true,  placeholder: 'or custom framework…' },
+    { id: 'hook_type',       label: 'Hook type',       options: HOOK_TYPE_OPTIONS, multi: false, placeholder: 'or custom hook type…' },
+    { id: 'audience_target', label: 'Audience target', options: AUDIENCE_OPTIONS,  multi: false, placeholder: 'or custom audience…' },
+    { id: 'format',          label: 'Format',          options: FORMAT_OPTIONS,    multi: false, placeholder: 'or custom format…' }
+  ];
+
   // Renders a collapsed <details> block in the editor sidebar. We keep it
   // collapsed by default so the writer's eye lands on title/content first;
   // editorial metadata is for after the post is shaped.
   function renderEditorialMetadataSection(p) {
-    const selectedFrameworks = Array.isArray(p.frameworks) ? p.frameworks : [];
-    const frameworksHtml = FRAMEWORK_OPTIONS.map(function (opt) {
-      const checked = selectedFrameworks.indexOf(opt.value) !== -1 ? ' checked' : '';
-      return '<label class="checkbox-row" style="margin-bottom:4px">' +
-               '<input type="checkbox" class="editor-framework-input" value="' + escapeAttr(opt.value) + '"' + checked + '>' +
-               '<span>' + escapeHtml(opt.label) + '</span>' +
-             '</label>';
+    const pickersHtml = EDITORIAL_FIELDS.map(function (f) {
+      return renderChipPicker(f, p[f.id]);
     }).join('');
 
     return '' +
@@ -671,18 +680,8 @@
         '</summary>' +
 
         '<div style="margin-top:10px">' +
-          '<label class="editor-label">Frameworks</label>' +
-          frameworksHtml +
+          pickersHtml +
         '</div>' +
-
-        '<label class="editor-label">Hook type</label>' +
-        renderEditorialSelect('editorEditorialHook', HOOK_TYPE_OPTIONS, p.hook_type) +
-
-        '<label class="editor-label">Audience target</label>' +
-        renderEditorialSelect('editorEditorialAudience', AUDIENCE_OPTIONS, p.audience_target) +
-
-        '<label class="editor-label">Format</label>' +
-        renderEditorialSelect('editorEditorialFormat', FORMAT_OPTIONS, p.format) +
 
         '<label class="editor-label">Editorial notes (private)</label>' +
         '<textarea id="editorEditorialNotes" class="editor-text" rows="3" placeholder="What worked? What\u2019s the angle? Anything to remember.">' +
@@ -691,52 +690,122 @@
       '</details>';
   }
 
-  function renderEditorialSelect(id, options, currentValue) {
-    let html = '<select id="' + id + '" class="editor-text">';
-    html += '<option value=""' + (currentValue ? '' : ' selected') + '>—</option>';
-    options.forEach(function (opt) {
-      const sel = opt.value === currentValue ? ' selected' : '';
-      html += '<option value="' + escapeAttr(opt.value) + '"' + sel + '>' + escapeHtml(opt.label) + '</option>';
+  // Renders one chip picker. Container has data-field attribute so we can
+  // re-target it for partial re-renders after the underlying value changes.
+  function renderChipPicker(field, currentValue) {
+    return '<div class="chip-picker" data-field="' + escapeAttr(field.id) + '">' +
+             '<label class="editor-label">' + escapeHtml(field.label) + '</label>' +
+             '<div class="chip-row">' + renderChipRow(field, currentValue) + '</div>' +
+             '<input type="text" class="chip-add-input" placeholder="' + escapeAttr(field.placeholder) + '">' +
+           '</div>';
+  }
+
+  // Inner chip row only — separated so we can redraw just the row when a
+  // value changes without disturbing the input or label.
+  function renderChipRow(field, currentValue) {
+    const values = field.multi
+      ? (Array.isArray(currentValue) ? currentValue : [])
+      : (currentValue ? [currentValue] : []);
+    const optionValues = field.options.map(function (o) { return o.value; });
+
+    let html = '';
+    field.options.forEach(function (opt) {
+      const sel = values.indexOf(opt.value) !== -1;
+      html += '<button type="button" class="chip' + (sel ? ' chip-active' : '') + '" data-value="' +
+              escapeAttr(opt.value) + '">' + escapeHtml(opt.label) + '</button>';
     });
-    html += '</select>';
+    // Any stored values that aren't in the predefined options are custom.
+    // Render them as active chips with the chip-custom suffix so the user
+    // knows clicking removes them.
+    values.filter(function (v) { return optionValues.indexOf(v) === -1; }).forEach(function (v) {
+      html += '<button type="button" class="chip chip-active chip-custom" data-value="' +
+              escapeAttr(v) + '">' + escapeHtml(v) + '</button>';
+    });
     return html;
   }
 
   function wireEditorialMetadataInputs() {
-    // Frameworks (multi-select via checkboxes — `frameworks` is a text[]
-    // column, so we sync the in-memory array from the boxes on every change).
-    document.querySelectorAll('.editor-framework-input').forEach(function (cb) {
-      cb.addEventListener('change', function () {
-        const checked = [];
-        document.querySelectorAll('.editor-framework-input').forEach(function (x) {
-          if (x.checked) checked.push(x.value);
-        });
-        _currentPost.frameworks = checked;
-        markDirty();
-      });
-    });
-
-    wireEditorialSelect('editorEditorialHook',     'hook_type');
-    wireEditorialSelect('editorEditorialAudience', 'audience_target');
-    wireEditorialSelect('editorEditorialFormat',   'format');
+    EDITORIAL_FIELDS.forEach(function (f) { wireChipPicker(f); });
 
     const notesEl = document.getElementById('editorEditorialNotes');
     if (notesEl) {
       notesEl.addEventListener('input', function () {
-        // Empty string normalizes to null so the export emits null (not "").
+        // Empty string normalizes to null so the schema stays consistent
+        // (null = no note, never an empty string).
         _currentPost.editorial_notes = notesEl.value.trim() ? notesEl.value : null;
         markDirty();
       });
     }
   }
 
-  function wireEditorialSelect(id, fieldName) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('change', function () {
-      _currentPost[fieldName] = el.value || null;
-      markDirty();
+  // Event delegation on the picker container — chip clicks toggle the
+  // value, Enter on the input adds a custom value. After every change we
+  // redraw just the chip row so the visual state matches _currentPost.
+  function wireChipPicker(field) {
+    const container = document.querySelector('.chip-picker[data-field="' + cssAttr(field.id) + '"]');
+    if (!container) return;
+
+    container.addEventListener('click', function (e) {
+      const chip = e.target.closest('.chip');
+      if (!chip || !container.contains(chip)) return;
+      const value = chip.getAttribute('data-value');
+      toggleChipValue(field, value);
+      redrawChipRow(field, container);
     });
+
+    const input = container.querySelector('.chip-add-input');
+    if (input) {
+      input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const v = input.value.trim();
+        if (!v) return;
+        addChipValue(field, v);
+        input.value = '';
+        redrawChipRow(field, container);
+      });
+    }
+  }
+
+  // Single-select: clicking the active value clears it; clicking another
+  // replaces it. Multi-select: clicking toggles in/out of the array.
+  function toggleChipValue(field, value) {
+    if (field.multi) {
+      const arr = Array.isArray(_currentPost[field.id]) ? _currentPost[field.id].slice() : [];
+      const idx = arr.indexOf(value);
+      if (idx === -1) arr.push(value);
+      else arr.splice(idx, 1);
+      _currentPost[field.id] = arr;
+    } else {
+      _currentPost[field.id] = (_currentPost[field.id] === value) ? null : value;
+    }
+    markDirty();
+  }
+
+  // Used by the Enter-on-input path. Custom values feel additive even on
+  // single-select fields (typing replaces the current value).
+  function addChipValue(field, value) {
+    if (field.multi) {
+      const arr = Array.isArray(_currentPost[field.id]) ? _currentPost[field.id].slice() : [];
+      if (arr.indexOf(value) === -1) arr.push(value);
+      _currentPost[field.id] = arr;
+    } else {
+      _currentPost[field.id] = value;
+    }
+    markDirty();
+  }
+
+  function redrawChipRow(field, container) {
+    const row = container.querySelector('.chip-row');
+    if (!row) return;
+    row.innerHTML = renderChipRow(field, _currentPost[field.id]);
+  }
+
+  // Escape a value for use inside a CSS attribute selector. Field IDs
+  // are alphanumeric + underscore today, but this future-proofs the
+  // [data-field="..."] lookup against richer field names.
+  function cssAttr(s) {
+    return String(s).replace(/[^a-zA-Z0-9_-]/g, function (ch) { return '\\' + ch; });
   }
 
   // ── Tags pill input ──────────────────────────────────────────

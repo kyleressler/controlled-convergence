@@ -201,7 +201,11 @@ function buildHogql(queryName, params) {
       };
 
     // Top blog posts by pageviews (proxy for "what's working") in last N days.
-    case 'top_posts_by_views':
+    // `limit` is clamped to [1, 500] so the Performance-by-Tag aggregation
+    // on the Insights tab can pull the full corpus of posts (default 20
+    // remains for the existing top-content table).
+    case 'top_posts_by_views': {
+      const limit = clampInt(params && params.limit, 20, 1, 500);
       return {
         hogql: `
           SELECT
@@ -214,7 +218,7 @@ function buildHogql(queryName, params) {
             AND properties.$pathname LIKE '/blog/%'
           GROUP BY path
           ORDER BY views DESC
-          LIMIT 20
+          LIMIT ${limit}
         `,
         transform: function (rows) {
           return (rows || []).map(function (r) {
@@ -222,6 +226,7 @@ function buildHogql(queryName, params) {
           });
         },
       };
+    }
 
     default:
       return null;

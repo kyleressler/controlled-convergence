@@ -1,8 +1,8 @@
 // ============================================================
 // admin-insights.js — Insights dashboard logic
 //
-// Loaded from admin.html. Runs after the admin gate succeeds. Renders
-// four sections inside the #pane-insights container:
+// Loaded by app.html into the in-app admin route (#admin/insights).
+// Renders four sections inside the #pane-insights container:
 //
 //   1. Funnel summary       — Reach, Click-through (PostHog) +
 //                             Signups, Activated, 30-day Active (Supabase RPC)
@@ -13,10 +13,10 @@
 // Empty states everywhere: if PostHog has no events yet, or if Supabase
 // returns 0 signups, we say so plainly. Never fake numbers.
 //
-// Dependencies (already loaded by admin.html):
+// Dependencies (already loaded by app.html):
 //   _supabase    — from js/config.js
 //   trackEvent   — from js/analytics.js
-//   appState     — from js/state.js (hydrated by the admin gate)
+//   appState     — from js/state.js (hydrated by app.js admin gate)
 // ============================================================
 
 (function () {
@@ -51,6 +51,7 @@
       loadFunnelSummary(),
       loadChannelPerformance(),
       loadTopContent(),
+      loadPerformanceByTag(),
     ]);
 
     // Action cards are computed from the data the other sections fetched,
@@ -89,6 +90,16 @@
         <h2>Top content</h2>
         <div id="topContentContainer">
           <div class="muted">Loading top posts…</div>
+        </div>
+      </section>
+
+      <section class="insights-section" id="insightsPerfByTag">
+        <h2>Performance by editorial tag</h2>
+        <p class="muted" style="margin:-4px 0 12px;font-size:12px">
+          Average views per post grouped by tag — how the writing pattern correlates with traction. Last ${WINDOW_DAYS} days.
+        </p>
+        <div id="perfByTagContainer">
+          <div class="muted">Loading tag performance…</div>
         </div>
       </section>
     `;
@@ -340,6 +351,171 @@
     }
 
     container.innerHTML = html;
+  }
+
+  // ── 5. Performance by editorial tag ───────────────────────────
+  // Joins the published-posts list (with editorial tag columns) against
+  // PostHog views per /blog/<slug>, then aggregates by each tag dimension.
+  // Posts with no tag value contribute to an "Untagged" row so the writer
+  // sees how much of the corpus is unannotated.
+  //
+  // Single-select fields (hook_type, audience_target, format) → one row
+  // per stored value. Multi-select (frameworks) → posts with multiple
+  // values count toward each row, so the post counts can sum higher than
+  // total post count; we caveat that under the table.
+  const TAG_TABLES = [
+    { field: 'hook_type',       label: 'Hook type',       multi: false },
+    { field: 'format',          label: 'Format',          multi: false },
+    { field: 'audience_target', label: 'Audience target', multi: false },
+    { field: 'frameworks',      label: 'Frameworks',      multi: true  }
+  ];
+
+  async function loadPerformanceByTag() {
+    const container = document.getElementById('perfByTagContainer');
+    if (!container) return;
+
+    // Pull every published post with the tag columns. Even posts that
+    // got 0 views in the last N days are useful here — they contribute
+    // a 0-views row to the tag aggregation and surface as Untagged when
+    // no tags are set.
+    let posts = [];
+    try {
+      const { data, error } = await _supabase
+        .from('blog_posts')
+        .select('id, title, slug, frameworks, hook_type, audience_target, format')
+        .eq('status', 'published');
+      if (!error && data) posts = data;
+    } catch (e) {
+      console.warn('[admin-insights] perf-by-tag posts fetch:', e);
+    }
+
+    if (posts.length === 0) {
+      container.innerHTML = '<div class="muted">No published posts yet. Once you publish + tag a few, this section will fill in.</div>';
+      return;
+    }
+
+    // Pull views per /blog/<slug> with a higher limit than top_posts_by_views
+    // uses by default — we want the full corpus, not just the top 20.
+    const phRes = await fetchPosthogQuery('top_posts_by_views', { days: WINDOW_DAYS, limit: 500 });
+    const viewsByPath = {};
+    if (phRes && phRes.ok && phRes.data) {
+      phRes.data.forEach(function (r) { viewsByPath[r.path] = r.views || 0; });
+    }
+
+    // Annotate each post with its view count (0 if PostHog has nothing).
+    const annotated = posts.map(function (p) {
+      return {
+        slug:            p.slug,
+        title:           p.title,
+        views:           viewsByPath['/blog/' + p.slug] || 0,
+        hook_type:       p.hook_type || null,
+        format:          p.format || null,
+        audience_target: p.audience_target || null,
+        frameworks:      Array.isArray(p.frameworks) ? p.frameworks : []
+      };
+    });
+
+    // Render four tables stacked vertically. Even if PostHog is down, the
+    // tables still show post counts (just with 0 views), so the section
+    // is useful for spotting tag coverage gaps even without traffic data.
+    let html = '<div class="perf-by-tag-grid">';
+    TAG_TABLES.forEach(function (cfg) {
+      html += renderTagTable(cfg, annotated);
+    });
+    html += '</div>';
+
+    if (!phRes || !phRes.ok) {
+      html += '<div class="muted" style="margin-top:8px">' + emptyMessageForPosthog(phRes) + '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // Aggregate `posts` by `field`, sort by avg-views desc, and render.
+  function renderTagTable(cfg, posts) {
+    const isMulti = !!cfg.multi;
+    const buckets = Object.create(null);
+    let untagged = { count: 0, totalViews: 0 };
+
+    posts.forEach(function (p) {
+      const v = p[cfg.field];
+      const values = isMulti
+        ? (Array.isArray(v) && v.length > 0 ? v : [])
+        : (v ? [v] : []);
+
+      if (values.length === 0) {
+        untagged.count++;
+        untagged.totalViews += p.views || 0;
+        return;
+      }
+      values.forEach(function (val) {
+        if (!buckets[val]) buckets[val] = { count: 0, totalViews: 0 };
+        buckets[val].count++;
+        buckets[val].totalViews += p.views || 0;
+      });
+    });
+
+    const rows = Object.keys(buckets).map(function (k) {
+      const b = buckets[k];
+      return {
+        value:      k,
+        count:      b.count,
+        totalViews: b.totalViews,
+        avgViews:   b.count > 0 ? b.totalViews / b.count : 0
+      };
+    });
+    rows.sort(function (a, b) { return b.avgViews - a.avgViews; });
+
+    let html = '<div class="perf-by-tag-card">';
+    html += '<h3 class="perf-by-tag-title">' + escapeHtml(cfg.label) + '</h3>';
+    html += '<table class="insights-table">';
+    html += '<thead><tr>' +
+              '<th>Value</th>' +
+              '<th class="num">Posts</th>' +
+              '<th class="num">Total views</th>' +
+              '<th class="num">Avg / post</th>' +
+            '</tr></thead><tbody>';
+
+    if (rows.length === 0 && untagged.count === 0) {
+      html += '<tr><td colspan="4" class="muted" style="text-align:center;padding:14px">No data yet.</td></tr>';
+    } else {
+      rows.forEach(function (r) {
+        html += '<tr>';
+        html += '<td>' + escapeHtml(prettyTagValue(r.value)) + '</td>';
+        html += '<td class="num">' + formatNum(r.count) + '</td>';
+        html += '<td class="num">' + formatNum(r.totalViews) + '</td>';
+        html += '<td class="num">' + formatNum(Math.round(r.avgViews)) + '</td>';
+        html += '</tr>';
+      });
+      if (untagged.count > 0) {
+        const avg = Math.round(untagged.totalViews / untagged.count);
+        html += '<tr style="opacity:0.65">';
+        html += '<td><em>Untagged</em></td>';
+        html += '<td class="num">' + formatNum(untagged.count) + '</td>';
+        html += '<td class="num">' + formatNum(untagged.totalViews) + '</td>';
+        html += '<td class="num">' + formatNum(avg) + '</td>';
+        html += '</tr>';
+      }
+    }
+
+    html += '</tbody></table>';
+    if (isMulti) {
+      html += '<div class="muted" style="font-size:11px;margin-top:4px">' +
+              'Posts tagged with multiple frameworks count toward each row.' +
+              '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // Convert canonical kebab-case values back to display labels.
+  // Custom values pass through unchanged so they look like the user
+  // typed them (with first-letter capitalization for visual consistency).
+  function prettyTagValue(v) {
+    if (!v) return '';
+    return String(v).split('-').map(function (w) {
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
   }
 
   // ── PostHog proxy fetch ───────────────────────────────────────
