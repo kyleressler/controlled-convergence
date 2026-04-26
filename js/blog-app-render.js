@@ -67,13 +67,24 @@
   async function renderIndex(root) {
     root.innerHTML = '<div class="blog-app-loading">Loading posts…</div>';
 
-    const { data: posts, error } = await _supabase
-      .from('blog_posts')
-      .select('id, title, slug, excerpt, content, tags, published_at')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false });
+    let posts, error;
+    try {
+      const result = await _supabase
+        .from('blog_posts')
+        .select('id, title, slug, excerpt, content, tags, published_at')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false });
+      posts = result.data;
+      error = result.error;
+    } catch (e) {
+      console.error('[blog-app-render] renderIndex threw:', e);
+      root.innerHTML =
+        '<div class="blog-app-empty">Couldn\'t load posts right now (network error).</div>';
+      return;
+    }
 
     if (error) {
+      console.warn('[blog-app-render] supabase error:', error);
       root.innerHTML =
         '<div class="blog-app-empty">Couldn\'t load posts right now. ' +
         '<br><span style="opacity:0.6">' + escapeHtml(error.message) + '</span></div>';

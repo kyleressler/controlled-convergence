@@ -45,7 +45,13 @@
     email:    { label: 'Email',     source: 'email',    medium: 'newsletter', contentPrefix: 'email-',    hasPlatformUrl: false },
     youtube:  { label: 'YouTube',   source: 'youtube',  medium: 'video',      contentPrefix: 'yt-video-', hasPlatformUrl: true  }
   };
-  const SITE_ORIGIN = 'https://controlledconvergence.com';
+  // Origin of the deploy the admin is currently using. Each environment
+  // generates self-consistent URLs — preview deploys generate preview URLs
+  // that work for testing; production generates production URLs to share.
+  function getSiteOrigin() {
+    return (typeof window !== 'undefined' && window.location && window.location.origin)
+      || 'https://controlledconvergence.com';
+  }
 
   const AUTOSAVE_INTERVAL_MS = 30 * 1000;
   const STORAGE_BUCKET = 'blog-images';
@@ -88,14 +94,30 @@
 
     document.getElementById('blogNewBtn').addEventListener('click', openNewPost);
 
-    const { data: posts, error } = await _supabase
-      .from('blog_posts')
-      .select('id, title, slug, status, evergreen, tags, published_at, updated_at, created_at')
-      .order('updated_at', { ascending: false });
-
+    // Wrap the supabase fetch in try/catch so an unexpected throw never leaves
+    // the user staring at "Loading posts…" forever. Any failure flips to a
+    // visible error state with a Retry button.
     const container = document.getElementById('blogListContainer');
+    let posts, error;
+    try {
+      const result = await _supabase
+        .from('blog_posts')
+        .select('id, title, slug, status, evergreen, tags, published_at, updated_at, created_at')
+        .order('updated_at', { ascending: false });
+      posts = result.data;
+      error = result.error;
+    } catch (e) {
+      console.error('[admin-blog] renderList threw:', e);
+      container.innerHTML =
+        '<div class="muted">Couldn\'t load posts (network error). ' +
+        '<button class="btn-link" onclick="window.renderAdminBlog()">Retry</button></div>';
+      return;
+    }
     if (error) {
-      container.innerHTML = '<div class="muted">Failed to load posts: ' + escapeHtml(error.message) + '</div>';
+      console.warn('[admin-blog] renderList supabase error:', error);
+      container.innerHTML =
+        '<div class="muted">Failed to load posts: ' + escapeHtml(error.message) + ' ' +
+        '<button class="btn-link" onclick="window.renderAdminBlog()">Retry</button></div>';
       return;
     }
     if (!posts || posts.length === 0) {
@@ -767,8 +789,11 @@
       trackEvent('campaign_created', { post_id: _currentPostId, version: nextVersion });
     }
 
-    // Refresh timeline + open the new campaign
-    await openCampaign(data.id);
+    // Refresh the timeline so the new campaign tile appears. We deliberately
+    // DON'T auto-open the hub — a re-promotion doesn't require immediate
+    // attention to the LinkedIn/email/YouTube content. The user clicks into
+    // the new tile when they're ready to start writing pieces.
+    await renderCampaignTimeline(document.getElementById('campaignTimelineWrap'));
   }
 
   // ── Content hub (per campaign) ───────────────────────────────
@@ -1004,6 +1029,24 @@
       trackEvent('content_piece_confirmed', { piece_id: pieceId, platform_url: platformUrl || null });
     }
 
+    // Auto-flip the campaign from Planning → Active on first confirmed piece.
+    // (V1 campaigns start as Active; v2+ start as Planning. The first piece
+    // going live is the natural "this campaign is now running" signal.)
+    if (_currentCampaign && _currentCampaign.status === 'planning') {
+      const launchedAt = _currentCampaign.launched_at || new Date().toISOString();
+      const { error: campErr } = await _supabase
+        .from('campaigns')
+        .update({ status: 'active', launched_at: launchedAt })
+        .eq('id', _currentCampaign.id);
+      if (!campErr) {
+        _currentCampaign.status = 'active';
+        _currentCampaign.launched_at = launchedAt;
+        // Sync the visible status select if it exists
+        const sel = document.getElementById('campaignStatusSelect');
+        if (sel) sel.value = 'active';
+      }
+    }
+
     await loadAndRenderPieces();
   }
 
@@ -1186,14 +1229,14 @@
       utm_campaign: campaignSlug,
       utm_content: t.contentPrefix + (piece.piece_number || 1)
     });
-    return SITE_ORIGIN + '/blog/' + post.slug + '?' + params.toString();
+    return getSiteOrigin() + '/blog/' + post.slug + '?' + params.toString();
   }
 
-  // For rendering an existing piece in a card (no need to re-derive — the
-  // utm_url column was set on insert and refreshed on edit).
+  // ALWAYS compute fresh from the current origin. The utm_url column in the
+  // DB is just a cache (it gets refreshed on insert + edit), but for display
+  // we use the live origin so preview deploys generate working preview URLs
+  // and production generates working production URLs.
   function utmUrlForPiece(piece) {
-    if (piece.utm_url) return piece.utm_url;
-    // Fallback: build it on the fly from in-memory campaign + post.
     return utmUrlFor((_currentCampaign && _currentCampaign.post) || null, _currentCampaign, piece);
   }
 
