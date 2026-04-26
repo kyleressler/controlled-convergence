@@ -198,10 +198,15 @@
     (async function () {
       const root = document.getElementById('postRoot');
 
-      // Slug arrives via either ?slug= (when Netlify rewrote /blog/:slug) or
-      // directly when blog-post.html was hit without the rewrite. Pick whichever.
-      const params = new URLSearchParams(window.location.search);
-      const slug = (params.get('slug') || '').trim().toLowerCase();
+      // Resolve the slug. Two cases to handle:
+      //   1. Netlify rewrite: visible URL is /blog/<slug>. Netlify serves
+      //      this file with ?slug=<slug> internally, but the browser URL bar
+      //      stays clean — so window.location.search is EMPTY here. The slug
+      //      must come from the pathname.
+      //   2. Direct access: someone hits /blog-post.html?slug=<slug> directly
+      //      (e.g. for debugging). Pick it up from the query string.
+      // Try the pathname first; fall back to the query string.
+      const slug = extractSlug();
 
       if (!slug) {
         root.innerHTML = renderNotFound('No post specified.');
@@ -278,6 +283,19 @@
     }
 
     // ── Helpers ────────────────────────────────────────────────
+    function extractSlug() {
+      // Pathname-based (Netlify rewrite — the normal case): /blog/<slug>
+      const path = (window.location.pathname || '').replace(/\/+$/, '');
+      const m = path.match(/^\/blog\/([^/]+)$/i);
+      if (m && m[1]) {
+        try { return decodeURIComponent(m[1]).trim().toLowerCase(); }
+        catch (e) { return m[1].trim().toLowerCase(); }
+      }
+      // Query-param fallback (direct /blog-post.html?slug=… access)
+      const qs = new URLSearchParams(window.location.search);
+      return (qs.get('slug') || '').trim().toLowerCase();
+    }
+
     function setMeta(name, value) {
       let el = document.querySelector('meta[name="' + name + '"]');
       if (!el) {
