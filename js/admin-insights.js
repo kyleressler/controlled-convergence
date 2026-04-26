@@ -36,6 +36,17 @@
     EVERGREEN_REPROMOTE_MONTHS: 6,      // re-promote evergreen posts every 6 months
   };
 
+  // Module-scope cache populated by the load* functions as they fetch,
+  // consumed by exportAnalyticsLog() to build the markdown snapshot.
+  // Each slot mirrors the data the render code uses, so the export and
+  // the on-screen view never disagree.
+  const _exportCache = {
+    funnel:     null,   // { posthog, supabase, error_posthog, error_supabase }
+    channels:   null,   // { rows, error }
+    topContent: null,   // { posts, viewsByPath, error }
+    perfByTag:  null,   // { tables, posthogOk }   (tables already aggregated)
+  };
+
   // ── Public entry point ────────────────────────────────────────
   // admin.html calls this once the gate passes.
   window.renderAdminInsights = async function () {
@@ -62,8 +73,15 @@
   // ── Layout scaffold ───────────────────────────────────────────
   function insightsScaffoldHtml() {
     return `
-      <h1>Insights</h1>
-      <p class="pane-sub">Prescriptive analytics — what to do next, not just what happened.</p>
+      <div class="insights-header-row">
+        <div>
+          <h1>Insights</h1>
+          <p class="pane-sub">Prescriptive analytics — what to do next, not just what happened.</p>
+        </div>
+        <button id="insightsExportBtn" class="btn btn-secondary" title="Download a Markdown snapshot of this page" style="font-size:12px;padding:6px 12px;white-space:nowrap">
+          Download analytics log
+        </button>
+      </div>
 
       <section class="insights-section" id="insightsFunnel">
         <h2>Funnel — last ${WINDOW_DAYS} days</h2>
@@ -117,6 +135,15 @@
       fetchSupabaseFunnelMetrics(),
       fetchPosthogQuery('utm_reach_summary', { days: WINDOW_DAYS }),
     ]);
+
+    // Stash for the export — keep both data and error so the markdown
+    // can show '—' (or skip the row) when a half failed.
+    _exportCache.funnel = {
+      posthog:        (posthogRes  && posthogRes.ok)  ? posthogRes.data  : null,
+      supabase:       (supabaseRes && supabaseRes.ok) ? supabaseRes.data : null,
+      posthogError:   (posthogRes  && !posthogRes.ok) ? emptyMessageForPosthog(posthogRes) : null,
+      supabaseError:  (supabaseRes && !supabaseRes.ok) ? supabaseRes.error : null,
+    };
 
     const cards = [];
 
@@ -267,11 +294,13 @@
 
     const res = await fetchPosthogQuery('utm_channel_breakdown', { days: WINDOW_DAYS });
     if (!res || !res.ok) {
+      _exportCache.channels = { rows: [], error: emptyMessageForPosthog(res) };
       container.innerHTML = '<div class="muted">' + emptyMessageForPosthog(res) + '</div>';
       return;
     }
 
     const rows = res.data || [];
+    _exportCache.channels = { rows: rows, error: null };
     if (rows.length === 0) {
       container.innerHTML = '<div class="muted">No UTM-tagged traffic in the last ' + WINDOW_DAYS + ' days. Once you start posting, this table will fill in.</div>';
       return;
@@ -316,6 +345,7 @@
     }
 
     if (posts.length === 0) {
+      _exportCache.topContent = { posts: [], viewsByPath: {}, error: null };
       container.innerHTML = '<div class="muted">No published blog posts yet. Once you publish one in the Blog tab, traffic to it will appear here ranked by views.</div>';
       return;
     }
@@ -327,6 +357,12 @@
     if (phRes && phRes.ok && phRes.data) {
       phRes.data.forEach(function (r) { viewsByPath[r.path] = r; });
     }
+    // Stash for the export (mirrors what the table renders below).
+    _exportCache.topContent = {
+      posts: posts,
+      viewsByPath: viewsByPath,
+      error: (phRes && !phRes.ok) ? emptyMessageForPosthog(phRes) : null,
+    };
 
     let html = '<table class="insights-table"><thead><tr>';
     html += '<th>Title</th><th>Slug</th><th class="num">Views (' + WINDOW_DAYS + 'd)</th><th class="num">Visitors</th><th>Evergreen</th>';
@@ -415,12 +451,24 @@
       };
     });
 
+    // Aggregate once per tag dimension, stash for the export, then render.
+    // Doing aggregation outside the render function keeps the export and
+    // the on-screen view in lock-step (no chance of divergence).
+    const aggregated = TAG_TABLES.map(function (cfg) {
+      const agg = aggregateTagData(cfg, annotated);
+      return Object.assign({ field: cfg.field, label: cfg.label, multi: cfg.multi }, agg);
+    });
+    _exportCache.perfByTag = {
+      tables: aggregated,
+      posthogOk: !!(phRes && phRes.ok),
+    };
+
     // Render four tables stacked vertically. Even if PostHog is down, the
     // tables still show post counts (just with 0 views), so the section
     // is useful for spotting tag coverage gaps even without traffic data.
     let html = '<div class="perf-by-tag-grid">';
-    TAG_TABLES.forEach(function (cfg) {
-      html += renderTagTable(cfg, annotated);
+    aggregated.forEach(function (tbl) {
+      html += renderTagTable(tbl);
     });
     html += '</div>';
 
@@ -431,11 +479,13 @@
     container.innerHTML = html;
   }
 
-  // Aggregate `posts` by `field`, sort by avg-views desc, and render.
-  function renderTagTable(cfg, posts) {
+  // Pure aggregator. Returns { rows, untagged } where rows is sorted by
+  // avgViews desc. Reused by both the on-screen render and the markdown
+  // export so they never disagree.
+  function aggregateTagData(cfg, posts) {
     const isMulti = !!cfg.multi;
     const buckets = Object.create(null);
-    let untagged = { count: 0, totalViews: 0 };
+    const untagged = { count: 0, totalViews: 0 };
 
     posts.forEach(function (p) {
       const v = p[cfg.field];
@@ -461,13 +511,22 @@
         value:      k,
         count:      b.count,
         totalViews: b.totalViews,
-        avgViews:   b.count > 0 ? b.totalViews / b.count : 0
+        avgViews:   b.count > 0 ? b.totalViews / b.count : 0,
       };
     });
     rows.sort(function (a, b) { return b.avgViews - a.avgViews; });
+    return { rows: rows, untagged: untagged };
+  }
+
+  // Render one already-aggregated tag table. Takes the output of
+  // aggregateTagData merged with cfg fields (label, multi).
+  function renderTagTable(tbl) {
+    const rows = tbl.rows;
+    const untagged = tbl.untagged;
+    const isMulti = !!tbl.multi;
 
     let html = '<div class="perf-by-tag-card">';
-    html += '<h3 class="perf-by-tag-title">' + escapeHtml(cfg.label) + '</h3>';
+    html += '<h3 class="perf-by-tag-title">' + escapeHtml(tbl.label) + '</h3>';
     html += '<table class="insights-table">';
     html += '<thead><tr>' +
               '<th>Value</th>' +
@@ -598,4 +657,214 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
+
+  // ── Markdown export ─────────────────────────────────────────────
+  // Snapshot the on-screen Insights data into a Markdown file and trigger
+  // a browser download. Reads only from `_exportCache` — no extra fetches —
+  // so the file always matches what the user is looking at.
+  async function exportAnalyticsLog() {
+    const btn = document.getElementById('insightsExportBtn');
+    if (!btn) return;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Building…';
+
+    try {
+      const md = buildAnalyticsMarkdown(_exportCache);
+      const filename = 'analytics-log-' + ymdTodayLocal() + '.md';
+      triggerMarkdownDownload(md, filename);
+      if (typeof trackEvent === 'function') {
+        trackEvent('analytics_log_exported', { filename: filename });
+      }
+    } catch (e) {
+      console.error('[admin-insights] export failed:', e);
+      alert('Couldn\'t build the export: ' + (e && e.message ? e.message : 'unknown error'));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  // Compose the markdown. Each section emits even when its data is missing
+  // — empty/error sections print a one-liner explaining what's absent so
+  // the LLM consumer can tell "no data yet" from "section was skipped".
+  function buildAnalyticsMarkdown(cache) {
+    const now = new Date();
+    const out = [];
+
+    out.push('# Controlled Convergence — Analytics Log');
+    out.push('');
+    out.push('**Exported:** ' + formatLocalTimestamp(now) + '  ');
+    out.push('**Window:** Last ' + WINDOW_DAYS + ' days  ');
+    out.push('**Source:** Insights tab snapshot (' + 'app.html#admin/insights' + ')');
+    out.push('');
+
+    // ── Audience funnel ──────────────────────────────────────────
+    out.push('## Audience funnel');
+    out.push('');
+    if (cache.funnel) {
+      const ph = cache.funnel.posthog;
+      const sb = cache.funnel.supabase;
+      out.push('| Metric | Value |');
+      out.push('|--------|------:|');
+      out.push('| Reach (unique UTM visitors) | ' + mdNum(ph && ph.unique_visitors) + ' |');
+      out.push('| Click-through (UTM pageviews) | ' + mdNum(ph && ph.pageviews) + ' |');
+      out.push('| Total signups | ' + mdNum(sb && sb.signups_total) + ' |');
+      out.push('| Signups in last 7 days | ' + mdNum(sb && sb.signups_last_7d) + ' |');
+      out.push('| Activated (created \u22651 project) | ' + mdNum(sb && sb.activated_users) + ' |');
+      out.push('| Active in last 30 days | ' + mdNum(sb && sb.active_30d) + ' |');
+      const errs = [];
+      if (cache.funnel.posthogError)  errs.push('PostHog half: ' + cache.funnel.posthogError);
+      if (cache.funnel.supabaseError) errs.push('Supabase half: ' + cache.funnel.supabaseError);
+      if (errs.length) { out.push(''); out.push('> ' + errs.join(' / ')); }
+    } else {
+      out.push('_No data — the funnel section had not loaded when the export ran._');
+    }
+    out.push('');
+
+    // ── Channel performance ──────────────────────────────────────
+    out.push('## Channel performance');
+    out.push('');
+    if (cache.channels && cache.channels.rows && cache.channels.rows.length > 0) {
+      out.push('| Source | Visitors | Visits |');
+      out.push('|--------|---------:|-------:|');
+      cache.channels.rows.forEach(function (r) {
+        out.push('| ' + mdEsc(r.source) + ' | ' + mdNum(r.visitors) + ' | ' + mdNum(r.visits) + ' |');
+      });
+    } else if (cache.channels && cache.channels.error) {
+      out.push('_' + cache.channels.error + '_');
+    } else {
+      out.push('_No UTM-tagged traffic in the window._');
+    }
+    out.push('');
+
+    // ── Top content ──────────────────────────────────────────────
+    out.push('## Top content');
+    out.push('');
+    if (cache.topContent && cache.topContent.posts && cache.topContent.posts.length > 0) {
+      out.push('| Title | Slug | Views | Visitors | Evergreen |');
+      out.push('|-------|------|------:|---------:|:---------:|');
+      cache.topContent.posts.forEach(function (p) {
+        const ph = cache.topContent.viewsByPath['/blog/' + p.slug];
+        out.push('| ' + mdEsc(p.title) +
+                 ' | `' + mdEsc(p.slug) + '`' +
+                 ' | ' + (ph ? mdNum(ph.views) : '\u2014') +
+                 ' | ' + (ph ? mdNum(ph.visitors) : '\u2014') +
+                 ' | ' + (p.evergreen ? '\u2713' : '') +
+                 ' |');
+      });
+      if (cache.topContent.error) {
+        out.push('');
+        out.push('> ' + cache.topContent.error);
+      }
+    } else {
+      out.push('_No published posts yet._');
+    }
+    out.push('');
+
+    // ── Performance by editorial tag ─────────────────────────────
+    out.push('## Performance by editorial tag');
+    out.push('');
+    if (cache.perfByTag && cache.perfByTag.tables && cache.perfByTag.tables.length > 0) {
+      cache.perfByTag.tables.forEach(function (tbl) {
+        out.push('### ' + tbl.label);
+        out.push('');
+        if ((tbl.rows && tbl.rows.length > 0) || (tbl.untagged && tbl.untagged.count > 0)) {
+          out.push('| Value | Posts | Total views | Avg / post |');
+          out.push('|-------|------:|------------:|-----------:|');
+          (tbl.rows || []).forEach(function (r) {
+            out.push('| ' + mdEsc(prettyTagValue(r.value)) +
+                     ' | ' + mdNum(r.count) +
+                     ' | ' + mdNum(r.totalViews) +
+                     ' | ' + mdNum(Math.round(r.avgViews)) +
+                     ' |');
+          });
+          if (tbl.untagged && tbl.untagged.count > 0) {
+            const avg = Math.round(tbl.untagged.totalViews / tbl.untagged.count);
+            out.push('| _Untagged_ | ' + mdNum(tbl.untagged.count) +
+                     ' | ' + mdNum(tbl.untagged.totalViews) +
+                     ' | ' + mdNum(avg) + ' |');
+          }
+          if (tbl.multi) {
+            out.push('');
+            out.push('> Posts tagged with multiple frameworks count toward each row.');
+          }
+        } else {
+          out.push('_No data._');
+        }
+        out.push('');
+      });
+      if (!cache.perfByTag.posthogOk) {
+        out.push('> View counts in this section may be 0 — PostHog query was unavailable when the snapshot was taken.');
+        out.push('');
+      }
+    } else {
+      out.push('_No data — perf-by-tag section had not loaded when the export ran._');
+      out.push('');
+    }
+
+    return out.join('\n');
+  }
+
+  // Markdown table-cell escape: pipes break the column boundary, newlines
+  // break the row, backslashes need doubling. Replace newlines with a space
+  // so single-line cells stay readable; the LLM doesn't need exact preservation.
+  function mdEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\')
+      .replace(/\|/g, '\\|')
+      .replace(/\r?\n/g, ' ')
+      .trim();
+  }
+
+  function mdNum(n) {
+    if (n === null || n === undefined || n === '') return '\u2014';
+    const x = Number(n);
+    if (isNaN(x)) return '\u2014';
+    return x.toLocaleString('en-US');
+  }
+
+  function ymdTodayLocal() {
+    // Local-time YYYY-MM-DD so the filename matches the user's calendar day.
+    // Intl is reliable across runtimes; en-CA returns YYYY-MM-DD natively.
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+  }
+
+  function formatLocalTimestamp(d) {
+    // Friendly local timestamp for the file header — "2026-04-25 14:32".
+    const date = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(d);
+    const time = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(d);
+    return date + ' ' + time.replace(/^24:/, '00:');
+  }
+
+  function triggerMarkdownDownload(md, filename) {
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Defer revoke — Safari dislikes immediate revocation.
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // Wire the click handler when the page first loads. The button doesn't
+  // exist in the DOM until renderAdminInsights runs, so we use event
+  // delegation on the pane container — survives re-renders for free.
+  document.addEventListener('DOMContentLoaded', function () {
+    const pane = document.getElementById('pane-insights');
+    if (!pane) return;
+    pane.addEventListener('click', function (e) {
+      const btn = e.target.closest('#insightsExportBtn');
+      if (btn) exportAnalyticsLog();
+    });
+  });
 })();

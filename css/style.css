@@ -4068,6 +4068,19 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
 
 .muted { color: var(--text-muted); font-size: 13px; }
 
+/* ── Insights header row — H1 + subtitle on the left, Download
+   analytics log button on the right. Stacks under 600px. */
+.insights-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.insights-header-row h1 { margin: 0 0 6px; }
+.insights-header-row .pane-sub { margin-bottom: 0; }
+
 /* ── Performance by Editorial Tag (Insights) ───────────────────
    Four small tables stacked in a 2-column grid on wide screens,
    collapsing to one column under 720px. Each card is a self-contained
