@@ -35,6 +35,10 @@
   // Campaign hub state
   let _currentCampaign = null;   // campaign row being viewed (with .blog_post)
   let _editingPieceId = null;    // null when adding; piece id when editing
+  let _hubTab = 'pieces';        // 'pieces' | 'schedule'
+  let _scheduleView = 'list';    // 'list' | 'week' | 'calendar'
+  let _weekAnchor = null;        // Date — Sunday of currently-viewed week
+  let _hubPieces = [];           // cached pieces for the active campaign (used by schedule views)
 
   // UTM convention — must match the build-prompt spec exactly:
   //   linkedin → utm_source=linkedin, utm_medium=social,    utm_content=li-post-{n}
@@ -850,11 +854,13 @@
         </div>
       </div>
 
-      <div class="hub-columns">
-        <div class="hub-column" data-type="linkedin"><h2>LinkedIn</h2><div class="hub-pieces" id="hubPieces-linkedin"></div><button class="btn-secondary hub-add-btn" data-type="linkedin">+ Add LinkedIn post</button></div>
-        <div class="hub-column" data-type="email"><h2>Email</h2><div class="hub-pieces" id="hubPieces-email"></div><button class="btn-secondary hub-add-btn" data-type="email">+ Add email</button></div>
-        <div class="hub-column" data-type="youtube"><h2>YouTube</h2><div class="hub-pieces" id="hubPieces-youtube"></div><button class="btn-secondary hub-add-btn" data-type="youtube">+ Add video</button></div>
+      <!-- Sub-tabs: Pieces (the per-channel columns) vs Schedule (timeline views) -->
+      <div class="hub-subnav">
+        <button class="hub-subnav-btn ${_hubTab === 'pieces' ? 'active' : ''}" data-hub-tab="pieces">Pieces</button>
+        <button class="hub-subnav-btn ${_hubTab === 'schedule' ? 'active' : ''}" data-hub-tab="schedule">Schedule</button>
       </div>
+
+      <div id="hubBody"></div>
     `;
 
     document.getElementById('hubBackBtn').addEventListener('click', backToEditor);
@@ -869,34 +875,64 @@
       _currentCampaign.status = newStatus;
     });
 
-    root.querySelectorAll('.hub-add-btn').forEach(function (b) {
-      b.addEventListener('click', function () { openPieceForm(b.getAttribute('data-type'), null); });
+    // Sub-tab clicks
+    root.querySelectorAll('.hub-subnav-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        _hubTab = b.getAttribute('data-hub-tab');
+        // Toggle active class without re-rendering the header
+        root.querySelectorAll('.hub-subnav-btn').forEach(function (x) {
+          x.classList.toggle('active', x === b);
+        });
+        renderHubBody();
+      });
     });
 
-    await loadAndRenderPieces();
+    await renderHubBody();
   }
 
-  async function loadAndRenderPieces() {
-    if (!_currentCampaign) return;
-    const { data: pieces, error } = await _supabase
+  // Renders whichever sub-tab body the user has selected. Re-fetches pieces
+  // each time so the schedule view reflects the latest planned_dates / statuses.
+  async function renderHubBody() {
+    const body = document.getElementById('hubBody');
+    if (!body) return;
+
+    // Always refresh the pieces cache before rendering either sub-tab.
+    await loadHubPieces();
+
+    if (_hubTab === 'schedule') {
+      renderScheduleView(body);
+    } else {
+      renderPiecesView(body);
+    }
+  }
+
+  async function loadHubPieces() {
+    if (!_currentCampaign) { _hubPieces = []; return; }
+    const { data, error } = await _supabase
       .from('content_pieces')
       .select('*')
       .eq('campaign_id', _currentCampaign.id)
       .order('piece_number', { ascending: true });
+    _hubPieces = (!error && data) ? data : [];
+  }
 
-    if (error) {
-      ['linkedin', 'email', 'youtube'].forEach(function (t) {
-        const el = document.getElementById('hubPieces-' + t);
-        if (el) el.innerHTML = '<div class="muted">Load failed.</div>';
-      });
-      return;
-    }
+  // Pieces sub-tab — the original three-column hub (LinkedIn / Email / YouTube).
+  function renderPiecesView(body) {
+    body.innerHTML = `
+      <div class="hub-columns">
+        <div class="hub-column" data-type="linkedin"><h2>LinkedIn</h2><div class="hub-pieces" id="hubPieces-linkedin"></div><button class="btn-secondary hub-add-btn" data-type="linkedin">+ Add LinkedIn post</button></div>
+        <div class="hub-column" data-type="email"><h2>Email</h2><div class="hub-pieces" id="hubPieces-email"></div><button class="btn-secondary hub-add-btn" data-type="email">+ Add email</button></div>
+        <div class="hub-column" data-type="youtube"><h2>YouTube</h2><div class="hub-pieces" id="hubPieces-youtube"></div><button class="btn-secondary hub-add-btn" data-type="youtube">+ Add video</button></div>
+      </div>
+    `;
 
-    const byType = { linkedin: [], email: [], youtube: [] };
-    (pieces || []).forEach(function (p) {
-      if (byType[p.type]) byType[p.type].push(p);
+    body.querySelectorAll('.hub-add-btn').forEach(function (b) {
+      b.addEventListener('click', function () { openPieceForm(b.getAttribute('data-type'), null); });
     });
 
+    // Group cached pieces by type, render into each column
+    const byType = { linkedin: [], email: [], youtube: [] };
+    _hubPieces.forEach(function (p) { if (byType[p.type]) byType[p.type].push(p); });
     Object.keys(byType).forEach(function (t) {
       const el = document.getElementById('hubPieces-' + t);
       if (!el) return;
@@ -907,6 +943,235 @@
         wirePieceCardEvents(el);
       }
     });
+  }
+
+  // Re-renders the active sub-tab (Pieces or Schedule). Both views read from
+  // the same _hubPieces cache, which renderHubBody refreshes from Supabase.
+  async function loadAndRenderPieces() {
+    if (!_currentCampaign) return;
+    await renderHubBody();
+  }
+
+  // ── Schedule view (List / Week / Calendar) ───────────────────
+  function renderScheduleView(body) {
+    body.innerHTML = `
+      <div class="schedule-subnav">
+        <button class="schedule-view-btn ${_scheduleView === 'list' ? 'active' : ''}" data-view="list">List</button>
+        <button class="schedule-view-btn ${_scheduleView === 'week' ? 'active' : ''}" data-view="week">Week</button>
+        <button class="schedule-view-btn ${_scheduleView === 'calendar' ? 'active' : ''}" data-view="calendar">Calendar</button>
+      </div>
+      <div id="scheduleBody"></div>
+    `;
+    body.querySelectorAll('.schedule-view-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        _scheduleView = b.getAttribute('data-view');
+        body.querySelectorAll('.schedule-view-btn').forEach(function (x) {
+          x.classList.toggle('active', x === b);
+        });
+        renderScheduleBody();
+      });
+    });
+    renderScheduleBody();
+  }
+
+  function renderScheduleBody() {
+    const target = document.getElementById('scheduleBody');
+    if (!target) return;
+    if (_scheduleView === 'week')          renderWeekScheduleView(target);
+    else if (_scheduleView === 'calendar') renderCalendarScheduleStub(target);
+    else                                   renderListScheduleView(target);
+  }
+
+  // ── List view ────────────────────────────────────────────────
+  // Chronological across all types. Past-due unpublished items get amber row
+  // highlight. Pieces with no planned_date sink to bottom in a separate group.
+  function renderListScheduleView(target) {
+    const dated = _hubPieces.filter(function (p) { return !!p.planned_date; })
+      .slice()
+      .sort(function (a, b) { return (a.planned_date || '').localeCompare(b.planned_date || ''); });
+    const undated = _hubPieces.filter(function (p) { return !p.planned_date; });
+
+    if (dated.length === 0 && undated.length === 0) {
+      target.innerHTML = '<div class="empty-card"><strong>No pieces yet.</strong>Add a LinkedIn / Email / YouTube piece in the Pieces tab to see it on the schedule.</div>';
+      return;
+    }
+
+    const todayIso = isoDate(new Date());
+
+    let html = '<table class="insights-table schedule-list-table"><thead><tr>';
+    html += '<th>Date</th><th>Type</th><th>Title</th><th>Status</th><th></th>';
+    html += '</tr></thead><tbody>';
+
+    dated.forEach(function (p) {
+      const pastDue = p.planned_date < todayIso && p.status !== 'published';
+      html += renderScheduleRow(p, { pastDue: pastDue });
+    });
+
+    if (undated.length > 0) {
+      html += '<tr><td colspan="5" class="schedule-section-divider muted">Unscheduled</td></tr>';
+      undated.forEach(function (p) {
+        html += renderScheduleRow(p, { pastDue: false, unscheduled: true });
+      });
+    }
+
+    html += '</tbody></table>';
+    target.innerHTML = html;
+    wireScheduleActions(target);
+  }
+
+  function renderScheduleRow(p, opts) {
+    const titleField = p.type === 'email' ? (p.subject || p.title || '(untitled)') : (p.title || '(untitled)');
+    const dateLabel  = p.planned_date ? formatDate(p.planned_date) : '—';
+    const cls = opts && opts.pastDue ? 'schedule-row past-due' : 'schedule-row';
+    return '' +
+      '<tr class="' + cls + '" data-piece-id="' + escapeHtml(p.id) + '" data-piece-type="' + escapeHtml(p.type) + '">' +
+        '<td>' + escapeHtml(dateLabel) + (opts && opts.pastDue ? ' <span class="past-due-badge">Past due</span>' : '') + '</td>' +
+        '<td><span class="piece-badge piece-badge-' + escapeHtml(p.type) + '">' + escapeHtml(PIECE_TYPES[p.type].label) + ' #' + (p.piece_number || 1) + '</span></td>' +
+        '<td>' + escapeHtml(titleField) + '</td>' +
+        '<td><span class="status-pill status-' + escapeHtml(p.status) + '">' + escapeHtml(p.status) + '</span></td>' +
+        '<td><button class="btn-link schedule-edit-btn">Open</button></td>' +
+      '</tr>';
+  }
+
+  function wireScheduleActions(target) {
+    target.querySelectorAll('.schedule-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const tr = btn.closest('tr');
+        openPieceForm(tr.getAttribute('data-piece-type'), tr.getAttribute('data-piece-id'));
+      });
+    });
+  }
+
+  // ── Week view ────────────────────────────────────────────────
+  // Sunday-start grid of the currently-anchored week. Tuesday and Thursday
+  // are tinted as "prime slots" (data-backed nudge — Tuesday morning and
+  // Thursday afternoon are when LinkedIn engagement is historically highest;
+  // we don't lock you to those days, just suggest them).
+  function renderWeekScheduleView(target) {
+    if (!_weekAnchor) _weekAnchor = startOfWeek(new Date());
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(_weekAnchor);
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    const todayIso = isoDate(new Date());
+    const piecesByDay = {};
+    days.forEach(function (d) { piecesByDay[isoDate(d)] = []; });
+    _hubPieces.forEach(function (p) {
+      if (p.planned_date && piecesByDay[p.planned_date] !== undefined) {
+        piecesByDay[p.planned_date].push(p);
+      }
+    });
+    const undated = _hubPieces.filter(function (p) { return !p.planned_date; });
+
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const PRIME_SLOTS = { 2: 'AM', 4: 'PM' }; // Tuesday morning, Thursday afternoon
+
+    let html = '<div class="schedule-week-nav">';
+    html += '<button class="btn-secondary" id="weekPrevBtn">← Prev</button>';
+    html += '<div class="schedule-week-label">' + escapeHtml(formatWeekRange(days[0], days[6])) + '</div>';
+    html += '<button class="btn-secondary" id="weekNextBtn">Next →</button>';
+    html += '<button class="btn-link" id="weekTodayBtn" style="margin-left:auto">Today</button>';
+    html += '</div>';
+
+    html += '<div class="schedule-week-grid">';
+    days.forEach(function (d, idx) {
+      const iso = isoDate(d);
+      const isToday  = iso === todayIso;
+      const primeSlot = PRIME_SLOTS[d.getDay()];
+      const cls = ['schedule-day'];
+      if (isToday) cls.push('is-today');
+      if (primeSlot) cls.push('is-prime');
+
+      html += '<div class="' + cls.join(' ') + '">';
+      html += '<div class="schedule-day-header">';
+      html += '<span class="schedule-day-name">' + dayLabels[d.getDay()] + '</span>';
+      html += '<span class="schedule-day-date">' + d.getDate() + '</span>';
+      html += '</div>';
+      if (primeSlot) {
+        html += '<div class="schedule-prime-label">Prime: ' + primeSlot + '</div>';
+      }
+      html += '<div class="schedule-day-pieces">';
+      if (piecesByDay[iso].length === 0) {
+        html += '<div class="schedule-day-empty muted">—</div>';
+      } else {
+        piecesByDay[iso].forEach(function (p) {
+          const titleField = p.type === 'email' ? (p.subject || p.title || '(untitled)') : (p.title || '(untitled)');
+          const isPastDue = iso < todayIso && p.status !== 'published';
+          html += '<div class="schedule-week-piece ' + (isPastDue ? 'past-due' : '') + '" data-piece-id="' + escapeHtml(p.id) + '" data-piece-type="' + escapeHtml(p.type) + '">';
+          html += '<span class="piece-badge piece-badge-' + escapeHtml(p.type) + '">' + escapeHtml(PIECE_TYPES[p.type].label) + ' #' + (p.piece_number || 1) + '</span>';
+          html += '<div class="schedule-week-piece-title">' + escapeHtml(titleField) + '</div>';
+          html += '<span class="status-pill status-' + escapeHtml(p.status) + '">' + escapeHtml(p.status) + '</span>';
+          html += '</div>';
+        });
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    if (undated.length > 0) {
+      html += '<div class="schedule-unscheduled-section">';
+      html += '<h3>Unscheduled (' + undated.length + ')</h3>';
+      html += '<div class="schedule-unscheduled-list">';
+      undated.forEach(function (p) {
+        const titleField = p.type === 'email' ? (p.subject || p.title || '(untitled)') : (p.title || '(untitled)');
+        html += '<div class="schedule-week-piece" data-piece-id="' + escapeHtml(p.id) + '" data-piece-type="' + escapeHtml(p.type) + '">';
+        html += '<span class="piece-badge piece-badge-' + escapeHtml(p.type) + '">' + escapeHtml(PIECE_TYPES[p.type].label) + ' #' + (p.piece_number || 1) + '</span>';
+        html += '<div class="schedule-week-piece-title">' + escapeHtml(titleField) + '</div>';
+        html += '<span class="muted">No date set</span>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    target.innerHTML = html;
+
+    document.getElementById('weekPrevBtn').addEventListener('click', function () {
+      _weekAnchor = new Date(_weekAnchor); _weekAnchor.setDate(_weekAnchor.getDate() - 7);
+      renderScheduleBody();
+    });
+    document.getElementById('weekNextBtn').addEventListener('click', function () {
+      _weekAnchor = new Date(_weekAnchor); _weekAnchor.setDate(_weekAnchor.getDate() + 7);
+      renderScheduleBody();
+    });
+    document.getElementById('weekTodayBtn').addEventListener('click', function () {
+      _weekAnchor = startOfWeek(new Date());
+      renderScheduleBody();
+    });
+
+    // Click-to-open on any week-view piece tile
+    target.querySelectorAll('.schedule-week-piece').forEach(function (el) {
+      el.addEventListener('click', function () {
+        openPieceForm(el.getAttribute('data-piece-type'), el.getAttribute('data-piece-id'));
+      });
+    });
+  }
+
+  // Calendar view — stub for now per the build prompt
+  function renderCalendarScheduleStub(target) {
+    target.innerHTML = '<div class="empty-card"><strong>Calendar view — coming soon.</strong>For now, use Week view to see prime-slot nudges and List view to scan past-due items.</div>';
+  }
+
+  // ── Date helpers ────────────────────────────────────────────
+  function isoDate(d) {
+    // YYYY-MM-DD using local time (matches how the date input stores values).
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+  function startOfWeek(d) {
+    // Sunday-start (US convention)
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - x.getDay());
+    return x;
+  }
+  function formatWeekRange(start, end) {
+    const sm = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const em = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return sm + ' – ' + em;
   }
 
   function renderPieceCard(p) {
