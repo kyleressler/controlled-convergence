@@ -41,6 +41,13 @@
   let _calendarAnchor = null;    // Date — first day of currently-viewed month
   let _hubPieces = [];           // cached pieces for the active campaign (used by schedule views)
 
+  // Sort prefs for the two sections of the blog post list. Each section's date
+  // column is independently flippable (click the column header). Defaults to
+  // newest-first, which matches the natural "what did I touch most recently"
+  // and "what did I publish most recently" reading order.
+  let _draftsSort    = { col: 'updated_at',   dir: 'desc' };
+  let _publishedSort = { col: 'published_at', dir: 'desc' };
+
   // Where each platform's composer lives. We open these in a new tab as a
   // jumping-off point — the user pastes their copied content there.
   const PLATFORM_COMPOSE_URLS = {
@@ -146,10 +153,78 @@
       return;
     }
 
-    let html = '<table class="insights-table blog-list-table"><thead><tr>';
-    html += '<th>Title</th><th>Slug</th><th>Status</th><th>Tags</th><th>Updated</th><th></th>';
+    // Split into Drafts (work in progress) and Published (live).
+    // Each section has its own sortable date column, independently flippable.
+    const drafts    = posts.filter(function (p) { return p.status === 'draft'; });
+    const published = posts.filter(function (p) { return p.status === 'published'; });
+
+    container.innerHTML =
+      renderBlogSection('drafts', 'Drafts', drafts, _draftsSort, 'updated_at', 'Updated') +
+      renderBlogSection('published', 'Published', published, _publishedSort, 'published_at', 'Published');
+
+    // Row click → open editor
+    container.querySelectorAll('.blog-row-link').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        const tr = a.closest('tr');
+        if (tr) openExistingPost(tr.getAttribute('data-post-id'));
+      });
+    });
+    // Delete buttons
+    container.querySelectorAll('.blog-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        deletePost(btn.getAttribute('data-post-id'));
+      });
+    });
+    // Sortable column header → flip direction (and re-render)
+    container.querySelectorAll('.blog-sortable').forEach(function (th) {
+      th.addEventListener('click', function () {
+        const section = th.getAttribute('data-section');
+        const sortDef = section === 'drafts' ? _draftsSort : _publishedSort;
+        sortDef.dir = sortDef.dir === 'desc' ? 'asc' : 'desc';
+        renderList(document.getElementById('pane-blog'));
+      });
+    });
+  }
+
+  // Render one section (Drafts or Published) of the blog post list. Each
+  // section is its own table so columns can vary and the visual separation
+  // is unmistakable.
+  function renderBlogSection(sectionKey, label, posts, sortDef, dateCol, dateLabel) {
+    const sorted = posts.slice().sort(function (a, b) {
+      const av = String(a[sortDef.col] || '');
+      const bv = String(b[sortDef.col] || '');
+      return sortDef.dir === 'desc' ? bv.localeCompare(av) : av.localeCompare(bv);
+    });
+    const arrow = sortDef.dir === 'desc' ? '↓' : '↑';
+
+    let html = '<section class="blog-section">';
+    html += '<div class="blog-section-header">';
+    html += '<h2>' + escapeHtml(label) + ' <span class="blog-section-count">' + sorted.length + '</span></h2>';
+    html += '</div>';
+
+    if (sorted.length === 0) {
+      html += '<div class="blog-section-empty muted">' +
+              (sectionKey === 'drafts'
+                ? 'No drafts in progress.'
+                : 'Nothing published yet.') +
+              '</div>';
+      html += '</section>';
+      return html;
+    }
+
+    html += '<table class="insights-table blog-list-table">';
+    html += '<thead><tr>';
+    html += '<th>Title</th>';
+    html += '<th>Slug</th>';
+    html += '<th>Tags</th>';
+    html += '<th class="blog-sortable" data-section="' + sectionKey + '" data-col="' + dateCol + '">' +
+            escapeHtml(dateLabel) + ' <span class="sort-arrow">' + arrow + '</span></th>';
+    html += '<th></th>';
     html += '</tr></thead><tbody>';
-    posts.forEach(function (p) {
+
+    sorted.forEach(function (p) {
       const tags = (p.tags || []).map(escapeHtml).map(function (t) {
         return '<span class="tag-chip">' + t + '</span>';
       }).join(' ');
@@ -158,30 +233,14 @@
       html += p.evergreen ? ' <span class="evergreen-badge" title="Evergreen">★</span>' : '';
       html += '</td>';
       html += '<td><code>' + escapeHtml(p.slug) + '</code></td>';
-      html += '<td><span class="status-pill status-' + escapeHtml(p.status) + '">' + escapeHtml(p.status) + '</span></td>';
       html += '<td>' + (tags || '<span class="muted">—</span>') + '</td>';
-      html += '<td class="muted">' + formatDate(p.updated_at) + '</td>';
+      html += '<td class="muted">' + (p[dateCol] ? formatDate(p[dateCol]) : '—') + '</td>';
       html += '<td><button class="btn-link blog-delete-btn" data-post-id="' + escapeHtml(p.id) + '">Delete</button></td>';
       html += '</tr>';
     });
-    html += '</tbody></table>';
-    container.innerHTML = html;
 
-    // Wire row click → editor
-    container.querySelectorAll('.blog-row-link').forEach(function (a) {
-      a.addEventListener('click', function (e) {
-        e.preventDefault();
-        const tr = a.closest('tr');
-        if (tr) openExistingPost(tr.getAttribute('data-post-id'));
-      });
-    });
-    // Wire delete buttons
-    container.querySelectorAll('.blog-delete-btn').forEach(function (btn) {
-      btn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        deletePost(btn.getAttribute('data-post-id'));
-      });
-    });
+    html += '</tbody></table></section>';
+    return html;
   }
 
   async function deletePost(postId) {
