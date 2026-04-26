@@ -1,0 +1,12 @@
+# robots.txt — tells search engines what to index
+#
+# We want Google (and others) to index the public pages:
+#   - the homepage (index.html)
+#   - the blog (blog.html, blog-post.html)
+#
+# We do NOT want them indexing the app itself (app.html),
+# since that's the logged-in product, not a public page.
+
+User-agent: *
+Disallow: /app.html
+Disallow: /app

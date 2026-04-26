@@ -91,3 +91,25 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=300, must-revalidate"
+
+
+# ── Security headers ──────────────────────────────────────────
+# These tell every visitor's browser how to handle the site safely.
+#
+# X-Frame-Options:          Prevents other websites from embedding your site
+#                           inside their page (a "clickjacking" attack).
+# X-Content-Type-Options:   Stops browsers from guessing what kind of file
+#                           they're loading — prevents certain injection attacks.
+# Referrer-Policy:          When a user clicks a link to leave your site, this
+#                           limits how much info is shared with the destination.
+# Content-Security-Policy:  A whitelist of exactly which external servers are
+#                           allowed to load scripts, fonts, and styles on your
+#                           pages. Anything not on the list gets blocked.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdnjs.cloudflare.com https://us-assets.i.posthog.com https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.quilljs.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://jqelfzqgcemtrpcrbpsl.supabase.co https://us.i.posthog.com; frame-ancestors 'none';"
