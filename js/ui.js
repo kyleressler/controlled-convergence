@@ -1485,7 +1485,12 @@ async function _resolveStakEmailTiers(emails) {
     document.getElementById('datumReqBadges').innerHTML = req.format !== 'agile'
       ? `<span style="background:${typeColors[req.type]||'var(--accent)'};color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em">${typeLabels[req.type]||req.type}</span>`
       : '';
-    document.getElementById('datumReqText').textContent = req.text;
+    const datumReqTextEl = document.getElementById('datumReqText');
+    if (req.format === 'agile' && typeof buildReqSentenceHtml === 'function') {
+      datumReqTextEl.innerHTML = buildReqSentenceHtml(req);
+    } else {
+      datumReqTextEl.textContent = req.text || req.id;
+    }
     const ilityName = [...ILITIES, ...customIlities].find(il => il.id === req.primary)?.name || req.primary || '';
     document.getElementById('datumReqMeta').innerHTML = ilityName ? `<span>Ility: <strong>${ilityName}</strong></span>` : '';
 

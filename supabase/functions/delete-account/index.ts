@@ -65,7 +65,8 @@ Deno.serve(async (req: Request) => {
 
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
     if (deleteError) {
-      return jsonError('Failed to delete account: ' + deleteError.message, 500);
+      console.error('[delete-account] deleteUser error:', deleteError.message);
+      return jsonError('Account deletion failed. Please try again.', 500);
     }
 
     // ── 4. Done ────────────────────────────────────────────────
@@ -75,8 +76,8 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected server error.';
-    return jsonError(message, 500);
+    console.error('[delete-account] Unexpected error:', err);
+    return jsonError('An unexpected error occurred. Please try again.', 500);
   }
 });
 

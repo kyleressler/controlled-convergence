@@ -5,6 +5,56 @@
 // Called by: app.js (init, handleAccountCTA, handleLogout)
 // ============================================================
 
+// ── Client-side login rate limiting ──────────────────────────
+// Tracks failed attempts per email in sessionStorage. After MAX_ATTEMPTS
+// failures within WINDOW_MS, the login function returns an error without
+// hitting Supabase. Supabase has its own server-side limits as a backstop.
+const _LOGIN_MAX_ATTEMPTS = 5;
+const _LOGIN_WINDOW_MS    = 15 * 60 * 1000; // 15 minutes
+
+function _getRateLimit(email) {
+  try {
+    const key  = 'cc_login_rl_' + btoa(email.toLowerCase().trim()).replace(/=/g, '');
+    const raw  = sessionStorage.getItem(key);
+    const data = raw ? JSON.parse(raw) : { count: 0, first: Date.now() };
+    return { key, data };
+  } catch (_e) {
+    return { key: null, data: { count: 0, first: Date.now() } };
+  }
+}
+
+function _recordFailedLogin(email) {
+  try {
+    const { key, data } = _getRateLimit(email);
+    if (!key) return;
+    const now = Date.now();
+    if (now - data.first > _LOGIN_WINDOW_MS) {
+      // Window expired — start fresh
+      sessionStorage.setItem(key, JSON.stringify({ count: 1, first: now }));
+    } else {
+      sessionStorage.setItem(key, JSON.stringify({ count: data.count + 1, first: data.first }));
+    }
+  } catch (_e) { /* sessionStorage may be unavailable */ }
+}
+
+function _clearLoginRateLimit(email) {
+  try {
+    const { key } = _getRateLimit(email);
+    if (key) sessionStorage.removeItem(key);
+  } catch (_e) { }
+}
+
+function _isLoginRateLimited(email) {
+  try {
+    const { data } = _getRateLimit(email);
+    const now = Date.now();
+    if (now - data.first > _LOGIN_WINDOW_MS) return false; // window expired
+    return data.count >= _LOGIN_MAX_ATTEMPTS;
+  } catch (_e) {
+    return false; // fail open — don't block logins if storage is broken
+  }
+}
+
 /**
  * Sign in with email + password.
  * @param {string} email
@@ -12,8 +62,15 @@
  * @returns {Promise<{user: object|null, error: string|null}>}
  */
 async function login(email, password) {
+  if (_isLoginRateLimited(email)) {
+    return { user: null, error: 'Too many failed login attempts. Please wait 15 minutes and try again.' };
+  }
   const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-  if (error) return { user: null, error: error.message };
+  if (error) {
+    _recordFailedLogin(email);
+    return { user: null, error: error.message };
+  }
+  _clearLoginRateLimit(email); // successful login resets the counter
   const user = await _buildUserFromSession(data.user);
   appState.currentUser = user;
   userTier = user.tier || 'free';

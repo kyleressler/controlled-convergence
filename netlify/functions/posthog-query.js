@@ -32,9 +32,10 @@
 'use strict';
 
 // ── CORS allowlist ─────────────────────────────────────────────
-// Production origin + any *.netlify.app preview URL.
+// Production origin + Netlify preview URLs for this site only.
+// Preview deploy URLs follow the pattern: <hash>--controlled-convergence.netlify.app
 const PRODUCTION_ORIGIN = 'https://controlledconvergence.com';
-const NETLIFY_PREVIEW_RE = /^https:\/\/[a-z0-9-]+\.netlify\.app$/i;
+const NETLIFY_PREVIEW_RE = /^https:\/\/[a-z0-9-]+--controlled-convergence\.netlify\.app$/i;
 
 function originAllowed(origin) {
   if (!origin) return false;

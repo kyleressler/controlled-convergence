@@ -8,12 +8,81 @@
 
 // ── Projects ─────────────────────────────────────────────────
 
+// ── Input-length limits (security: prevent DoS via oversized payloads) ───────
+const PROJECT_LIMITS = {
+  name:              200,   // project name
+  description:       5000,  // project description
+  goal:              5000,  // goal statement
+  reqText:           2000,  // individual requirement text
+  reqsMax:           500,   // total requirements per project
+  stakeholderName:   200,   // individual stakeholder name
+  stakeholdersMax:   200,   // total stakeholders per project
+  conceptName:       200,   // individual concept name
+  conceptDesc:       5000,  // individual concept description
+  conceptsMax:       100,   // total concepts per project
+};
+
+/**
+ * Validate project payload before saving. Returns an error string if a limit
+ * is exceeded, or null if everything is within bounds.
+ * @param {object} project
+ * @returns {string|null}
+ */
+function validateProjectPayload(project) {
+  if (!project || typeof project !== 'object') return 'Invalid project object.';
+
+  const str = (v) => (typeof v === 'string' ? v : '');
+
+  if (str(project.name).length > PROJECT_LIMITS.name)
+    return `Project name must be ${PROJECT_LIMITS.name} characters or fewer.`;
+  if (str(project.description).length > PROJECT_LIMITS.description)
+    return `Project description must be ${PROJECT_LIMITS.description} characters or fewer.`;
+  if (str(project.goal).length > PROJECT_LIMITS.goal)
+    return `Goal statement must be ${PROJECT_LIMITS.goal} characters or fewer.`;
+
+  if (Array.isArray(project.requirements)) {
+    if (project.requirements.length > PROJECT_LIMITS.reqsMax)
+      return `Projects may not exceed ${PROJECT_LIMITS.reqsMax} requirements.`;
+    for (const req of project.requirements) {
+      if (str(req && req.text).length > PROJECT_LIMITS.reqText)
+        return `Requirement text must be ${PROJECT_LIMITS.reqText} characters or fewer.`;
+    }
+  }
+
+  if (Array.isArray(project.stakeholders)) {
+    if (project.stakeholders.length > PROJECT_LIMITS.stakeholdersMax)
+      return `Projects may not exceed ${PROJECT_LIMITS.stakeholdersMax} stakeholders.`;
+    for (const s of project.stakeholders) {
+      if (str(s && s.name).length > PROJECT_LIMITS.stakeholderName)
+        return `Stakeholder name must be ${PROJECT_LIMITS.stakeholderName} characters or fewer.`;
+    }
+  }
+
+  if (Array.isArray(project.concepts)) {
+    if (project.concepts.length > PROJECT_LIMITS.conceptsMax)
+      return `Projects may not exceed ${PROJECT_LIMITS.conceptsMax} concepts.`;
+    for (const c of project.concepts) {
+      if (str(c && c.name).length > PROJECT_LIMITS.conceptName)
+        return `Concept name must be ${PROJECT_LIMITS.conceptName} characters or fewer.`;
+      if (str(c && c.description).length > PROJECT_LIMITS.conceptDesc)
+        return `Concept description must be ${PROJECT_LIMITS.conceptDesc} characters or fewer.`;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Persist a project. Uses Supabase when signed in, in-memory when not.
  * @param {object} project — standardized project schema from projects.js
  * @returns {Promise<{data: object, error: string|null}>}
  */
 async function saveProject(project) {
+  const validationError = validateProjectPayload(project);
+  if (validationError) {
+    console.warn('[saveProject] Validation failed:', validationError);
+    return { data: null, error: validationError };
+  }
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
 

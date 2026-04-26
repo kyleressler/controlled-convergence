@@ -1458,20 +1458,20 @@
       if (isEditing) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px;background:rgba(var(--accent-rgb,26,86,219),0.04)">'
           + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
-          + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" onchange="updateCollabRole(\'' + m.user_id + '\', this.value)">'
+          + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" data-action="collab-role-change" data-user-id="' + m.user_id + '">'
           +   '<option value="viewer"'        + (m.role === 'viewer'        ? ' selected' : '') + '>Viewer</option>'
           +   '<option value="editor"'        + (m.role === 'editor'        ? ' selected' : '') + '>Editor</option>'
           +   '<option value="scoped_editor"' + (m.role === 'scoped_editor' ? ' selected' : '') + '>Scoped Editor</option>'
           + '</select>'
-          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;white-space:nowrap" onclick="renderTeamAccessList()">Done</button>'
-          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" onclick="openRevokeConfirmModal(\'' + m.user_id + '\')">Revoke</button>'
+          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;white-space:nowrap" data-action="collab-done">Done</button>'
+          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" data-action="collab-revoke" data-user-id="' + m.user_id + '">Revoke</button>'
           + '</div>';
       }
 
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px">'
         + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
         + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
-        + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="renderTeamAccessList(\'' + m.user_id + '\')">Edit</button>'
+        + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-action="collab-edit" data-user-id="' + m.user_id + '">Edit</button>'
         + '</div>';
     }).join('');
   }
@@ -5011,7 +5011,7 @@ ${sections}
           <div class="tmpl-picker-meta">${sections ? sections + ' · ' : ''}Saved ${date}</div>
         </div>
         ${t.isPublic ? '<span class="tmpl-public-badge">Public</span>' : ''}
-        <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;flex-shrink:0" onclick="loadTemplate('${t.id}')">Apply</button>
+        <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;flex-shrink:0" data-action="template-apply" data-template-id="${escHtml(t.id)}">Apply</button>
       </div>`;
     }).join('');
   }
@@ -5150,9 +5150,9 @@ ${sections}
           <div class="proj-item-meta">${sections ? sections + ' · ' : ''}${date}${t.isPublic ? ' · <span style="color:var(--accent)">Public</span>' : ''}</div>
           ${kwds}
         </div>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="loadTemplate('${t.id}')">Apply</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="downloadTemplate('${t.id}')" title="Download template JSON">⬇</button>
-        <button class="proj-item-delete" onclick="deleteTemplate('${t.id}')" title="Delete template">×</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" data-action="template-apply" data-template-id="${escHtml(t.id)}">Apply</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex-shrink:0" data-action="template-download" data-template-id="${escHtml(t.id)}" title="Download template JSON">⬇</button>
+        <button class="proj-item-delete" data-action="template-delete" data-template-id="${escHtml(t.id)}" title="Delete template">×</button>
       </div>`;
     }).join('');
   }
@@ -6651,6 +6651,71 @@ ${sections}
     }
   })();
 
+  // ── EVENT DELEGATION: dynamic HTML action handlers ────────────────────────
+  // All dynamically-generated HTML that previously used inline onclick/onchange/
+  // oninput attributes now uses data-action + data-* attributes instead. This
+  // eliminates the XSS risk of interpolating IDs into attribute strings.
+  // Static HTML in app.html still uses inline handlers (safe — no user data).
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    switch (action) {
+      // Template list
+      case 'template-apply':    loadTemplate(btn.dataset.templateId);    break;
+      case 'template-download': downloadTemplate(btn.dataset.templateId); break;
+      case 'template-delete':   deleteTemplate(btn.dataset.templateId);   break;
+      // Team / collaborator access
+      case 'collab-done':   renderTeamAccessList();                     break;
+      case 'collab-revoke': openRevokeConfirmModal(btn.dataset.userId); break;
+      case 'collab-edit':   renderTeamAccessList(btn.dataset.userId);   break;
+      // Concept scoring popup
+      case 'score-popup': {
+        const type = btn.dataset.scoreType;
+        const val  = type === 'null'   ? null
+                   : type === 'number' ? parseInt(btn.dataset.score, 10)
+                   :                     btn.dataset.score;
+        applyScoreFromPopup(val);
+        break;
+      }
+      // Concept custom fields
+      case 'remove-concept-field': removeConceptCustomField(btn.dataset.fieldId); break;
+      // Convergence next steps
+      case 'remove-conv-step': removeConvNextStep(btn.dataset.stepId); break;
+    }
+  });
+
+  document.addEventListener('change', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    switch (action) {
+      // Team access role select
+      case 'collab-role-change': updateCollabRole(el.dataset.userId, el.value); break;
+      // Requirement page filters (_buildFilterBlock)
+      case 'setReqPageIlityFilter':          setReqPageIlityFilter(el.dataset.filterId, el.checked);         break;
+      case 'setReqPageIlityMatchMode':       setReqPageIlityMatchMode(el.value);                             break;
+      case 'setReqPageStakeholderFilter':    setReqPageStakeholderFilter(el.dataset.filterId, el.checked);   break;
+      case 'setReqPageStakeholderMatchMode': setReqPageStakeholderMatchMode(el.value);                       break;
+      case 'setReqPageTagFilter':            setReqPageTagFilter(el.dataset.filterId, el.checked);           break;
+      case 'setReqPageTagMatchMode':         setReqPageTagMatchMode(el.value);                               break;
+      // Scoring page filters
+      case 'setScoringReqTagFilter':    setScoringReqTagFilter(el.dataset.filterId, el.checked); break;
+      case 'setScoringReqTagMatchMode': setScoringReqTagMatchMode(el.value);                     break;
+      case 'setTagFilter':    setTagFilter(el.dataset.filterId, el.checked); break;
+      case 'setTagMatchMode': setTagMatchMode(el.value);                     break;
+    }
+  });
+
+  document.addEventListener('input', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    if (el.dataset.action === 'conv-step-input') {
+      updateConvNextStep(el.dataset.stepId, el.dataset.field, el.value);
+    }
+  });
+
   // Hash listener: lets back/forward and link clicks within blog/admin
   // re-route without a full reload. Only intervenes for these hashes; other
   // navigation continues through the existing nav buttons + switchPage flow.
@@ -7092,18 +7157,18 @@ ${sections}
         ${items.map(item => {
           const checked = activeFilter.includes(item.id) ? 'checked' : '';
           return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
-            <input type="checkbox" ${checked} onchange="${onChangeFn}('${escHtml(item.id)}',this.checked)" style="flex-shrink:0">
+            <input type="checkbox" ${checked} data-action="${onChangeFn}" data-filter-id="${escHtml(item.id)}" style="flex-shrink:0">
             <span>${escHtml(item.label)}</span>
           </label>`;
         }).join('')}
       </div>
       <div style="${radioDisabled}">
         <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
-          <input type="radio" name="${uid}" value="any" ${matchMode==='any'?'checked':''} onchange="${onModeFn}('any')" style="flex-shrink:0;margin-top:2px">
+          <input type="radio" name="${uid}" value="any" ${matchMode==='any'?'checked':''} data-action="${onModeFn}" style="flex-shrink:0;margin-top:2px">
           <span><strong>Match Any</strong> — show requirements with at least one selected</span>
         </label>
         <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
-          <input type="radio" name="${uid}" value="all" ${matchMode==='all'?'checked':''} onchange="${onModeFn}('all')" style="flex-shrink:0;margin-top:2px">
+          <input type="radio" name="${uid}" value="all" ${matchMode==='all'?'checked':''} data-action="${onModeFn}" style="flex-shrink:0;margin-top:2px">
           <span><strong>Match All</strong> — show requirements with every selected</span>
         </label>
       </div>`;
@@ -7194,18 +7259,18 @@ ${sections}
         ${allTags.map(tag => {
           const checked = scorReqTagFilter.includes(tag) ? 'checked' : '';
           return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
-            <input type="checkbox" ${checked} onchange="setScoringReqTagFilter('${escHtml(tag)}',this.checked)" style="flex-shrink:0">
+            <input type="checkbox" ${checked} data-action="setScoringReqTagFilter" data-filter-id="${escHtml(tag)}" style="flex-shrink:0">
             <span class="req-tag req-tag-user">${escHtml(tag)}</span>
           </label>`;
         }).join('')}
       </div>
       <div style="${radioDisabled}">
         <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px;cursor:pointer;font-size:12px">
-          <input type="radio" name="scorReqTagMode" value="any" ${scorReqTagMatchMode==='any'?'checked':''} onchange="setScoringReqTagMatchMode('any')" style="flex-shrink:0;margin-top:2px">
+          <input type="radio" name="scorReqTagMode" value="any" ${scorReqTagMatchMode==='any'?'checked':''} data-action="setScoringReqTagMatchMode" style="flex-shrink:0;margin-top:2px">
           <span><strong>Match Any</strong> — show requirements with at least one selected tag</span>
         </label>
         <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
-          <input type="radio" name="scorReqTagMode" value="all" ${scorReqTagMatchMode==='all'?'checked':''} onchange="setScoringReqTagMatchMode('all')" style="flex-shrink:0;margin-top:2px">
+          <input type="radio" name="scorReqTagMode" value="all" ${scorReqTagMatchMode==='all'?'checked':''} data-action="setScoringReqTagMatchMode" style="flex-shrink:0;margin-top:2px">
           <span><strong>Match All</strong> — show requirements with every selected tag</span>
         </label>
       </div>`;
@@ -7313,7 +7378,7 @@ ${sections}
         ${allTags.map(tag => {
           const checked = scorTagFilter.includes(tag) ? 'checked' : '';
           return `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;font-size:12px">
-            <input type="checkbox" ${checked} onchange="setTagFilter('${escHtml(tag)}', this.checked)" style="flex-shrink:0">
+            <input type="checkbox" ${checked} data-action="setTagFilter" data-filter-id="${escHtml(tag)}" style="flex-shrink:0">
             <span class="concept-tag">${escHtml(tag)}</span>
           </label>`;
         }).join('')}
@@ -7322,11 +7387,11 @@ ${sections}
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:8px">Match mode</div>
         <div style="${radioDisabledStyle}">
           <label style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;cursor:pointer;font-size:12px">
-            <input type="radio" name="scorTagMatchMode" value="any" ${scorTagMatchMode === 'any' ? 'checked' : ''} onchange="setTagMatchMode('any')" style="flex-shrink:0;margin-top:2px">
+            <input type="radio" name="scorTagMatchMode" value="any" ${scorTagMatchMode === 'any' ? 'checked' : ''} data-action="setTagMatchMode" style="flex-shrink:0;margin-top:2px">
             <span><strong>Match Any</strong> — show concepts with at least one selected tag</span>
           </label>
           <label style="display:flex;align-items:baseline;gap:8px;cursor:pointer;font-size:12px">
-            <input type="radio" name="scorTagMatchMode" value="all" ${scorTagMatchMode === 'all' ? 'checked' : ''} onchange="setTagMatchMode('all')" style="flex-shrink:0;margin-top:2px">
+            <input type="radio" name="scorTagMatchMode" value="all" ${scorTagMatchMode === 'all' ? 'checked' : ''} data-action="setTagMatchMode" style="flex-shrink:0;margin-top:2px">
             <span><strong>Match All</strong> — show concepts with every selected tag</span>
           </label>
         </div>
@@ -7381,7 +7446,7 @@ ${sections}
       `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="font-size:12px;font-weight:600;color:var(--text);flex:1">${escHtml(f.name)}</span>
         <span style="font-size:11px;color:var(--text-muted);background:var(--bg);padding:2px 8px;border-radius:20px;border:1px solid var(--border)">${f.type}</span>
-        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;color:var(--danger)" onclick="removeConceptCustomField('${f.id}')">Remove</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;color:var(--danger)" data-action="remove-concept-field" data-field-id="${escHtml(f.id)}">Remove</button>
       </div>`
     ).join('');
   }
@@ -7945,7 +8010,7 @@ ${sections}
       ];
       opts.forEach(o => {
         const cur = o.val === curScore ? ' popup-current' : '';
-        btns += `<button class="popup-score-btn ${o.cls}${cur}" onclick="applyScoreFromPopup(${o.val})">${o.label}</button>`;
+        btns += `<button class="popup-score-btn ${o.cls}${cur}" data-action="score-popup" data-score="${o.val}" data-score-type="number">${o.label}</button>`;
       });
     } else {
       const opts = [
@@ -7955,12 +8020,12 @@ ${sections}
       ];
       opts.forEach(o => {
         const cur = o.val === curScore ? ' popup-current' : '';
-        btns += `<button class="popup-score-btn ${o.cls}${cur}" onclick="applyScoreFromPopup('${o.val}')">${o.label}</button>`;
+        btns += `<button class="popup-score-btn ${o.cls}${cur}" data-action="score-popup" data-score="${o.val}" data-score-type="string">${o.label}</button>`;
       });
     }
     // Clear button — only if a score is already set
     if (curScore !== undefined && curScore !== null) {
-      btns += `<button class="popup-score-btn popup-clear" onclick="applyScoreFromPopup(null)" title="Clear score">CLEAR</button>`;
+      btns += `<button class="popup-score-btn popup-clear" data-action="score-popup" data-score-type="null" title="Clear score">CLEAR</button>`;
     }
 
     popup.innerHTML = btns;
@@ -8549,20 +8614,20 @@ ${sections}
           <div class="conv-ns-col-what">
             <input type="text" class="modal-input" placeholder="Action item"
               value="${esc(step.what)}"
-              oninput="updateConvNextStep('${step.id}','what',this.value)">
+              data-action="conv-step-input" data-step-id="${escHtml(step.id)}" data-field="what">
           </div>
           <div class="conv-ns-col-who">
             <input type="text" class="modal-input" placeholder="Owner"
               value="${esc(step.who)}"
-              oninput="updateConvNextStep('${step.id}','who',this.value)">
+              data-action="conv-step-input" data-step-id="${escHtml(step.id)}" data-field="who">
           </div>
           <div class="conv-ns-col-when">
             <input type="text" class="modal-input" placeholder="Date or milestone"
               value="${esc(step.when)}"
-              oninput="updateConvNextStep('${step.id}','when',this.value)">
+              data-action="conv-step-input" data-step-id="${escHtml(step.id)}" data-field="when">
           </div>
           <div class="conv-ns-col-del">
-            <button class="btn btn-ghost" onclick="removeConvNextStep('${step.id}')"
+            <button class="btn btn-ghost" data-action="remove-conv-step" data-step-id="${escHtml(step.id)}"
               title="Remove" style="padding:4px 8px;color:var(--text-light)">✕</button>
           </div>
         </div>`;
