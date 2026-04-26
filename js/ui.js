@@ -304,7 +304,7 @@
       : '';
     const activateBtn = isActive
       ? ''
-      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
+      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();activateProjectOnly('${p.id}')" title="Activate this project">Activate</button>`;
 
     // Invite button — visible to all logged-in non-free tiers; Pro gate fires inside openInviteModal()
     const inviteBtn = (isActive && userTier !== 'free' && appState.currentUser)
@@ -388,7 +388,7 @@
       : '';
     const activateBtn = isActive
       ? ''
-      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();loadProject('${p.id}')" title="Activate this project">Activate</button>`;
+      : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();activateProjectOnly('${p.id}')" title="Activate this project">Activate</button>`;
 
     return `
     <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">

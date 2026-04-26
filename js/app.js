@@ -4608,6 +4608,15 @@ ${sections}
     // Quick: loadProject → setMode('basic') already navigated to the basic page.
   }
 
+  // Single-click Activate button on a project card: activate without navigating away
+  // from Project Manager. loadProject() calls setMode() which would normally redirect
+  // to the home page, so we immediately bring the user back to the proj page.
+  function activateProjectOnly(id) {
+    loadProject(id);
+    const projNavBtn = document.querySelector('[data-page="proj"]');
+    switchPage('proj', projNavBtn);
+  }
+
   function deactivateProject() {
     // Anonymous users: their project lives only in memory (createProject for
     // anon does NOT push to savedProjects or save to Supabase). Closing it
