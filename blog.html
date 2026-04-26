@@ -178,8 +178,9 @@
     <div class="skeleton-card"></div>
   </main>
 
-  <!-- Foundation script (defines POSTHOG_KEY/HOST, _supabase) -->
-  <script src="js/config.js"></script>
+  <!-- Foundation script (defines POSTHOG_KEY/HOST, _supabase).
+       Absolute path so it works regardless of trailing-slash URL variants. -->
+  <script src="/js/config.js"></script>
 
   <script>
     // ── PostHog init ───────────────────────────────────────────

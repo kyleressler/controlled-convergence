@@ -182,7 +182,9 @@
     <div class="loading-state">Loading…</div>
   </main>
 
-  <script src="js/config.js"></script>
+  <!-- Absolute path required: this page is served at /blog/<slug>, so a
+       relative path would resolve to /blog/js/config.js (404). -->
+  <script src="/js/config.js"></script>
 
   <script>
     // ── PostHog init ───────────────────────────────────────────
