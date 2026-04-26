@@ -30,7 +30,22 @@
   let _currentPost = null;       // last-known server-side row (for diffing/dirty)
   let _isDirty = false;
   let _autosaveTimer = null;
-  let _view = 'list';            // 'list' | 'editor'
+  let _view = 'list';            // 'list' | 'editor' | 'campaign'
+
+  // Campaign hub state
+  let _currentCampaign = null;   // campaign row being viewed (with .blog_post)
+  let _editingPieceId = null;    // null when adding; piece id when editing
+
+  // UTM convention — must match the build-prompt spec exactly:
+  //   linkedin → utm_source=linkedin, utm_medium=social,    utm_content=li-post-{n}
+  //   email    → utm_source=email,    utm_medium=newsletter, utm_content=email-{n}
+  //   youtube  → utm_source=youtube,  utm_medium=video,     utm_content=yt-video-{n}
+  const PIECE_TYPES = {
+    linkedin: { label: 'LinkedIn',  source: 'linkedin', medium: 'social',     contentPrefix: 'li-post-',  hasPlatformUrl: true  },
+    email:    { label: 'Email',     source: 'email',    medium: 'newsletter', contentPrefix: 'email-',    hasPlatformUrl: false },
+    youtube:  { label: 'YouTube',   source: 'youtube',  medium: 'video',      contentPrefix: 'yt-video-', hasPlatformUrl: true  }
+  };
+  const SITE_ORIGIN = 'https://controlledconvergence.com';
 
   const AUTOSAVE_INTERVAL_MS = 30 * 1000;
   const STORAGE_BUCKET = 'blog-images';
@@ -41,9 +56,10 @@
     const root = document.getElementById('pane-blog');
     if (!root) return;
 
-    // Default to list view; editor is opened via "New post" or row click.
     if (_view === 'editor') {
       renderEditor(root);
+    } else if (_view === 'campaign') {
+      await renderCampaignHub(root);
     } else {
       await renderList(root);
     }
@@ -52,7 +68,7 @@
   // Used by the topbar refresh button in admin.html — lets the shell skip
   // re-render while the user is mid-edit so unsaved changes aren't lost.
   window.adminBlogIsEditing = function () {
-    return _view === 'editor';
+    return _view === 'editor' || _view === 'campaign';
   };
 
   // ── List view ────────────────────────────────────────────────
@@ -230,6 +246,10 @@
           </div>
         </aside>
       </div>
+
+      <!-- Campaign timeline appears below the editor on saved posts only.
+           Filled by renderCampaignTimeline() once the post has an id. -->
+      <section class="campaign-timeline-wrap" id="campaignTimelineWrap"></section>
     `;
 
     // Wire navigation
@@ -278,6 +298,11 @@
 
     document.getElementById('blogSaveDraftBtn').addEventListener('click', function () { savePost('draft'); });
     document.getElementById('blogPublishBtn').addEventListener('click', function () { savePost('published'); });
+
+    // Render campaign timeline below the editor (saved posts only)
+    if (_currentPostId) {
+      renderCampaignTimeline(document.getElementById('campaignTimelineWrap'));
+    }
 
     // Start autosave timer
     startAutosave();
@@ -634,6 +659,556 @@
     if (typeof trackEvent === 'function') {
       trackEvent('campaign_created', { post_id: postId, version: 1 });
     }
+  }
+
+  // ── Campaign timeline (renders below the editor) ─────────────
+  async function renderCampaignTimeline(container) {
+    if (!container || !_currentPostId) return;
+
+    container.innerHTML = '<div class="muted">Loading campaigns…</div>';
+
+    const { data: campaigns, error } = await _supabase
+      .from('campaigns')
+      .select('id, version, label, hook_angle, status, launched_at, created_at')
+      .eq('blog_post_id', _currentPostId)
+      .order('version', { ascending: true });
+
+    if (error) {
+      container.innerHTML = '<div class="muted">Couldn\'t load campaigns: ' + escapeHtml(error.message) + '</div>';
+      return;
+    }
+
+    let html = '<div class="campaign-timeline-header">';
+    html += '<h2>Campaigns</h2>';
+    if (_currentPost && _currentPost.status === 'published') {
+      html += '<button class="btn-secondary" id="repromoteBtn">+ Re-promote</button>';
+    } else {
+      html += '<span class="muted">Publish the post to start your first campaign.</span>';
+    }
+    html += '</div>';
+
+    if (!campaigns || campaigns.length === 0) {
+      html += '<div class="empty-card"><strong>No campaigns yet.</strong>' +
+              (_currentPost && _currentPost.status === 'published'
+                ? 'Click + Re-promote to add one, or publish-update the post to bootstrap v1.'
+                : 'Publish the post to bootstrap Campaign 1.') +
+              '</div>';
+    } else {
+      html += '<div class="campaign-list">';
+      campaigns.forEach(function (c) {
+        html += renderCampaignTile(c);
+      });
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Wire tile clicks → open hub
+    container.querySelectorAll('.campaign-tile').forEach(function (el) {
+      el.addEventListener('click', function () {
+        openCampaign(el.getAttribute('data-campaign-id'));
+      });
+    });
+
+    const repBtn = document.getElementById('repromoteBtn');
+    if (repBtn) repBtn.addEventListener('click', function () { repromoteCampaign(campaigns); });
+  }
+
+  function renderCampaignTile(c) {
+    const launched = c.launched_at ? formatDate(c.launched_at) : 'Not launched';
+    return '' +
+      '<div class="campaign-tile" data-campaign-id="' + escapeHtml(c.id) + '">' +
+        '<div class="campaign-tile-header">' +
+          '<span class="campaign-version">Campaign ' + c.version + '</span>' +
+          '<span class="status-pill status-' + escapeHtml(c.status) + '">' + escapeHtml(c.status) + '</span>' +
+        '</div>' +
+        '<div class="campaign-label">' + escapeHtml(c.label || '(untitled)') + '</div>' +
+        (c.hook_angle ? '<div class="campaign-hook muted">' + escapeHtml(c.hook_angle) + '</div>' : '') +
+        '<div class="campaign-meta muted">' + escapeHtml(launched) + '</div>' +
+      '</div>';
+  }
+
+  async function repromoteCampaign(existingCampaigns) {
+    const nextVersion = (existingCampaigns && existingCampaigns.length)
+      ? Math.max.apply(null, existingCampaigns.map(function (c) { return c.version || 1; })) + 1
+      : 2;
+
+    const label = window.prompt(
+      'Label for Campaign v' + nextVersion + ' (e.g. "6-month re-promotion"):',
+      nextVersion + '-month re-promotion'
+    );
+    if (label === null) return;
+
+    const hookAngle = window.prompt(
+      'New hook angle for this re-promotion (optional — what\'s the fresh take?):',
+      ''
+    );
+    if (hookAngle === null) return;
+
+    const { data, error } = await _supabase
+      .from('campaigns')
+      .insert({
+        blog_post_id: _currentPostId,
+        version: nextVersion,
+        label: label.trim() || ('Re-promotion v' + nextVersion),
+        hook_angle: hookAngle.trim() || null,
+        status: 'planning',
+        launched_at: null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert('Couldn\'t create campaign: ' + error.message);
+      return;
+    }
+
+    if (typeof trackEvent === 'function') {
+      trackEvent('campaign_created', { post_id: _currentPostId, version: nextVersion });
+    }
+
+    // Refresh timeline + open the new campaign
+    await openCampaign(data.id);
+  }
+
+  // ── Content hub (per campaign) ───────────────────────────────
+  async function openCampaign(campaignId) {
+    const { data: campaign, error } = await _supabase
+      .from('campaigns')
+      .select('id, version, label, hook_angle, status, launched_at, blog_post_id, blog_posts(id, title, slug)')
+      .eq('id', campaignId)
+      .single();
+    if (error || !campaign) {
+      alert('Couldn\'t load campaign: ' + (error ? error.message : 'not found'));
+      return;
+    }
+    // Normalize the joined post field — Supabase nests it under blog_posts
+    campaign.post = campaign.blog_posts;
+    _currentCampaign = campaign;
+    _editingPieceId = null;
+    _view = 'campaign';
+    stopAutosave();
+    renderAdminBlog();
+  }
+
+  function backToEditor() {
+    _view = 'editor';
+    _currentCampaign = null;
+    _editingPieceId = null;
+    renderAdminBlog();
+  }
+
+  async function renderCampaignHub(root) {
+    if (!_currentCampaign) {
+      // Defensive — if state was lost, fall back to list view
+      _view = 'list';
+      await renderList(root);
+      return;
+    }
+    const c = _currentCampaign;
+    const post = c.post || {};
+
+    root.innerHTML = `
+      <div class="blog-header">
+        <div>
+          <button class="btn-link" id="hubBackBtn">← Back to "${escapeHtml(post.title || '')}"</button>
+          <h1>Campaign ${c.version} — ${escapeHtml(c.label || '')}</h1>
+          ${c.hook_angle ? '<p class="pane-sub">Hook: ' + escapeHtml(c.hook_angle) + '</p>' : ''}
+        </div>
+        <div class="editor-actions">
+          <label class="muted" style="margin-right:6px">Status</label>
+          <select id="campaignStatusSelect" class="editor-text" style="width:auto">
+            <option value="planning"${c.status === 'planning' ? ' selected' : ''}>Planning</option>
+            <option value="active"${c.status === 'active' ? ' selected' : ''}>Active</option>
+            <option value="complete"${c.status === 'complete' ? ' selected' : ''}>Complete</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hub-columns">
+        <div class="hub-column" data-type="linkedin"><h2>LinkedIn</h2><div class="hub-pieces" id="hubPieces-linkedin"></div><button class="btn-secondary hub-add-btn" data-type="linkedin">+ Add LinkedIn post</button></div>
+        <div class="hub-column" data-type="email"><h2>Email</h2><div class="hub-pieces" id="hubPieces-email"></div><button class="btn-secondary hub-add-btn" data-type="email">+ Add email</button></div>
+        <div class="hub-column" data-type="youtube"><h2>YouTube</h2><div class="hub-pieces" id="hubPieces-youtube"></div><button class="btn-secondary hub-add-btn" data-type="youtube">+ Add video</button></div>
+      </div>
+    `;
+
+    document.getElementById('hubBackBtn').addEventListener('click', backToEditor);
+
+    document.getElementById('campaignStatusSelect').addEventListener('change', async function (e) {
+      const newStatus = e.target.value;
+      const { error } = await _supabase
+        .from('campaigns')
+        .update({ status: newStatus, launched_at: newStatus === 'active' && !c.launched_at ? new Date().toISOString() : c.launched_at })
+        .eq('id', c.id);
+      if (error) { alert('Status update failed: ' + error.message); return; }
+      _currentCampaign.status = newStatus;
+    });
+
+    root.querySelectorAll('.hub-add-btn').forEach(function (b) {
+      b.addEventListener('click', function () { openPieceForm(b.getAttribute('data-type'), null); });
+    });
+
+    await loadAndRenderPieces();
+  }
+
+  async function loadAndRenderPieces() {
+    if (!_currentCampaign) return;
+    const { data: pieces, error } = await _supabase
+      .from('content_pieces')
+      .select('*')
+      .eq('campaign_id', _currentCampaign.id)
+      .order('piece_number', { ascending: true });
+
+    if (error) {
+      ['linkedin', 'email', 'youtube'].forEach(function (t) {
+        const el = document.getElementById('hubPieces-' + t);
+        if (el) el.innerHTML = '<div class="muted">Load failed.</div>';
+      });
+      return;
+    }
+
+    const byType = { linkedin: [], email: [], youtube: [] };
+    (pieces || []).forEach(function (p) {
+      if (byType[p.type]) byType[p.type].push(p);
+    });
+
+    Object.keys(byType).forEach(function (t) {
+      const el = document.getElementById('hubPieces-' + t);
+      if (!el) return;
+      if (byType[t].length === 0) {
+        el.innerHTML = '<div class="muted hub-empty">No pieces yet.</div>';
+      } else {
+        el.innerHTML = byType[t].map(renderPieceCard).join('');
+        wirePieceCardEvents(el);
+      }
+    });
+  }
+
+  function renderPieceCard(p) {
+    const utm = utmUrlForPiece(p);
+    const isPublished = p.status === 'published';
+    const titleField = p.type === 'email' ? (p.subject || p.title || '(untitled)') : (p.title || '(untitled)');
+    const platformLink = p.platform_url
+      ? '<a href="' + escapeAttr(p.platform_url) + '" target="_blank" rel="noopener">View on ' + PIECE_TYPES[p.type].label + ' ↗</a>'
+      : '';
+
+    return '' +
+      '<div class="piece-card" data-piece-id="' + escapeHtml(p.id) + '" data-piece-type="' + escapeHtml(p.type) + '">' +
+        '<div class="piece-card-header">' +
+          '<span class="piece-badge piece-badge-' + escapeHtml(p.type) + '">' + escapeHtml(PIECE_TYPES[p.type].label) + ' #' + (p.piece_number || 1) + '</span>' +
+          '<span class="status-pill status-' + escapeHtml(p.status) + '">' + escapeHtml(p.status) + '</span>' +
+        '</div>' +
+        '<div class="piece-title">' + escapeHtml(titleField) + '</div>' +
+        '<div class="piece-content-preview">' + escapeHtml(p.content || '') + '</div>' +
+        (p.planned_date ? '<div class="muted piece-date">Planned: ' + escapeHtml(p.planned_date) + '</div>' : '') +
+        '<div class="utm-row">' +
+          '<input type="text" class="utm-input" readonly value="' + escapeAttr(utm) + '">' +
+          '<button class="btn-secondary utm-copy-btn" data-utm="' + escapeAttr(utm) + '">Copy</button>' +
+        '</div>' +
+        (p.type === 'youtube'
+          ? '<label class="checkbox-row piece-embed-row"><input type="checkbox" class="piece-embed-toggle" ' + (p.embed_in_post ? 'checked' : '') + '><span>Embed in blog post</span></label>'
+          : '') +
+        '<div class="piece-actions">' +
+          '<button class="btn-link piece-edit-btn">Edit</button>' +
+          '<button class="btn-link piece-delete-btn">Delete</button>' +
+          (isPublished
+            ? '<span class="muted">Confirmed ' + (p.confirmed_at ? formatDate(p.confirmed_at) : '') + ' · ' + platformLink + '</span>'
+            : '<button class="btn-primary piece-confirm-btn">' + (PIECE_TYPES[p.type].hasPlatformUrl ? 'Mark Published →' : 'Confirm Sent') + '</button>'
+          ) +
+        '</div>' +
+        '<div class="piece-confirm-row" style="display:none">' +
+          '<input type="url" class="piece-platform-url-input editor-text" placeholder="Paste the ' + escapeHtml(PIECE_TYPES[p.type].label) + ' URL">' +
+          '<button class="btn-primary piece-confirm-save-btn">Confirm</button>' +
+          '<button class="btn-link piece-confirm-cancel-btn">Cancel</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function wirePieceCardEvents(container) {
+    container.querySelectorAll('.utm-copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        copyToClipboard(btn.getAttribute('data-utm'));
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1200);
+      });
+    });
+    container.querySelectorAll('.piece-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const card = btn.closest('.piece-card');
+        openPieceForm(card.getAttribute('data-piece-type'), card.getAttribute('data-piece-id'));
+      });
+    });
+    container.querySelectorAll('.piece-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        const card = btn.closest('.piece-card');
+        if (!confirm('Delete this piece?')) return;
+        const { error } = await _supabase.from('content_pieces').delete().eq('id', card.getAttribute('data-piece-id'));
+        if (error) { alert('Delete failed: ' + error.message); return; }
+        await loadAndRenderPieces();
+      });
+    });
+    container.querySelectorAll('.piece-confirm-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const card = btn.closest('.piece-card');
+        const type = card.getAttribute('data-piece-type');
+        if (PIECE_TYPES[type].hasPlatformUrl) {
+          // Expand the inline URL paste row
+          card.querySelector('.piece-confirm-row').style.display = 'flex';
+          card.querySelector('.piece-platform-url-input').focus();
+        } else {
+          // Email — confirm immediately
+          confirmPiece(card.getAttribute('data-piece-id'), null);
+        }
+      });
+    });
+    container.querySelectorAll('.piece-confirm-save-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const card = btn.closest('.piece-card');
+        const url = card.querySelector('.piece-platform-url-input').value.trim();
+        if (!url) { alert('Paste the platform URL first.'); return; }
+        confirmPiece(card.getAttribute('data-piece-id'), url);
+      });
+    });
+    container.querySelectorAll('.piece-confirm-cancel-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const card = btn.closest('.piece-card');
+        card.querySelector('.piece-confirm-row').style.display = 'none';
+      });
+    });
+    container.querySelectorAll('.piece-embed-toggle').forEach(function (cb) {
+      cb.addEventListener('change', async function () {
+        const card = cb.closest('.piece-card');
+        const { error } = await _supabase
+          .from('content_pieces')
+          .update({ embed_in_post: cb.checked })
+          .eq('id', card.getAttribute('data-piece-id'));
+        if (error) { alert('Update failed: ' + error.message); cb.checked = !cb.checked; }
+      });
+    });
+  }
+
+  async function confirmPiece(pieceId, platformUrl) {
+    const update = {
+      status: 'published',
+      confirmed_at: new Date().toISOString()
+    };
+    if (platformUrl) update.platform_url = platformUrl;
+
+    const { error } = await _supabase
+      .from('content_pieces')
+      .update(update)
+      .eq('id', pieceId);
+    if (error) { alert('Confirm failed: ' + error.message); return; }
+
+    if (typeof trackEvent === 'function') {
+      trackEvent('content_piece_confirmed', { piece_id: pieceId, platform_url: platformUrl || null });
+    }
+
+    await loadAndRenderPieces();
+  }
+
+  // ── Piece create / edit form ─────────────────────────────────
+  async function openPieceForm(type, pieceId) {
+    if (!PIECE_TYPES[type]) return;
+    _editingPieceId = pieceId;
+
+    let existing = null;
+    if (pieceId) {
+      const { data, error } = await _supabase.from('content_pieces').select('*').eq('id', pieceId).single();
+      if (error || !data) { alert('Couldn\'t load piece: ' + (error ? error.message : 'not found')); return; }
+      existing = data;
+    }
+
+    const isEmail = type === 'email';
+    const isYouTube = type === 'youtube';
+    const titleLabel = isEmail ? 'Subject' : 'Title';
+    const titleField = isEmail ? 'subject' : 'title';
+    const titleVal   = existing ? (existing[titleField] || '') : '';
+    const contentVal = existing ? (existing.content || '') : '';
+    const dateVal    = existing && existing.planned_date ? existing.planned_date : '';
+    const statusVal  = existing ? existing.status : 'draft';
+    const embedVal   = existing ? !!existing.embed_in_post : false;
+
+    // Render an inline modal-like overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'piece-form-overlay';
+    overlay.innerHTML = `
+      <div class="piece-form">
+        <div class="piece-form-header">
+          <h2>${pieceId ? 'Edit' : 'Add'} ${escapeHtml(PIECE_TYPES[type].label)} ${pieceId ? 'piece' : 'piece'}</h2>
+          <button class="btn-link" id="pieceFormCloseBtn">Close</button>
+        </div>
+
+        <label class="editor-label">${titleLabel}</label>
+        <input type="text" id="pieceTitleInput" class="editor-text" value="${escapeAttr(titleVal)}" placeholder="${escapeAttr(isEmail ? 'Email subject' : (isYouTube ? 'Video title' : 'Hook line'))}">
+
+        <label class="editor-label">${isEmail ? 'Email body' : 'Content'}</label>
+        <textarea id="pieceContentInput" class="editor-text" rows="6" placeholder="Write the ${escapeHtml(PIECE_TYPES[type].label).toLowerCase()} content here.">${escapeHtml(contentVal)}</textarea>
+
+        <div class="piece-form-row">
+          <div>
+            <label class="editor-label">Planned date</label>
+            <input type="date" id="pieceDateInput" class="editor-text" value="${escapeAttr(dateVal)}">
+          </div>
+          ${pieceId ? `
+            <div>
+              <label class="editor-label">Status</label>
+              <select id="pieceStatusInput" class="editor-text">
+                <option value="draft"${statusVal === 'draft' ? ' selected' : ''}>Draft</option>
+                <option value="ready"${statusVal === 'ready' ? ' selected' : ''}>Ready</option>
+                <option value="scheduled"${statusVal === 'scheduled' ? ' selected' : ''}>Scheduled</option>
+                <option value="published"${statusVal === 'published' ? ' selected' : ''}>Published</option>
+              </select>
+            </div>
+          ` : ''}
+        </div>
+
+        ${isYouTube ? `
+          <label class="checkbox-row" style="margin-top:12px">
+            <input type="checkbox" id="pieceEmbedInput" ${embedVal ? 'checked' : ''}>
+            <span>Embed video in the blog post</span>
+          </label>
+        ` : ''}
+
+        <div class="piece-form-actions">
+          <button class="btn-secondary" id="pieceFormCancelBtn">Cancel</button>
+          <button class="btn-primary" id="pieceFormSaveBtn">${pieceId ? 'Save' : 'Add piece'}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    function close() { overlay.remove(); _editingPieceId = null; }
+    document.getElementById('pieceFormCloseBtn').addEventListener('click', close);
+    document.getElementById('pieceFormCancelBtn').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+
+    document.getElementById('pieceFormSaveBtn').addEventListener('click', async function () {
+      const titleVal   = document.getElementById('pieceTitleInput').value.trim();
+      const contentVal = document.getElementById('pieceContentInput').value.trim();
+      const dateVal    = document.getElementById('pieceDateInput').value || null;
+      const statusEl   = document.getElementById('pieceStatusInput');
+      const embedEl    = document.getElementById('pieceEmbedInput');
+      const statusVal  = statusEl ? statusEl.value : 'draft';
+      const embedVal   = embedEl ? embedEl.checked : false;
+
+      if (!titleVal) { alert((isEmail ? 'Subject' : 'Title') + ' is required.'); return; }
+
+      let row;
+      if (pieceId) {
+        // Update existing
+        const update = {
+          content: contentVal,
+          planned_date: dateVal,
+          status: statusVal,
+          embed_in_post: embedVal
+        };
+        if (isEmail) update.subject = titleVal; else update.title = titleVal;
+
+        const { data, error } = await _supabase
+          .from('content_pieces')
+          .update(update)
+          .eq('id', pieceId)
+          .select()
+          .single();
+        if (error) { alert('Save failed: ' + error.message); return; }
+        row = data;
+        // Re-generate UTM in case slug or version changed (rare but safe)
+        await refreshPieceUtm(row);
+      } else {
+        // Insert — assign next piece_number for this campaign+type
+        const pieceNumber = await nextPieceNumber(type);
+        const insert = {
+          blog_post_id: _currentCampaign.blog_post_id,
+          campaign_id: _currentCampaign.id,
+          type: type,
+          content: contentVal,
+          planned_date: dateVal,
+          status: 'draft',
+          piece_number: pieceNumber,
+          embed_in_post: embedVal
+        };
+        if (isEmail) insert.subject = titleVal; else insert.title = titleVal;
+        // Generate the UTM URL on insert. We need the post slug — use the
+        // joined post on _currentCampaign.
+        insert.utm_url = utmUrlFor(_currentCampaign.post, _currentCampaign, { type: type, piece_number: pieceNumber });
+
+        const { data, error } = await _supabase
+          .from('content_pieces')
+          .insert(insert)
+          .select()
+          .single();
+        if (error) { alert('Add failed: ' + error.message); return; }
+        row = data;
+      }
+
+      close();
+      await loadAndRenderPieces();
+    });
+  }
+
+  async function nextPieceNumber(type) {
+    const { data, error } = await _supabase
+      .from('content_pieces')
+      .select('piece_number')
+      .eq('campaign_id', _currentCampaign.id)
+      .eq('type', type)
+      .order('piece_number', { ascending: false })
+      .limit(1);
+    if (error || !data || data.length === 0) return 1;
+    return (data[0].piece_number || 0) + 1;
+  }
+
+  async function refreshPieceUtm(piece) {
+    const post = (_currentCampaign && _currentCampaign.post) || null;
+    if (!post) return;
+    const url = utmUrlFor(post, _currentCampaign, piece);
+    if (url !== piece.utm_url) {
+      await _supabase.from('content_pieces').update({ utm_url: url }).eq('id', piece.id);
+    }
+  }
+
+  // ── UTM URL generation ──────────────────────────────────────
+  // Format (per build-prompt spec):
+  //   https://controlledconvergence.com/blog/{slug}
+  //     ?utm_source={source}&utm_medium={medium}
+  //     &utm_campaign={campaign_slug}&utm_content={prefix}{n}
+  // Campaign slug versioning: v1 = post.slug, v2+ = post.slug + '-v' + version
+  function utmUrlFor(post, campaign, piece) {
+    if (!post || !post.slug || !PIECE_TYPES[piece.type]) return '';
+    const t = PIECE_TYPES[piece.type];
+    const campaignSlug = (campaign && campaign.version > 1)
+      ? post.slug + '-v' + campaign.version
+      : post.slug;
+    const params = new URLSearchParams({
+      utm_source: t.source,
+      utm_medium: t.medium,
+      utm_campaign: campaignSlug,
+      utm_content: t.contentPrefix + (piece.piece_number || 1)
+    });
+    return SITE_ORIGIN + '/blog/' + post.slug + '?' + params.toString();
+  }
+
+  // For rendering an existing piece in a card (no need to re-derive — the
+  // utm_url column was set on insert and refreshed on edit).
+  function utmUrlForPiece(piece) {
+    if (piece.utm_url) return piece.utm_url;
+    // Fallback: build it on the fly from in-memory campaign + post.
+    return utmUrlFor((_currentCampaign && _currentCampaign.post) || null, _currentCampaign, piece);
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {});
+      return;
+    }
+    // Fallback for older browsers / non-secure contexts
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    ta.remove();
   }
 
   // ── Autosave ─────────────────────────────────────────────────
