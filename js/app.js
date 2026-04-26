@@ -2373,6 +2373,10 @@
                     selectedIlities.size > 0 ||
                     selectedStakeholders.size > 0;
     if (hasData && !autoLoad) {
+      // Show the styled confirmation modal instead of a browser confirm() dialog.
+      const modal = document.getElementById('loadExampleModal');
+      if (modal) { modal.classList.add('open'); return; }
+      // Fallback if modal HTML is somehow missing
       if (!confirm('Loading the example project will replace your current session data. Continue?')) return;
     }
 
@@ -2500,6 +2504,18 @@
       window.ccTour.onExampleLoaded();
     }
   }
+
+  function closeLoadExampleModal() {
+    const modal = document.getElementById('loadExampleModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function confirmLoadExample() {
+    closeLoadExampleModal();
+    // Pass autoLoad=true to skip the hasData check and proceed directly.
+    loadExampleProject(true);
+  }
+
 
   function clearAllWithWarning() {
     if (!confirm('Clear ALL project data? This will reset your goal statement, ilities, stakeholders, requirements, concepts, scores, and convergence. This cannot be undone.')) return;

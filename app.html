@@ -2740,6 +2740,22 @@
   </div>
 </div>
 
+<!-- ── LOAD EXAMPLE PROJECT CONFIRMATION MODAL ── -->
+<div class="modal-overlay" id="loadExampleModal" onclick="if(event.target===this)closeLoadExampleModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">Load Example Project?</div>
+    <div style="font-size:14px;color:var(--text-muted);line-height:1.65;margin-bottom:20px">
+      You have an active project open. Loading the example will replace your current session data.
+      <br><br>
+      Any unsaved changes will be lost. Your saved projects are not affected.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmLoadExample()">Load Example</button>
+      <button class="btn btn-secondary" onclick="closeLoadExampleModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── ANONYMOUS CLOSE PROJECT WARNING MODAL ── -->
 <div class="modal-overlay" id="anonCloseProjectModal" onclick="if(event.target===this)closeAnonCloseProjectModal()">
   <div class="modal-box" style="max-width:480px">
