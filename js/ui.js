@@ -563,9 +563,24 @@ async function _resolveStakEmailTiers(emails) {
     document.getElementById('ilityCount').textContent = selectedIlities.size;
     // nav buttons always active — no disable
     updateIlityAdvisor();
+    updateIlityTierNote();
   }
 
   function updateIlityAdvisor() { /* AI coaching reserved */ }
+
+  function updateIlityTierNote() {
+    const note = document.getElementById('ilityTierNote');
+    if (!note) return;
+    const ILITY_LIMITS = { free: 0, account: 10, pro: Infinity, admin: Infinity };
+    const limit = ILITY_LIMITS[userTier] !== undefined ? ILITY_LIMITS[userTier] : 0;
+    if (!appState.currentUser) {
+      note.textContent = 'Free tier: Sign up for a free account to add up to 10 custom lifecycle properties.';
+    } else if (userTier === 'account') {
+      note.textContent = 'Free Account: ' + customIlities.length + ' of ' + limit + ' custom lifecycle properties. Upgrade to Pro for unlimited.';
+    } else {
+      note.textContent = 'Pro tier: ' + customIlities.length + ' custom lifecycle properties. Unlimited.';
+    }
+  }
 
 
 
@@ -655,6 +670,7 @@ async function _resolveStakEmailTiers(emails) {
     const cont = document.getElementById('btnStakContinue');
     // nav buttons always active — no disable
     updateStakAdvisor();
+    updateStakTierNote();
 
     // Fire async tier resolution for any unseen emails.
     // _resolveStakEmailTiers will call renderStakGrid() again once the RPC returns,
@@ -665,6 +681,20 @@ async function _resolveStakEmailTiers(emails) {
   }
 
   function updateStakAdvisor() { /* AI coaching reserved */ }
+
+  function updateStakTierNote() {
+    const note = document.getElementById('stakTierNote');
+    if (!note) return;
+    const STAK_LIMITS = { free: 0, account: 10, pro: Infinity, admin: Infinity };
+    const limit = STAK_LIMITS[userTier] !== undefined ? STAK_LIMITS[userTier] : 0;
+    if (!appState.currentUser) {
+      note.textContent = 'Free tier: Sign up for a free account to add up to 10 custom stakeholders.';
+    } else if (userTier === 'account') {
+      note.textContent = 'Free Account: ' + customStakeholders.length + ' of ' + limit + ' custom stakeholders. Upgrade to Pro for unlimited.';
+    } else {
+      note.textContent = 'Pro tier: ' + customStakeholders.length + ' custom stakeholders. Unlimited.';
+    }
+  }
 
 
 

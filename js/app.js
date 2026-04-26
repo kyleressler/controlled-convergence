@@ -2401,6 +2401,15 @@
     if (data.stakeholders) {
       if (data.stakeholders.custom)    customStakeholders    = data.stakeholders.custom;
       if (data.stakeholders.selected)  selectedStakeholders  = new Set(data.stakeholders.selected);
+      // Clear any contact-field data left on built-in stakeholders from the previous project,
+      // then apply overrides if the example data carries any (it typically doesn't).
+      const exampleOverrides = (data.stakeholders && data.stakeholders.overrides) || {};
+      STAKEHOLDERS.forEach(s => {
+        const ov = exampleOverrides[s.id];
+        s.contactName  = ov ? (ov.contactName  || '') : '';
+        s.contactTitle = ov ? (ov.contactTitle || '') : '';
+        s.contactEmail = ov ? (ov.contactEmail || '') : '';
+      });
       renderStakGrid();
     }
     if (data.requirements) {
