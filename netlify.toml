@@ -21,3 +21,27 @@
 [functions]
   # Use the modern serverless runtime (Node 18+, native fetch available).
   node_bundler = "esbuild"
+
+
+# ── URL rewrites ──────────────────────────────────────────────
+# Status 200 = rewrite (URL stays clean in the browser, no redirect).
+# Order matters — Netlify processes top to bottom and stops at the first match.
+#
+# /blog       → blog.html         (public index)
+# /blog/      → blog.html         (trailing-slash variant)
+# /blog/:slug → blog-post.html?slug=:slug  (single post; the loader reads ?slug=)
+
+[[redirects]]
+  from = "/blog"
+  to = "/blog.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/"
+  to = "/blog.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/:slug"
+  to = "/blog-post.html?slug=:slug"
+  status = 200

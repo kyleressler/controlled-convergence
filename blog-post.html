@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- These start as defaults; the loader script below overwrites them with the
+       real post's values once Supabase responds. JS-executing crawlers (e.g.
+       Googlebot) will see the post-specific values; non-JS crawlers will see
+       the defaults. Future improvement: render OG tags at the edge. -->
+  <title>Controlled Convergence Blog</title>
+  <meta name="description" content="Article from the Controlled Convergence blog.">
+  <meta property="og:type"        content="article">
+  <meta property="og:title"       content="Controlled Convergence Blog" id="ogTitle">
+  <meta property="og:description" content="Article from the Controlled Convergence blog." id="ogDescription">
+  <meta property="og:url"         content="" id="ogUrl">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- PostHog (auto-captures $pageview with UTM params from inbound links) -->
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId captureTraceFeedback captureTraceMetric".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal:        #0d6e6e;
+      --teal-dark:   #095858;
+      --teal-light:  #e6f4f4;
+      --text:        #1a1a1a;
+      --text-muted:  #6b7280;
+      --border:      #e5e7eb;
+      --white:       #ffffff;
+      --font:        'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--white);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.65;
+    }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { color: var(--teal-dark); text-decoration: underline; }
+
+    /* Top nav (matches blog.html) */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      height: 60px;
+      display: flex; align-items: center;
+      padding: 0 32px;
+    }
+    .nav-inner {
+      width: 100%; max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; }
+    .nav-lettermark {
+      width: 34px; height: 34px;
+      background: var(--teal); color: white;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; letter-spacing: -0.5px;
+    }
+    .nav-wordmark { font-size: 15px; font-weight: 600; color: var(--text); }
+    .nav-link {
+      font-size: 14px; font-weight: 500;
+      color: var(--text-muted); padding: 8px 14px;
+      border: 1px solid var(--border); border-radius: 8px;
+    }
+    .nav-link:hover { color: var(--teal); border-color: var(--teal); text-decoration: none; }
+
+    .article-wrap {
+      max-width: 720px; margin: 0 auto;
+      padding: 56px 32px 96px;
+    }
+
+    .article-meta {
+      font-size: 13px; color: var(--text-muted);
+      letter-spacing: 0.4px; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .article-title {
+      font-size: 40px; font-weight: 700; letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .article-tags {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-bottom: 36px;
+    }
+    .tag {
+      background: var(--teal-light);
+      color: var(--teal-dark);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ── Article body typography ─────────────────────────────────
+       Quill outputs <p>, <h1>-<h3>, <blockquote>, <ul>, <ol>, <a>,
+       <img>, <pre>, <code>. Style each one. */
+    .article-body { font-size: 18px; color: var(--text); }
+    .article-body > * + * { margin-top: 1.2em; }
+    .article-body h1 { font-size: 30px; font-weight: 700; margin-top: 1.6em; letter-spacing: -0.5px; }
+    .article-body h2 { font-size: 24px; font-weight: 700; margin-top: 1.4em; letter-spacing: -0.3px; }
+    .article-body h3 { font-size: 20px; font-weight: 600; margin-top: 1.2em; }
+    .article-body p  { line-height: 1.7; }
+    .article-body a  { color: var(--teal); border-bottom: 1px solid rgba(13,110,110,0.25); }
+    .article-body a:hover { border-bottom-color: var(--teal-dark); text-decoration: none; }
+    .article-body ul, .article-body ol { padding-left: 1.4em; }
+    .article-body li { margin: 0.4em 0; }
+    .article-body blockquote {
+      border-left: 3px solid var(--teal);
+      padding-left: 18px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .article-body img {
+      max-width: 100%; height: auto;
+      border-radius: 8px;
+      display: block;
+    }
+    .article-body pre {
+      background: #f6f8fa;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 14px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+    }
+    .article-body code {
+      background: #f6f8fa;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+    }
+    .article-body pre code { background: transparent; padding: 0; }
+
+    .article-footer {
+      margin-top: 72px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* States */
+    .loading-state, .error-state, .notfound-state {
+      max-width: 720px; margin: 0 auto;
+      padding: 96px 32px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .notfound-state h1 { color: var(--text); font-size: 28px; margin-bottom: 12px; }
+  </style>
+</head>
+
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-lettermark">CC</div>
+        <div class="nav-wordmark">Controlled Convergence</div>
+      </a>
+      <a href="/blog" class="nav-link">← All posts</a>
+    </div>
+  </header>
+
+  <main id="postRoot">
+    <div class="loading-state">Loading…</div>
+  </main>
+
+  <script src="js/config.js"></script>
+
+  <script>
+    // ── PostHog init ───────────────────────────────────────────
+    if (typeof POSTHOG_KEY === 'string' && POSTHOG_KEY && window.posthog && typeof window.posthog.init === 'function') {
+      window.posthog.init(POSTHOG_KEY, {
+        api_host: POSTHOG_HOST,
+        person_profiles: 'identified_only',
+        capture_pageview: true
+      });
+    }
+
+    // ── Render the post ────────────────────────────────────────
+    (async function () {
+      const root = document.getElementById('postRoot');
+
+      // Slug arrives via either ?slug= (when Netlify rewrote /blog/:slug) or
+      // directly when blog-post.html was hit without the rewrite. Pick whichever.
+      const params = new URLSearchParams(window.location.search);
+      const slug = (params.get('slug') || '').trim().toLowerCase();
+
+      if (!slug) {
+        root.innerHTML = renderNotFound('No post specified.');
+        return;
+      }
+
+      const { data: post, error } = await _supabase
+        .from('blog_posts')
+        .select('id, title, slug, excerpt, content, tags, published_at, evergreen')
+        .eq('slug', slug)
+        .eq('status', 'published')
+        .maybeSingle();
+
+      if (error) {
+        console.error('[blog-post] supabase error:', error);
+        root.innerHTML = renderError();
+        return;
+      }
+      if (!post) {
+        root.innerHTML = renderNotFound("We couldn't find that post.");
+        return;
+      }
+
+      // Set document title + OG tags from the post.
+      const fullTitle = post.title + ' · Controlled Convergence';
+      document.title = fullTitle;
+
+      const description = post.excerpt || ('Article from the Controlled Convergence blog: ' + post.title);
+      setMeta('description', description);
+      setProp('ogTitle',       'content', fullTitle);
+      setProp('ogDescription', 'content', description);
+      setProp('ogUrl',         'content', window.location.origin + '/blog/' + post.slug);
+
+      // Render
+      root.innerHTML = renderArticle(post);
+    })();
+
+    // ── Templates ──────────────────────────────────────────────
+    function renderArticle(p) {
+      const date = formatDate(p.published_at);
+      const minutes = readTimeMinutes(p.content);
+      const tags = (p.tags || []).map(function (t) {
+        return '<span class="tag">' + escapeHtml(t) + '</span>';
+      }).join('');
+
+      // Note: content is HTML produced by Quill in the admin editor, then
+      // sanitized by Quill before storage. We render it directly.
+      return '' +
+        '<article class="article-wrap">' +
+          '<div class="article-meta">' + date + ' · ' + minutes + ' min read</div>' +
+          '<h1 class="article-title">' + escapeHtml(p.title || '') + '</h1>' +
+          (tags ? '<div class="article-tags">' + tags + '</div>' : '<div style="margin-bottom:36px"></div>') +
+          '<div class="article-body">' + (p.content || '') + '</div>' +
+          '<div class="article-footer">' +
+            '<a href="/blog">← Back to all posts</a>' +
+          '</div>' +
+        '</article>';
+    }
+
+    function renderNotFound(msg) {
+      return '' +
+        '<div class="notfound-state">' +
+          '<h1>Post not found</h1>' +
+          '<p>' + escapeHtml(msg) + '</p>' +
+          '<p style="margin-top:16px"><a href="/blog">← Back to all posts</a></p>' +
+        '</div>';
+    }
+
+    function renderError() {
+      return '' +
+        '<div class="error-state">' +
+          'Something went wrong loading this post. Please try again in a moment.' +
+        '</div>';
+    }
+
+    // ── Helpers ────────────────────────────────────────────────
+    function setMeta(name, value) {
+      let el = document.querySelector('meta[name="' + name + '"]');
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', value);
+    }
+    function setProp(elId, attr, value) {
+      const el = document.getElementById(elId);
+      if (el) el.setAttribute(attr, value);
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      } catch (e) { return ''; }
+    }
+
+    function readTimeMinutes(html) {
+      const text = String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!text) return 1;
+      return Math.max(1, Math.round(text.split(' ').length / 225));
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>
