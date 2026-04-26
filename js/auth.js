@@ -208,7 +208,7 @@ async function _buildUserFromSession(supabaseUser) {
     id:    supabaseUser.id,
     email: supabaseUser.email,
     name:  profile?.name  || supabaseUser.email.split('@')[0],
-    tier:  profile?.tier  || 'free',
+    tier:  (profile?.tier || 'free').toLowerCase(),
     theme: profile?.theme || 'engineering'
   };
 }
