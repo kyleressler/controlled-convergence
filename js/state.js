@@ -4,7 +4,15 @@
 // ============================================================
 
 // ── Tier ────────────────────────────────────────────────────
-let userTier = 'free'; // 'free' | 'account' | 'pro'
+let userTier = 'free'; // 'free' | 'account' | 'pro' | 'admin'
+
+// Ordered tier ranks. Admin is the highest — passes every premium gate.
+// `userTierMeets('pro')` returns true for both pro AND admin, which is the
+// pattern most premium feature gates want.
+const TIER_RANK = { free: 0, account: 1, pro: 2, admin: 3 };
+function userTierMeets(minTier) {
+  return (TIER_RANK[userTier] || 0) >= (TIER_RANK[minTier] || 0);
+}
 
 // ── Project ─────────────────────────────────────────────────
 let activeProject = null;

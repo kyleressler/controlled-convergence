@@ -1230,7 +1230,7 @@
 
   function openInviteModal(projectId) {
     // Inviting collaborators is a Pro-only feature (account tier sees the button but is gated here)
-    if (userTier !== 'pro' && userTier !== 'admin') {
+    if (!userTierMeets('pro') && userTier !== 'admin') {
       showUpgradePrompt('invite-collab');
       return;
     }
@@ -2748,7 +2748,7 @@
   }
 
   function exportReport() {
-    if (userTier !== 'pro') {
+    if (!userTierMeets('pro')) {
       showUpgradePrompt('export-report');
       return;
     }
@@ -3718,7 +3718,7 @@ ${sections}
 
 
   function handleCoachingClick() {
-    if (userTier !== 'pro') {
+    if (!userTierMeets('pro')) {
       showUpgradePrompt('coaching');
       return;
     }
@@ -4613,7 +4613,7 @@ ${sections}
   }
 
   function openSaveTemplateModal() {
-    if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
+    if (!userTierMeets('pro')) { showUpgradePrompt('templates'); return; }
     document.getElementById('tmplNameInput').value    = '';
     document.getElementById('tmplKeywordsInput').value = '';
     document.getElementById('tmplFilenamePreview').textContent = '';
@@ -4686,7 +4686,7 @@ ${sections}
   }
 
   function downloadTemplate(id) {
-    if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
+    if (!userTierMeets('pro')) { showUpgradePrompt('templates'); return; }
     const templates = loadTemplates();
     const t = templates.find(t => t.id === id);
     if (!t) return;
@@ -4703,7 +4703,7 @@ ${sections}
   }
 
   function uploadTemplate() {
-    if (userTier !== 'pro') { showUpgradePrompt('templates'); return; }
+    if (!userTierMeets('pro')) { showUpgradePrompt('templates'); return; }
     document.getElementById('tmplUploadInput').value = '';
     document.getElementById('tmplUploadInput').click();
   }
@@ -5272,9 +5272,9 @@ ${sections}
     const id = 'custom-sk-' + name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
 
     // Contact fields — only stored if tier allows; never exposed in shared/community data
-    const contactName  = (userTier === 'account' || userTier === 'pro') ? (contactNameInput?.value.trim()  || '') : '';
-    const contactTitle = (userTier === 'pro')                          ? (contactTitleInput?.value.trim() || '') : '';
-    const contactEmail = (userTier === 'pro')                          ? (contactEmailInput?.value.trim() || '') : '';
+    const contactName  = (userTier === 'account' || userTierMeets('pro')) ? (contactNameInput?.value.trim()  || '') : '';
+    const contactTitle = (userTierMeets('pro'))                          ? (contactTitleInput?.value.trim() || '') : '';
+    const contactEmail = (userTierMeets('pro'))                          ? (contactEmailInput?.value.trim() || '') : '';
 
     customStakeholders.push({ id, name, desc, contactName, contactTitle, contactEmail });
     selectedStakeholders.add(id);
@@ -5340,7 +5340,7 @@ ${sections}
     ordered.splice(targetIdx, 0, _dragCardId);
     if (type === 'ility') { ilityOrder = ordered; renderIlityGrid(); }
     else                   { stakOrder  = ordered; renderStakGrid(); }
-    if (activeProject && (userTier === 'account' || userTier === 'pro')) {
+    if (activeProject && (userTier === 'account' || userTierMeets('pro'))) {
       const snap = snapshotCurrentState(activeProject);
       saveProject(snap).catch(err => console.warn('order save failed', err));
     }
@@ -5891,26 +5891,26 @@ ${sections}
         // so they can read the value but can't change it.
         if (cnInput) {
           cnInput.value    = item.contactName  || '';
-          const canEdit    = userTier === 'account' || userTier === 'pro';
+          const canEdit    = userTier === 'account' || userTierMeets('pro');
           cnInput.readOnly = !canEdit;
           cnInput.classList.toggle('modal-input-readonly', !canEdit);
         }
         if (ctInput) {
           ctInput.value    = item.contactTitle || '';
-          const canEdit    = userTier === 'pro';
+          const canEdit    = userTierMeets('pro');
           ctInput.readOnly = !canEdit;
           ctInput.classList.toggle('modal-input-readonly', !canEdit);
         }
         if (ceInput) {
           ceInput.value    = item.contactEmail || '';
-          const canEdit    = userTier === 'pro';
+          const canEdit    = userTierMeets('pro');
           ceInput.readOnly = !canEdit;
           ceInput.classList.toggle('modal-input-readonly', !canEdit);
         }
 
         // Show "view only" note if any field is restricted on this plan
         if (roNote) {
-          roNote.style.display = userTier === 'pro' ? 'none' : '';
+          roNote.style.display = userTierMeets('pro') ? 'none' : '';
         }
       } else {
         contactSection.style.display = 'none';
@@ -5942,13 +5942,13 @@ ${sections}
       // This prevents lower-tier users from accidentally wiping Pro-entered contact data
       // when they save an unrelated change (e.g. updating the stakeholder description).
       const existing = [...STAKEHOLDERS, ...customStakeholders].find(s => s.id === _modalId);
-      const contactName  = (userTier === 'account' || userTier === 'pro')
+      const contactName  = (userTier === 'account' || userTierMeets('pro'))
         ? (document.getElementById('modalContactName')?.value.trim()  || '')
         : (existing?.contactName  || '');   // preserve — user can't edit this field
-      const contactTitle = (userTier === 'pro')
+      const contactTitle = (userTierMeets('pro'))
         ? (document.getElementById('modalContactTitle')?.value.trim() || '')
         : (existing?.contactTitle || '');   // preserve — user can't edit this field
-      const contactEmail = (userTier === 'pro')
+      const contactEmail = (userTierMeets('pro'))
         ? (document.getElementById('modalContactEmail')?.value.trim() || '')
         : (existing?.contactEmail || '');   // preserve — user can't edit this field
       const builtin = STAKEHOLDERS.find(s => s.id === _modalId);
@@ -7942,10 +7942,10 @@ ${sections}
   function updateTierBadges() {
     // Coaching button: show PRO badge for free/account; hide when already pro+
     const coachBadge = document.getElementById('coachProBadge');
-    if (coachBadge) coachBadge.style.display = userTier === 'pro' ? 'none' : '';
+    if (coachBadge) coachBadge.style.display = userTierMeets('pro') ? 'none' : '';
 
     // Pugh settings panel account+ badges: hide when already account or above
-    const isAboveFree = userTier === 'account' || userTier === 'pro';
+    const isAboveFree = userTier === 'account' || userTierMeets('pro');
     document.querySelectorAll('.account-badge-inline').forEach(el => {
       el.style.display = isAboveFree ? 'none' : '';
     });

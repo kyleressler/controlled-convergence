@@ -5,11 +5,12 @@
 // ── Tier limits ───────────────────────────────────────────────
 // Owned projects (projects this user created). Quick and Full have
 // SEPARATE pools — a Free Account user can own 3 Quick + 3 Full
-// independently. A Pro user can own 100 of each.
+// independently. A Pro user can own 100 of each. Admin is unlimited.
 const PROJECT_LIMITS = {
-  free:    { quick: 0,   full: 0   }, // free = not logged in; cannot own saved projects
-  account: { quick: 3,   full: 3   }, // free Account tier: 3 Quick + 3 Full
-  pro:     { quick: 100, full: 100 }  // Pro: 100 Quick + 100 Full
+  free:    { quick: 0,        full: 0        }, // free = not logged in; cannot own saved projects
+  account: { quick: 3,        full: 3        }, // free Account tier: 3 Quick + 3 Full
+  pro:     { quick: 100,      full: 100      }, // Pro: 100 Quick + 100 Full
+  admin:   { quick: Infinity, full: Infinity }  // Admin: unlimited
 };
 
 /**
@@ -26,7 +27,8 @@ function getProjectLimit(tier, projectType) {
 const COLLAB_LIMITS = {
   free:    0,        // free = not logged in; cannot collaborate
   account: 3,        // free Account tier: up to 3 collaborating projects
-  pro:     Infinity  // pro: unlimited
+  pro:     Infinity, // pro: unlimited
+  admin:   Infinity  // admin: unlimited
 };
 
 /**
@@ -102,7 +104,8 @@ function canCreateProject(user, currentCount, projectType) {
   const messages = {
     free:    'Sign in to save ' + typeLabel + '.',
     account: 'Free Accounts can own up to ' + limit + ' ' + typeLabel + '. Upgrade to Pro for more.',
-    pro:     'Pro users can own up to ' + limit + ' ' + typeLabel + '.'
+    pro:     'Pro users can own up to ' + limit + ' ' + typeLabel + '.',
+    admin:   'Project limit reached.' // unreachable in practice — admin is Infinity
   };
 
   return { allowed: false, reason: messages[tier] || 'Project limit reached.' };

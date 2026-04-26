@@ -335,10 +335,17 @@
     });
   }
 
+  // Inline-image upload constraints. Editor inserts images into post body, so
+  // 1600px wide is plenty (article column is 720px → 2x retina = 1440px).
+  const IMG_MAX_WIDTH   = 1600;
+  const IMG_QUALITY     = 0.80;     // JPEG/WebP quality (0–1)
+  const IMG_OUTPUT_TYPE = 'image/webp'; // browsers without WebP encode fall back to JPEG below
+
   function imageUploadHandler() {
     // Triggered when the user clicks the toolbar image button. We bypass
-    // Quill's default URL prompt and open a file picker, upload to Supabase
-    // Storage, then insert the public URL at the cursor.
+    // Quill's default URL prompt and open a file picker, compress + resize
+    // the file in the browser BEFORE upload (saves Supabase egress and
+    // Netlify bandwidth on every reader), then insert the public URL.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -346,8 +353,14 @@
       const file = input.files && input.files[0];
       if (!file) return;
       try {
-        setAutosaveStatus('Uploading image…');
-        const url = await uploadImageToStorage(file);
+        setAutosaveStatus('Compressing image…');
+        const optimized = await compressImageForUpload(file);
+        if (optimized.savedBytes > 0) {
+          setAutosaveStatus('Uploading (saved ' + formatBytes(optimized.savedBytes) + ')…');
+        } else {
+          setAutosaveStatus('Uploading image…');
+        }
+        const url = await uploadImageToStorage(optimized.blob, optimized.ext);
         const range = _quill.getSelection(true);
         _quill.insertEmbed(range.index, 'image', url, 'user');
         _quill.setSelection(range.index + 1);
@@ -362,16 +375,102 @@
     input.click();
   }
 
-  async function uploadImageToStorage(file) {
+  // Resize + re-encode a user-selected image entirely in the browser.
+  // Returns { blob, ext, savedBytes }. Falls back to JPEG when WebP encoding
+  // isn't available (older Safari). Skips work entirely if the source file
+  // is already small enough — that path returns the original file untouched.
+  async function compressImageForUpload(file) {
+    // SVG and GIF aren't sensibly re-encoded; pass through.
+    if (/^image\/(svg\+xml|gif)$/i.test(file.type)) {
+      return { blob: file, ext: extFromName(file.name) || 'png', savedBytes: 0 };
+    }
+
+    // Tiny files (under 200 KB) generally aren't worth re-encoding.
+    if (file.size < 200 * 1024) {
+      return { blob: file, ext: extFromName(file.name) || 'png', savedBytes: 0 };
+    }
+
+    const dataUrl = await readFileAsDataURL(file);
+    const img = await loadImage(dataUrl);
+
+    // Scale down only — never up. Max width IMG_MAX_WIDTH; preserve aspect ratio.
+    let targetW = img.naturalWidth;
+    let targetH = img.naturalHeight;
+    if (targetW > IMG_MAX_WIDTH) {
+      const scale = IMG_MAX_WIDTH / targetW;
+      targetW = IMG_MAX_WIDTH;
+      targetH = Math.round(img.naturalHeight * scale);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    // Try WebP first; fall back to JPEG if the browser can't encode WebP
+    // (toBlob returns null in that case on some older Safari builds).
+    let blob = await canvasToBlob(canvas, IMG_OUTPUT_TYPE, IMG_QUALITY);
+    let ext = 'webp';
+    if (!blob) {
+      blob = await canvasToBlob(canvas, 'image/jpeg', IMG_QUALITY);
+      ext = 'jpg';
+    }
+    if (!blob) {
+      // Last-resort: upload the original
+      return { blob: file, ext: extFromName(file.name) || 'png', savedBytes: 0 };
+    }
+
+    const savedBytes = Math.max(0, file.size - blob.size);
+    return { blob: blob, ext: ext, savedBytes: savedBytes };
+  }
+
+  function readFileAsDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload  = function () { resolve(fr.result); };
+      fr.onerror = function () { reject(fr.error || new Error('FileReader failed')); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function loadImage(src) {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      img.onload  = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('Image failed to load')); };
+      img.src = src;
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(function (resolve) {
+      try { canvas.toBlob(function (b) { resolve(b); }, type, quality); }
+      catch (e) { resolve(null); }
+    });
+  }
+
+  function extFromName(name) {
+    const m = String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+    return m ? m[1].replace(/[^a-z0-9]/g, '') : '';
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  async function uploadImageToStorage(blob, ext) {
     // Path convention: blog/<timestamp>-<random>.<ext>
     // Random suffix avoids collisions if two uploads happen in the same ms.
-    const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const safeExt = ext || 'png';
+    const safeExt = (ext || 'webp').replace(/[^a-z0-9]/g, '') || 'webp';
     const path = 'blog/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + safeExt;
+    const contentType = blob.type || ('image/' + (safeExt === 'jpg' ? 'jpeg' : safeExt));
 
     const { error: upErr } = await _supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, blob, { contentType: contentType, upsert: false });
     if (upErr) throw upErr;
 
     const { data } = _supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);

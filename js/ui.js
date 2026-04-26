@@ -87,7 +87,11 @@
 
     // Tier badge
     badge.className   = 'account-tier-badge tier-' + userTier;
-    badge.textContent = userTier === 'free' ? 'Free' : userTier === 'account' ? 'Account' : 'Pro';
+    badge.textContent =
+      userTier === 'free'    ? 'Free'    :
+      userTier === 'account' ? 'Account' :
+      userTier === 'admin'   ? 'Admin'   :
+                               'Pro';
 
     // CTA button — show for anonymous free users (signup) and signed-in account users (upgrade)
     if (!isSignedIn && userTier === 'free') {

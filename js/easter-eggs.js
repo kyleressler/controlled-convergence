@@ -132,7 +132,7 @@
   // Drop the photo at assets/stuart-pugh.png (or update the path below).
   // ════════════════════════════════════════════════════════════
 
-  var PUGH_IMG_SRC = 'stuart-pugh.png';
+  var PUGH_IMG_SRC = 'stuart-pugh.webp';
   var _pughBuf = [];
 
   function _showPughOverlay() {
