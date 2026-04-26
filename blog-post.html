@@ -4,6 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Logged-in redirect: runs before paint so logged-in users land in the
+       in-app blog reader (with sidebars, theme, top nav). Carries the slug
+       across so the deep link still works. -->
+  <script>
+    (function () {
+      try {
+        var hasSession = false;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') === k.length - '-auth-token'.length) {
+            if (localStorage.getItem(k)) { hasSession = true; break; }
+          }
+        }
+        if (hasSession) {
+          var path = window.location.pathname.replace(/\/+$/, '');
+          var slug = '';
+          var m = path.match(/^\/blog\/(.+)$/i);
+          if (m && m[1]) slug = m[1];
+          window.location.replace('/app.html#blog' + (slug ? '/' + slug : ''));
+        }
+      } catch (e) { /* localStorage blocked — fall through to public render */ }
+    })();
+  </script>
+
+
   <!-- These start as defaults; the loader script below overwrites them with the
        real post's values once Supabase responds. JS-executing crawlers (e.g.
        Googlebot) will see the post-specific values; non-JS crawlers will see
@@ -77,6 +102,11 @@
       border: 1px solid var(--border); border-radius: 8px;
     }
     .nav-link:hover { color: var(--teal); border-color: var(--teal); text-decoration: none; }
+    .nav-link.primary {
+      background: var(--teal); color: var(--white); border-color: var(--teal);
+    }
+    .nav-link.primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); color: var(--white); }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
 
     .article-wrap {
       max-width: 720px; margin: 0 auto;
@@ -174,7 +204,11 @@
         <div class="nav-lettermark">CC</div>
         <div class="nav-wordmark">Controlled Convergence</div>
       </a>
-      <a href="/blog" class="nav-link">← All posts</a>
+      <div class="nav-actions">
+        <a href="/blog"            class="nav-link">← All posts</a>
+        <a href="/app.html#login"  class="nav-link">Log In</a>
+        <a href="/app.html#signup" class="nav-link primary">Start for Free</a>
+      </div>
     </div>
   </header>
 

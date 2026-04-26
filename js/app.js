@@ -5737,6 +5737,11 @@ ${sections}
       if (mCb)   mCb.checked   = !!(pughSettings && pughSettings.showMTHUS);
       if (masCb) masCb.checked = !!(pughSettings && pughSettings.showMAS);
     }
+    if (pageId === 'blog') {
+      // In-app blog rendering. The renderer reads the current hash to decide
+      // whether to show the index or a single post (#blog vs #blog/<slug>).
+      if (typeof window.renderAppBlog === 'function') window.renderAppBlog();
+    }
     if (pageId === 'pair') {
       // Free tier: force non-weighted ilities pairwise
       if (userTier === 'free') {
@@ -6395,7 +6400,24 @@ ${sections}
         }
       }, 250);
     }
+    // #blog or #blog/<slug> — keep the hash so the route stays deep-linkable.
+    // Don't replaceState; the blog renderer needs the hash to know what to show.
+    else if (h === '#blog' || h.indexOf('#blog/') === 0) {
+      // Re-write the URL bar with the hash intact (the IIFE above stripped it).
+      window.history.replaceState(null, '', window.location.pathname + h);
+      switchPage('blog', null);
+    }
   })();
+
+  // Hash listener: lets back/forward and link clicks within the blog re-route
+  // without a full reload. Only intervenes for blog hashes; other navigation
+  // continues through the existing nav buttons + switchPage flow.
+  window.addEventListener('hashchange', function () {
+    const h = window.location.hash;
+    if (h === '#blog' || h.indexOf('#blog/') === 0) {
+      switchPage('blog', null);
+    }
+  });
 
   // ── IMMEDIATE SAVE HELPER ──
   // Call after any state mutation that doesn't already trigger a nav-save.

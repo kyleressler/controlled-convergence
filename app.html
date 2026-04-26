@@ -71,7 +71,7 @@
     </div>
   </div>
 
-  <button class="nav-blog" onclick="window.location.href='/blog'">Blog</button>
+  <button class="nav-blog" onclick="window.location.hash='#blog'">Blog</button>
   <button class="nav-tasks-btn" id="navTasksBtn" onclick="openTasksPanel()" title="Your tasks">
     Tasks
     <span class="nav-tasks-badge" id="navTasksBadge" style="display:none"></span>
@@ -272,6 +272,16 @@
 
 <!-- ── SIDEBAR NUDGE TOOLTIP ── -->
 <div class="sidebar-nudge" id="rightSidebarNudge">Need help? Tap here →</div>
+
+<!-- ── BLOG PAGE (in-app reader) ──
+     Renders the public blog inside the app shell so logged-in users keep
+     sidebars, theme, and top nav. Content is filled by js/blog-app-render.js
+     based on the current hash (#blog → index, #blog/<slug> → single post). -->
+<main class="main page blog-page" id="page-blog" style="display:none">
+  <div id="blogAppContainer">
+    <div class="blog-loading">Loading…</div>
+  </div>
+</main>
 
 <!-- ── PROJ PAGE ── -->
 <main class="main page" id="page-proj" style="display:none">
@@ -2789,6 +2799,7 @@
 <script src="js/ui.js"></script>
 <script src="js/example.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/blog-app-render.js"></script>
 <script src="js/app.js"></script>
 <script src="js/tour.js"></script>
 <script src="js/easter-eggs.js"></script>

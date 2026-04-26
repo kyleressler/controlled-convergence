@@ -3,6 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Logged-in redirect: runs before paint so logged-in users land in the
+       in-app blog reader (with sidebars, theme, top nav). Sync localStorage
+       check — Supabase persists the session under sb-<ref>-auth-token. -->
+  <script>
+    (function () {
+      try {
+        var hasSession = false;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') === k.length - '-auth-token'.length) {
+            if (localStorage.getItem(k)) { hasSession = true; break; }
+          }
+        }
+        if (hasSession) {
+          window.location.replace('/app.html#blog');
+        }
+      } catch (e) { /* localStorage blocked — fall through to public render */ }
+    })();
+  </script>
+
   <title>Blog · Controlled Convergence</title>
   <meta name="description" content="Articles and notes from the Controlled Convergence team — systems thinking, capability design, and organizational strategy.">
 
@@ -77,6 +98,11 @@
       border: 1px solid var(--border); border-radius: 8px;
     }
     .nav-link:hover { color: var(--teal); border-color: var(--teal); text-decoration: none; }
+    .nav-link.primary {
+      background: var(--teal); color: var(--white); border-color: var(--teal);
+    }
+    .nav-link.primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); color: var(--white); }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
 
     /* Header */
     .blog-hero {
@@ -163,7 +189,10 @@
         <div class="nav-lettermark">CC</div>
         <div class="nav-wordmark">Controlled Convergence</div>
       </a>
-      <a href="/" class="nav-link">← Home</a>
+      <div class="nav-actions">
+        <a href="/app.html#login"  class="nav-link">Log In</a>
+        <a href="/app.html#signup" class="nav-link primary">Start for Free</a>
+      </div>
     </div>
   </header>
 
