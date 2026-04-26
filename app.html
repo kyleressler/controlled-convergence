@@ -1449,7 +1449,7 @@
           <div class="datum-def-label">Datum Performance Level</div>
           <input class="datum-def-input" id="datumLevelInput" type="text"
             placeholder="e.g. 12 kg, 4.5 sec, mild steel, current manual process..."
-            oninput="saveDatumField()">
+            oninput="saveDatumField()" onblur="saveDatumFieldAndRefresh()">
         </div>
 
         <!-- Advanced anchors (shown only in advanced mode) -->
@@ -1458,13 +1458,13 @@
             <div class="datum-def-label" style="color:var(--success)">▲ Best Reasonable (+3)</div>
             <input class="datum-def-input" id="datumAnchorHighInput" type="text"
               placeholder="The best a concept could realistically achieve for this requirement..."
-              oninput="saveDatumField()">
+              oninput="saveDatumField()" onblur="saveDatumFieldAndRefresh()">
           </div>
           <div class="datum-def-section" style="padding-top:10px">
             <div class="datum-def-label" style="color:var(--danger)">▼ Worst Reasonable (−3)</div>
             <input class="datum-def-input" id="datumAnchorLowInput" type="text"
               placeholder="The worst a concept could realistically be for this requirement..."
-              oninput="saveDatumField()">
+              oninput="saveDatumField()" onblur="saveDatumFieldAndRefresh()">
           </div>
         </div>
 

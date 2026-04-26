@@ -7692,6 +7692,7 @@ ${sections}
   }
 
   function saveDatumField() {
+    // Saves data on every keystroke without re-rendering, so focus is never lost.
     const req = requirements[datumDefIndex];
     if (!req) return;
     const level       = document.getElementById('datumLevelInput')?.value     || '';
@@ -7702,7 +7703,11 @@ ${sections}
     datumPerformance[req.id].anchorHigh = anchorHigh;
     datumPerformance[req.id].anchorLow  = anchorLow;
     // MAS is saved separately by setDatumMAS()
-    // Update concept card progress in real time
+  }
+
+  function saveDatumFieldAndRefresh() {
+    // Called on blur — saves data and then updates the concept cards.
+    saveDatumField();
     renderConceptCards();
   }
 
