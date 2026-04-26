@@ -9,7 +9,7 @@
 // ── Projects ─────────────────────────────────────────────────
 
 // ── Input-length limits (security: prevent DoS via oversized payloads) ───────
-const PROJECT_LIMITS = {
+const PAYLOAD_LIMITS = {
   name:              200,   // project name
   description:       5000,  // project description
   goal:              5000,  // goal statement
@@ -33,39 +33,39 @@ function validateProjectPayload(project) {
 
   const str = (v) => (typeof v === 'string' ? v : '');
 
-  if (str(project.name).length > PROJECT_LIMITS.name)
-    return `Project name must be ${PROJECT_LIMITS.name} characters or fewer.`;
-  if (str(project.description).length > PROJECT_LIMITS.description)
-    return `Project description must be ${PROJECT_LIMITS.description} characters or fewer.`;
-  if (str(project.goal).length > PROJECT_LIMITS.goal)
-    return `Goal statement must be ${PROJECT_LIMITS.goal} characters or fewer.`;
+  if (str(project.name).length > PAYLOAD_LIMITS.name)
+    return `Project name must be ${PAYLOAD_LIMITS.name} characters or fewer.`;
+  if (str(project.description).length > PAYLOAD_LIMITS.description)
+    return `Project description must be ${PAYLOAD_LIMITS.description} characters or fewer.`;
+  if (str(project.goal).length > PAYLOAD_LIMITS.goal)
+    return `Goal statement must be ${PAYLOAD_LIMITS.goal} characters or fewer.`;
 
   if (Array.isArray(project.requirements)) {
-    if (project.requirements.length > PROJECT_LIMITS.reqsMax)
-      return `Projects may not exceed ${PROJECT_LIMITS.reqsMax} requirements.`;
+    if (project.requirements.length > PAYLOAD_LIMITS.reqsMax)
+      return `Projects may not exceed ${PAYLOAD_LIMITS.reqsMax} requirements.`;
     for (const req of project.requirements) {
-      if (str(req && req.text).length > PROJECT_LIMITS.reqText)
-        return `Requirement text must be ${PROJECT_LIMITS.reqText} characters or fewer.`;
+      if (str(req && req.text).length > PAYLOAD_LIMITS.reqText)
+        return `Requirement text must be ${PAYLOAD_LIMITS.reqText} characters or fewer.`;
     }
   }
 
   if (Array.isArray(project.stakeholders)) {
-    if (project.stakeholders.length > PROJECT_LIMITS.stakeholdersMax)
-      return `Projects may not exceed ${PROJECT_LIMITS.stakeholdersMax} stakeholders.`;
+    if (project.stakeholders.length > PAYLOAD_LIMITS.stakeholdersMax)
+      return `Projects may not exceed ${PAYLOAD_LIMITS.stakeholdersMax} stakeholders.`;
     for (const s of project.stakeholders) {
-      if (str(s && s.name).length > PROJECT_LIMITS.stakeholderName)
-        return `Stakeholder name must be ${PROJECT_LIMITS.stakeholderName} characters or fewer.`;
+      if (str(s && s.name).length > PAYLOAD_LIMITS.stakeholderName)
+        return `Stakeholder name must be ${PAYLOAD_LIMITS.stakeholderName} characters or fewer.`;
     }
   }
 
   if (Array.isArray(project.concepts)) {
-    if (project.concepts.length > PROJECT_LIMITS.conceptsMax)
-      return `Projects may not exceed ${PROJECT_LIMITS.conceptsMax} concepts.`;
+    if (project.concepts.length > PAYLOAD_LIMITS.conceptsMax)
+      return `Projects may not exceed ${PAYLOAD_LIMITS.conceptsMax} concepts.`;
     for (const c of project.concepts) {
-      if (str(c && c.name).length > PROJECT_LIMITS.conceptName)
-        return `Concept name must be ${PROJECT_LIMITS.conceptName} characters or fewer.`;
-      if (str(c && c.description).length > PROJECT_LIMITS.conceptDesc)
-        return `Concept description must be ${PROJECT_LIMITS.conceptDesc} characters or fewer.`;
+      if (str(c && c.name).length > PAYLOAD_LIMITS.conceptName)
+        return `Concept name must be ${PAYLOAD_LIMITS.conceptName} characters or fewer.`;
+      if (str(c && c.description).length > PAYLOAD_LIMITS.conceptDesc)
+        return `Concept description must be ${PAYLOAD_LIMITS.conceptDesc} characters or fewer.`;
     }
   }
 
