@@ -4,6 +4,36 @@
 // Called by app.js event handlers after state changes.
 // ============================================================
 
+// ── Stakeholder email tier cache ─────────────────────────────
+// Maps email → tier string ('free'|'account'|'pro'|'admin') for
+// emails that belong to registered platform users, or null for
+// emails confirmed to have no account. Undefined = not yet looked up.
+// Shared with app.js for cache invalidation on contact saves.
+var _stakEmailTierCache = {};
+
+// Resolve a batch of emails against user_profiles via RPC.
+// Updates _stakEmailTierCache in place, then re-renders the stak grid.
+// Safe to call multiple times — skips emails that are already cached.
+async function _resolveStakEmailTiers(emails) {
+  if (!emails || !emails.length) return;
+  // Only query emails not yet in cache
+  const uncached = emails.filter(function(e) { return _stakEmailTierCache[e] === undefined; });
+  if (!uncached.length) return;
+  // Mark as null immediately so a second render before the RPC resolves
+  // doesn't fire another query for the same addresses
+  uncached.forEach(function(e) { _stakEmailTierCache[e] = null; });
+  try {
+    const { data, error } = await _supabase.rpc('lookup_stakeholder_emails', { emails: uncached });
+    if (error) { console.warn('[_resolveStakEmailTiers] RPC error:', error.message); return; }
+    (data || []).forEach(function(row) { _stakEmailTierCache[row.email] = row.tier; });
+  } catch (e) {
+    console.warn('[_resolveStakEmailTiers] threw:', e);
+    return;
+  }
+  // Re-render with freshly populated cache
+  renderStakGrid();
+}
+
 
 // ── Sidebar slides ───────────────────────────────────────────
 
@@ -541,6 +571,27 @@
 
 // ── Stakeholder page renders ──────────────────────────────────
 
+  // SVG for the verified-user badge: 8-pointed seal with a checkmark.
+  // Sized at 13×13, coloured via `currentColor` so the CSS tier classes drive the colour.
+  const _VERIFIED_BADGE_SVG =
+    '<svg class="stak-verified-badge %%CLASS%%" xmlns="http://www.w3.org/2000/svg" ' +
+    'viewBox="0 0 16 16" width="13" height="13" aria-label="%%LABEL%%" title="%%LABEL%%">' +
+    '<path fill="currentColor" d="M8,0.8 L10.1,2.92 L13.09,2.91 L13.08,5.9 L15.2,8 ' +
+    'L13.08,10.1 L13.09,13.09 L10.1,13.08 L8,15.2 L5.9,13.08 L2.91,13.09 L2.92,10.1 ' +
+    'L0.8,8 L2.92,5.9 L2.91,2.91 L5.9,2.92 Z"/>' +
+    '<path fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" ' +
+    'stroke-linejoin="round" d="M5.5,8.5 L7.2,10.2 L11,5.8"/>' +
+    '</svg>';
+
+  function _verifiedBadgeHtml(tier) {
+    // Returns the badge HTML string for a given tier, or '' if not registered.
+    if (!tier) return '';
+    const isPro = (tier === 'pro' || tier === 'admin');
+    const cls   = isPro ? 'tier-pro' : 'tier-registered';
+    const label = isPro ? 'PRO USER' : 'Registered user';
+    return _VERIFIED_BADGE_SVG.replace(/%%CLASS%%/g, cls).replace(/%%LABEL%%/g, label);
+  }
+
   function renderStakGrid() {
     const grid = document.getElementById('stakGrid');
     if (!grid) return;
@@ -551,13 +602,31 @@
       const bi = stakOrder.indexOf(b.id);
       return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
     });
+
+    // Collect all contact emails so we can batch-resolve tiers if needed
+    const emailsToResolve = [];
+    all.forEach(function(s) {
+      if (s.contactEmail && _stakEmailTierCache[s.contactEmail] === undefined) {
+        emailsToResolve.push(s.contactEmail);
+      }
+    });
+
     grid.innerHTML = all.map(s => {
       // Contact info — build inline display only if fields are set
       // Privacy: these are only visible in the user's own session (project data is RLS-isolated)
       const contactParts = [];
       if (s.contactName)  contactParts.push(escHtml(s.contactName));
       if (s.contactTitle) contactParts.push(escHtml(s.contactTitle));
-      if (s.contactEmail) contactParts.push(`<a href="mailto:${escHtml(s.contactEmail)}" onclick="event.stopPropagation()" style="color:var(--accent)">${escHtml(s.contactEmail)}</a>`);
+      if (s.contactEmail) {
+        const cachedTier = _stakEmailTierCache[s.contactEmail]; // undefined | null | tier string
+        const badgeHtml  = _verifiedBadgeHtml(cachedTier);
+        contactParts.push(
+          `<span style="display:inline-flex;align-items:center;gap:0">` +
+          `<a href="mailto:${escHtml(s.contactEmail)}" onclick="event.stopPropagation()" style="color:var(--accent)">${escHtml(s.contactEmail)}</a>` +
+          badgeHtml +
+          `</span>`
+        );
+      }
       const contactHtml = contactParts.length
         ? `<div class="stak-chip-contact" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5">${contactParts.join(' · ')}</div>`
         : '';
@@ -586,6 +655,13 @@
     const cont = document.getElementById('btnStakContinue');
     // nav buttons always active — no disable
     updateStakAdvisor();
+
+    // Fire async tier resolution for any unseen emails.
+    // _resolveStakEmailTiers will call renderStakGrid() again once the RPC returns,
+    // at which point emailsToResolve will be empty and the call is a no-op.
+    if (emailsToResolve.length && typeof _supabase !== 'undefined') {
+      _resolveStakEmailTiers(emailsToResolve);
+    }
   }
 
   function updateStakAdvisor() { /* AI coaching reserved */ }

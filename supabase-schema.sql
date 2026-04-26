@@ -239,6 +239,31 @@ REVOKE EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_user_id_by_email(TEXT) TO authenticated;
 
 
+-- ── 5b. STAKEHOLDER EMAIL TIER LOOKUP ────────────────────────
+-- Given an array of email addresses, returns the email + tier for any
+-- that have a registered account on the platform.
+-- Used by the stakeholder card UI to show a "verified user" badge.
+-- Returns nothing for emails that don't match any user_profiles row.
+-- SECURITY DEFINER so it can read user_profiles without exposing other columns.
+CREATE OR REPLACE FUNCTION public.lookup_stakeholder_emails(emails TEXT[])
+RETURNS TABLE(email TEXT, tier TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+    SELECT up.email, up.tier
+    FROM public.user_profiles up
+    WHERE up.email = ANY(emails);
+END;
+$$;
+
+-- Authenticated users only — anon callers cannot probe the user base
+REVOKE EXECUTE ON FUNCTION public.lookup_stakeholder_emails(TEXT[]) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.lookup_stakeholder_emails(TEXT[]) TO authenticated;
+
+
 -- ── 6. PROJECT MEMBERS + PERMISSION LEVELS ───────────────────
 -- Tracks who has access to each project and at what role level.
 -- The project creator (projects.user_id) is always the implicit owner —

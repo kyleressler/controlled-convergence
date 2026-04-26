@@ -1583,6 +1583,22 @@
     .stak-chip-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
     .stak-chip.selected .stak-chip-name { color: var(--accent); }
     .stak-chip-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
+
+    /* ── Verified-user badge on stakeholder email ── */
+    .stak-verified-badge {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      vertical-align: -2px;
+      margin-left: 4px;
+      flex-shrink: 0;
+      cursor: default;
+    }
+    /* Registered (free / account tier) — accent colour */
+    .stak-verified-badge.tier-registered { color: var(--accent); }
+    /* Pro / admin — success colour */
+    .stak-verified-badge.tier-pro        { color: var(--success); }
+
     .stak-selection-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
     .stak-count { font-size: 13px; color: var(--text-muted); }
     .stak-count strong { color: var(--text); }

@@ -5488,6 +5488,10 @@ ${sections}
     if (contactNameInput)  contactNameInput.value  = '';
     if (contactTitleInput) contactTitleInput.value = '';
     if (contactEmailInput) contactEmailInput.value = '';
+    // Invalidate tier cache for the new email so the badge resolves on next render
+    if (typeof _stakEmailTierCache !== 'undefined' && contactEmail) {
+      delete _stakEmailTierCache[contactEmail];
+    }
     renderStakGrid();
     populateReqForms();
     _autoSaveNow();
@@ -6158,6 +6162,12 @@ ${sections}
         : (existing?.contactEmail || '');   // preserve — user can't edit this field
       const builtin = STAKEHOLDERS.find(s => s.id === _modalId);
       const custom = customStakeholders.find(s => s.id === _modalId);
+      // Invalidate tier cache for both the old and new email so the badge
+      // re-resolves on the next renderStakGrid call.
+      if (typeof _stakEmailTierCache !== 'undefined') {
+        if (existing?.contactEmail) delete _stakEmailTierCache[existing.contactEmail];
+        if (contactEmail)           delete _stakEmailTierCache[contactEmail];
+      }
       if (builtin) { builtin.name = name; builtin.desc = desc; builtin.contactName = contactName; builtin.contactTitle = contactTitle; builtin.contactEmail = contactEmail; }
       else if (custom) { custom.name = name; custom.desc = desc; custom.contactName = contactName; custom.contactTitle = contactTitle; custom.contactEmail = contactEmail; }
       renderStakGrid(); populateReqForms();
