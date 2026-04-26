@@ -264,7 +264,15 @@
       content: '',
       tags: [],
       status: 'draft',
-      evergreen: false
+      evergreen: false,
+      // Editorial metadata — surfaced in the analytics export so the LLM
+      // workflow can analyze patterns. New posts start blank; the editor
+      // exposes them in a collapsed side section.
+      frameworks: [],
+      hook_type: null,
+      audience_target: null,
+      format: null,
+      editorial_notes: null
     };
     _isDirty = false;
     _view = 'editor';
@@ -346,6 +354,8 @@
             </label>
             <div class="muted" style="font-size:11px;margin-top:4px">Mark posts that can be re-promoted later.</div>
           </div>
+
+          ${renderEditorialMetadataSection(p)}
         </aside>
       </div>
 
@@ -395,6 +405,8 @@
       _currentPost.evergreen = e.target.checked;
       markDirty();
     });
+
+    wireEditorialMetadataInputs();
 
     initTagsInput();
 
@@ -605,6 +617,128 @@
     return data.publicUrl;
   }
 
+  // ── Editorial metadata (frameworks / hook_type / audience / format / notes) ─
+  // Powers the analytics export. The vocabularies below match the export
+  // schema spec exactly — if you add an option here, also update the
+  // analytics-export Netlify function's docs (it tolerates any value, but
+  // the LLM workflow assumes the picklist).
+  const FRAMEWORK_OPTIONS = [
+    { value: 'design-game',      label: 'Design Game' },
+    { value: 'readiness-levels', label: 'Readiness Levels' },
+    { value: 'other',            label: 'Other' },
+    { value: 'none',             label: 'None' }
+  ];
+  const HOOK_TYPE_OPTIONS = [
+    { value: 'story',       label: 'Story' },
+    { value: 'question',    label: 'Question' },
+    { value: 'contrarian',  label: 'Contrarian' },
+    { value: 'framework',   label: 'Framework' },
+    { value: 'list',        label: 'List' },
+    { value: 'how-to',      label: 'How-to' }
+  ];
+  const AUDIENCE_OPTIONS = [
+    { value: 'engineers', label: 'Engineers' },
+    { value: 'educators', label: 'Educators' },
+    { value: 'managers',  label: 'Managers' },
+    { value: 'mixed',     label: 'Mixed' }
+  ];
+  const FORMAT_OPTIONS = [
+    { value: 'essay',       label: 'Essay' },
+    { value: 'tutorial',    label: 'Tutorial' },
+    { value: 'case-study',  label: 'Case Study' },
+    { value: 'opinion',     label: 'Opinion' },
+    { value: 'personal',    label: 'Personal' }
+  ];
+
+  // Renders a collapsed <details> block in the editor sidebar. We keep it
+  // collapsed by default so the writer's eye lands on title/content first;
+  // editorial metadata is for after the post is shaped.
+  function renderEditorialMetadataSection(p) {
+    const selectedFrameworks = Array.isArray(p.frameworks) ? p.frameworks : [];
+    const frameworksHtml = FRAMEWORK_OPTIONS.map(function (opt) {
+      const checked = selectedFrameworks.indexOf(opt.value) !== -1 ? ' checked' : '';
+      return '<label class="checkbox-row" style="margin-bottom:4px">' +
+               '<input type="checkbox" class="editor-framework-input" value="' + escapeAttr(opt.value) + '"' + checked + '>' +
+               '<span>' + escapeHtml(opt.label) + '</span>' +
+             '</label>';
+    }).join('');
+
+    return '' +
+      '<details class="side-section editorial-metadata">' +
+        '<summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">' +
+          '<span class="editor-label" style="margin:0">Editorial metadata</span>' +
+          '<span class="muted" style="font-size:11px">private</span>' +
+        '</summary>' +
+
+        '<div style="margin-top:10px">' +
+          '<label class="editor-label">Frameworks</label>' +
+          frameworksHtml +
+        '</div>' +
+
+        '<label class="editor-label">Hook type</label>' +
+        renderEditorialSelect('editorEditorialHook', HOOK_TYPE_OPTIONS, p.hook_type) +
+
+        '<label class="editor-label">Audience target</label>' +
+        renderEditorialSelect('editorEditorialAudience', AUDIENCE_OPTIONS, p.audience_target) +
+
+        '<label class="editor-label">Format</label>' +
+        renderEditorialSelect('editorEditorialFormat', FORMAT_OPTIONS, p.format) +
+
+        '<label class="editor-label">Editorial notes (private)</label>' +
+        '<textarea id="editorEditorialNotes" class="editor-text" rows="3" placeholder="What worked? What\u2019s the angle? Anything to remember.">' +
+          escapeHtml(p.editorial_notes || '') +
+        '</textarea>' +
+      '</details>';
+  }
+
+  function renderEditorialSelect(id, options, currentValue) {
+    let html = '<select id="' + id + '" class="editor-text">';
+    html += '<option value=""' + (currentValue ? '' : ' selected') + '>—</option>';
+    options.forEach(function (opt) {
+      const sel = opt.value === currentValue ? ' selected' : '';
+      html += '<option value="' + escapeAttr(opt.value) + '"' + sel + '>' + escapeHtml(opt.label) + '</option>';
+    });
+    html += '</select>';
+    return html;
+  }
+
+  function wireEditorialMetadataInputs() {
+    // Frameworks (multi-select via checkboxes — `frameworks` is a text[]
+    // column, so we sync the in-memory array from the boxes on every change).
+    document.querySelectorAll('.editor-framework-input').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        const checked = [];
+        document.querySelectorAll('.editor-framework-input').forEach(function (x) {
+          if (x.checked) checked.push(x.value);
+        });
+        _currentPost.frameworks = checked;
+        markDirty();
+      });
+    });
+
+    wireEditorialSelect('editorEditorialHook',     'hook_type');
+    wireEditorialSelect('editorEditorialAudience', 'audience_target');
+    wireEditorialSelect('editorEditorialFormat',   'format');
+
+    const notesEl = document.getElementById('editorEditorialNotes');
+    if (notesEl) {
+      notesEl.addEventListener('input', function () {
+        // Empty string normalizes to null so the export emits null (not "").
+        _currentPost.editorial_notes = notesEl.value.trim() ? notesEl.value : null;
+        markDirty();
+      });
+    }
+  }
+
+  function wireEditorialSelect(id, fieldName) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', function () {
+      _currentPost[fieldName] = el.value || null;
+      markDirty();
+    });
+  }
+
   // ── Tags pill input ──────────────────────────────────────────
   function initTagsInput() {
     const container = document.getElementById('editorTagsContainer');
@@ -655,13 +789,20 @@
     setAutosaveStatus('Saving…');
 
     const payload = {
-      title:     _currentPost.title || '',
-      slug:      _currentPost.slug,
-      excerpt:   _currentPost.excerpt || null,
-      content:   _currentPost.content || '',
-      tags:      _currentPost.tags || [],
-      status:    targetStatus,
-      evergreen: !!_currentPost.evergreen
+      title:           _currentPost.title || '',
+      slug:            _currentPost.slug,
+      excerpt:         _currentPost.excerpt || null,
+      content:         _currentPost.content || '',
+      tags:            _currentPost.tags || [],
+      status:          targetStatus,
+      evergreen:       !!_currentPost.evergreen,
+      // Editorial metadata — null/[] when blank so the analytics export
+      // emits a stable schema. Blank values are intentional, not errors.
+      frameworks:      Array.isArray(_currentPost.frameworks) ? _currentPost.frameworks : [],
+      hook_type:       _currentPost.hook_type       || null,
+      audience_target: _currentPost.audience_target || null,
+      format:          _currentPost.format          || null,
+      editorial_notes: _currentPost.editorial_notes || null
     };
 
     // Set published_at on first publish (don't overwrite on subsequent updates)
