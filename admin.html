@@ -108,16 +108,42 @@
     .admin-user {
       color: var(--text-mut);
       font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     .admin-user a {
       color: var(--text-mut);
       text-decoration: none;
-      margin-left: 12px;
       border: 1px solid var(--border);
       padding: 4px 10px;
       border-radius: 6px;
     }
     .admin-user a:hover { background: var(--surface); color: var(--text); }
+
+    .admin-refresh-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-mut);
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 0;
+    }
+    .admin-refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .admin-refresh-btn:active { transform: scale(0.96); }
+    .admin-refresh-btn.spinning svg {
+      animation: admin-refresh-spin 0.7s linear;
+    }
+    @keyframes admin-refresh-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
 
     .admin-main {
       max-width: 1200px;
@@ -415,6 +441,9 @@
       </nav>
 
       <div class="admin-user">
+        <button id="adminRefreshBtn" class="admin-refresh-btn" title="Refresh current tab" aria-label="Refresh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
         <span id="adminUserEmail"></span>
         <a href="app.html#home">← Back to app</a>
       </div>
@@ -550,6 +579,40 @@
         activateAdminTab(btn.getAttribute('data-tab'));
       });
     });
+
+    // ── Refresh button ────────────────────────────────────────────────────
+    // Re-renders the active tab. Each pane's render function is responsible
+    // for re-fetching from its data source. The refresh is smart-skipped when
+    // the user is mid-edit (admin-blog.js exposes adminBlogIsEditing()) so we
+    // never blow away unsaved changes.
+    function refreshActiveTab() {
+      const btn = document.getElementById('adminRefreshBtn');
+      if (btn) {
+        btn.classList.remove('spinning');
+        // Force reflow so the animation restarts on consecutive clicks.
+        void btn.offsetWidth;
+        btn.classList.add('spinning');
+      }
+
+      const activeTab = document.querySelector('.admin-tab.active');
+      const tab = activeTab ? activeTab.getAttribute('data-tab') : null;
+
+      if (tab === 'insights' && typeof window.renderAdminInsights === 'function') {
+        window.renderAdminInsights();
+      } else if (tab === 'blog' && typeof window.renderAdminBlog === 'function') {
+        if (typeof window.adminBlogIsEditing === 'function' && window.adminBlogIsEditing()) {
+          // Mid-edit; refreshing would discard the editor scaffold but leave
+          // the in-memory _currentPost intact. Skip silently rather than
+          // surprise the user.
+          return;
+        }
+        window.renderAdminBlog();
+      }
+      // Email pane: nothing to refresh yet.
+    }
+
+    const refreshBtn = document.getElementById('adminRefreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', refreshActiveTab);
   </script>
 </body>
 </html>

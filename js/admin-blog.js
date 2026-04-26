@@ -49,6 +49,12 @@
     }
   };
 
+  // Used by the topbar refresh button in admin.html — lets the shell skip
+  // re-render while the user is mid-edit so unsaved changes aren't lost.
+  window.adminBlogIsEditing = function () {
+    return _view === 'editor';
+  };
+
   // ── List view ────────────────────────────────────────────────
   async function renderList(root) {
     root.innerHTML = `
