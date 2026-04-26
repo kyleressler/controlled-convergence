@@ -38,7 +38,16 @@
   let _hubTab = 'pieces';        // 'pieces' | 'schedule'
   let _scheduleView = 'list';    // 'list' | 'week' | 'calendar'
   let _weekAnchor = null;        // Date — Sunday of currently-viewed week
+  let _calendarAnchor = null;    // Date — first day of currently-viewed month
   let _hubPieces = [];           // cached pieces for the active campaign (used by schedule views)
+
+  // Where each platform's composer lives. We open these in a new tab as a
+  // jumping-off point — the user pastes their copied content there.
+  const PLATFORM_COMPOSE_URLS = {
+    linkedin: 'https://www.linkedin.com/feed/',
+    email:    'https://app.kit.com/broadcasts',
+    youtube:  'https://studio.youtube.com/'
+  };
 
   // UTM convention — must match the build-prompt spec exactly:
   //   linkedin → utm_source=linkedin, utm_medium=social,    utm_content=li-post-{n}
@@ -98,22 +107,30 @@
 
     document.getElementById('blogNewBtn').addEventListener('click', openNewPost);
 
-    // Wrap the supabase fetch in try/catch so an unexpected throw never leaves
-    // the user staring at "Loading posts…" forever. Any failure flips to a
-    // visible error state with a Retry button.
+    // Wrap the supabase fetch in try/catch + a hard 10-second timeout so an
+    // unexpected hang (auth refresh deadlock, network stall, supabase client
+    // wedged after navigation) never leaves the user staring at "Loading
+    // posts…" forever. Any failure flips to a visible error + Retry.
     const container = document.getElementById('blogListContainer');
+    console.debug('[admin-blog] renderList: starting fetch');
+    const fetchStart = Date.now();
     let posts, error;
     try {
-      const result = await _supabase
+      const fetchPromise = _supabase
         .from('blog_posts')
         .select('id, title, slug, status, evergreen, tags, published_at, updated_at, created_at')
         .order('updated_at', { ascending: false });
+      const timeoutPromise = new Promise(function (_, reject) {
+        setTimeout(function () { reject(new Error('renderList fetch timed out after 10s')); }, 10000);
+      });
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
       posts = result.data;
       error = result.error;
+      console.debug('[admin-blog] renderList: fetch complete in ' + (Date.now() - fetchStart) + 'ms; rows=' + (posts ? posts.length : 0));
     } catch (e) {
-      console.error('[admin-blog] renderList threw:', e);
+      console.error('[admin-blog] renderList threw after ' + (Date.now() - fetchStart) + 'ms:', e);
       container.innerHTML =
-        '<div class="muted">Couldn\'t load posts (network error). ' +
+        '<div class="muted">Couldn\'t load posts (' + escapeHtml(e.message || 'network error') + '). ' +
         '<button class="btn-link" onclick="window.renderAdminBlog()">Retry</button></div>';
       return;
     }
@@ -960,6 +977,24 @@
         <button class="schedule-view-btn ${_scheduleView === 'week' ? 'active' : ''}" data-view="week">Week</button>
         <button class="schedule-view-btn ${_scheduleView === 'calendar' ? 'active' : ''}" data-view="calendar">Calendar</button>
       </div>
+
+      <!-- Color-key legend so the badge/status meanings are always visible. -->
+      <div class="schedule-legend">
+        <span class="legend-label">Channels:</span>
+        <span class="piece-badge piece-badge-linkedin">LinkedIn</span>
+        <span class="piece-badge piece-badge-email">Email</span>
+        <span class="piece-badge piece-badge-youtube">YouTube</span>
+        <span class="legend-divider"></span>
+        <span class="legend-label">Status:</span>
+        <span class="status-pill status-draft">draft</span>
+        <span class="status-pill status-ready">ready</span>
+        <span class="status-pill status-scheduled">scheduled</span>
+        <span class="status-pill status-published">published</span>
+        <span class="legend-divider"></span>
+        <span class="past-due-badge">Past due</span>
+        <span class="legend-prime-swatch">Prime slot</span>
+      </div>
+
       <div id="scheduleBody"></div>
     `;
     body.querySelectorAll('.schedule-view-btn').forEach(function (b) {
@@ -1148,9 +1183,109 @@
     });
   }
 
-  // Calendar view — stub for now per the build prompt
+  // ── Calendar view (month grid) ──────────────────────────────
+  // Standard 6-row × 7-column grid (always 6 rows so layout doesn't jump
+  // between months with different week counts). Days outside the current
+  // month are dimmed; today is accented; pieces appear as small chips.
   function renderCalendarScheduleStub(target) {
-    target.innerHTML = '<div class="empty-card"><strong>Calendar view — coming soon.</strong>For now, use Week view to see prime-slot nudges and List view to scan past-due items.</div>';
+    if (!_calendarAnchor) _calendarAnchor = startOfMonth(new Date());
+
+    const monthStart = startOfMonth(_calendarAnchor);
+    const monthEnd   = endOfMonth(_calendarAnchor);
+    const gridStart  = startOfWeek(monthStart);   // first Sunday on/before the 1st
+    const todayIso   = isoDate(new Date());
+
+    // Build 42 day cells starting at gridStart
+    const cells = [];
+    const cur = new Date(gridStart);
+    for (let i = 0; i < 42; i++) {
+      cells.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // Bucket pieces by their planned_date for fast lookup
+    const piecesByDay = {};
+    _hubPieces.forEach(function (p) {
+      if (!p.planned_date) return;
+      (piecesByDay[p.planned_date] = piecesByDay[p.planned_date] || []).push(p);
+    });
+
+    const monthLabel = _calendarAnchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    let html = '<div class="schedule-cal-nav">';
+    html += '<button class="btn-secondary" id="calPrevBtn">← Prev</button>';
+    html += '<div class="schedule-cal-label">' + escapeHtml(monthLabel) + '</div>';
+    html += '<button class="btn-secondary" id="calNextBtn">Next →</button>';
+    html += '<button class="btn-link" id="calTodayBtn" style="margin-left:auto">Today</button>';
+    html += '</div>';
+
+    html += '<div class="schedule-cal-grid">';
+    dayHeaders.forEach(function (lbl, i) {
+      const isPrime = (i === 2 || i === 4); // Tue/Thu prime indicator on header too
+      html += '<div class="schedule-cal-header' + (isPrime ? ' is-prime' : '') + '">' + lbl + '</div>';
+    });
+    cells.forEach(function (d) {
+      const iso = isoDate(d);
+      const inMonth = d >= monthStart && d <= monthEnd;
+      const isToday = iso === todayIso;
+      const isPrime = (d.getDay() === 2 || d.getDay() === 4);
+      const cls = ['schedule-cal-cell'];
+      if (!inMonth) cls.push('out-month');
+      if (isToday)  cls.push('is-today');
+      if (isPrime && inMonth) cls.push('is-prime');
+
+      html += '<div class="' + cls.join(' ') + '">';
+      html += '<div class="schedule-cal-date">' + d.getDate() + '</div>';
+      const day = piecesByDay[iso] || [];
+      day.forEach(function (p) {
+        const titleField = p.type === 'email' ? (p.subject || p.title || '(untitled)') : (p.title || '(untitled)');
+        const isPastDue = iso < todayIso && p.status !== 'published';
+        html += '<div class="schedule-cal-piece ' + (isPastDue ? 'past-due' : '') + '" ' +
+                'data-piece-id="' + escapeHtml(p.id) + '" ' +
+                'data-piece-type="' + escapeHtml(p.type) + '" ' +
+                'title="' + escapeAttr(titleField) + '">' +
+                '<span class="piece-badge piece-badge-' + escapeHtml(p.type) + '">' + escapeHtml(PIECE_TYPES[p.type].label.charAt(0)) + '</span>' +
+                '<span class="schedule-cal-piece-title">' + escapeHtml(titleField) + '</span>' +
+                '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+
+    target.innerHTML = html;
+
+    document.getElementById('calPrevBtn').addEventListener('click', function () {
+      _calendarAnchor = new Date(_calendarAnchor); _calendarAnchor.setMonth(_calendarAnchor.getMonth() - 1);
+      renderScheduleBody();
+    });
+    document.getElementById('calNextBtn').addEventListener('click', function () {
+      _calendarAnchor = new Date(_calendarAnchor); _calendarAnchor.setMonth(_calendarAnchor.getMonth() + 1);
+      renderScheduleBody();
+    });
+    document.getElementById('calTodayBtn').addEventListener('click', function () {
+      _calendarAnchor = startOfMonth(new Date());
+      renderScheduleBody();
+    });
+
+    target.querySelectorAll('.schedule-cal-piece').forEach(function (el) {
+      el.addEventListener('click', function () {
+        openPieceForm(el.getAttribute('data-piece-type'), el.getAttribute('data-piece-id'));
+      });
+    });
+  }
+
+  function startOfMonth(d) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(1);
+    return x;
+  }
+  function endOfMonth(d) {
+    const x = startOfMonth(d);
+    x.setMonth(x.getMonth() + 1);
+    x.setDate(0);
+    return x;
   }
 
   // ── Date helpers ────────────────────────────────────────────
@@ -1337,6 +1472,17 @@
     const statusVal  = existing ? existing.status : 'draft';
     const embedVal   = existing ? !!existing.embed_in_post : false;
 
+    // Pre-compute the piece number + UTM URL so the "Post to ..." helper
+    // section in the form can show real, paste-ready content for new pieces
+    // too — not just edited ones.
+    const formPieceNumber = existing ? (existing.piece_number || 1) : await nextPieceNumber(type);
+    const formUtmUrl = utmUrlFor(
+      _currentCampaign && _currentCampaign.post,
+      _currentCampaign,
+      { type: type, piece_number: formPieceNumber }
+    );
+    const platformOpenUrl = PLATFORM_COMPOSE_URLS[type] || '';
+
     // Render an inline modal-like overlay
     const overlay = document.createElement('div');
     overlay.className = 'piece-form-overlay';
@@ -1378,6 +1524,27 @@
           </label>
         ` : ''}
 
+        <!-- Post-to-platform helpers. Manual workflow: write here → copy → paste in
+             the platform's composer → publish → come back to confirm. -->
+        <div class="post-helper">
+          <div class="post-helper-header">
+            <h3>Post to ${escapeHtml(PIECE_TYPES[type].label)}</h3>
+            ${platformOpenUrl ? '<a href="' + escapeAttr(platformOpenUrl) + '" target="_blank" rel="noopener" class="btn-link">Open ' + escapeHtml(PIECE_TYPES[type].label) + ' →</a>' : ''}
+          </div>
+          <div class="post-helper-utm">
+            <input type="text" readonly class="utm-input" value="${escapeAttr(formUtmUrl)}">
+            <button type="button" class="btn-secondary post-copy-btn" data-copy-source="utm">Copy URL</button>
+          </div>
+          <div class="post-helper-actions">
+            <button type="button" class="btn-secondary post-copy-btn" data-copy-source="title">Copy ${isEmail ? 'subject' : (isYouTube ? 'title' : 'hook')}</button>
+            <button type="button" class="btn-secondary post-copy-btn" data-copy-source="content">Copy ${isEmail ? 'body' : (isYouTube ? 'description' : 'content')}</button>
+            <button type="button" class="btn-primary post-copy-btn" data-copy-source="ready">Copy ready-to-paste</button>
+          </div>
+          <div class="post-helper-hint muted">
+            "Ready-to-paste" assembles ${isEmail ? 'body + UTM URL (subject is separate)' : (isYouTube ? 'description + UTM URL — paste this as the video description' : 'hook + content + UTM URL — paste this as your full LinkedIn post')}.
+          </div>
+        </div>
+
         <div class="piece-form-actions">
           <button class="btn-secondary" id="pieceFormCancelBtn">Cancel</button>
           <button class="btn-primary" id="pieceFormSaveBtn">${pieceId ? 'Save' : 'Add piece'}</button>
@@ -1390,6 +1557,26 @@
     document.getElementById('pieceFormCloseBtn').addEventListener('click', close);
     document.getElementById('pieceFormCancelBtn').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+
+    // Wire up the "Post to ..." copy helpers. Each button reads the LIVE
+    // input values so the user can copy in any order (write, copy, save) —
+    // they aren't forced to save first to copy.
+    overlay.querySelectorAll('.post-copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const source = btn.getAttribute('data-copy-source');
+        const titleNow   = (document.getElementById('pieceTitleInput').value || '').trim();
+        const contentNow = (document.getElementById('pieceContentInput').value || '').trim();
+        let payload = '';
+        if (source === 'utm')          payload = formUtmUrl;
+        else if (source === 'title')   payload = titleNow;
+        else if (source === 'content') payload = contentNow;
+        else if (source === 'ready')   payload = buildReadyToPaste(type, titleNow, contentNow, formUtmUrl);
+        copyToClipboard(payload);
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = original; }, 1200);
+      });
+    });
 
     document.getElementById('pieceFormSaveBtn').addEventListener('click', async function () {
       const titleVal   = document.getElementById('pieceTitleInput').value.trim();
@@ -1503,6 +1690,31 @@
   // and production generates working production URLs.
   function utmUrlForPiece(piece) {
     return utmUrlFor((_currentCampaign && _currentCampaign.post) || null, _currentCampaign, piece);
+  }
+
+  // Assemble platform-appropriate paste-ready text for a piece. Each platform
+  // has a different convention for how title/content/URL combine:
+  //   linkedin → hook on top, body, blank line, URL at bottom
+  //   email    → body + URL footer (subject is copied separately into Kit)
+  //   youtube  → description body + URL footer (title goes in YouTube's title field)
+  function buildReadyToPaste(type, titleOrSubject, content, utmUrl) {
+    const safe = function (s) { return (s == null ? '' : String(s)).trim(); };
+    const t = safe(titleOrSubject);
+    const c = safe(content);
+    const u = safe(utmUrl);
+    if (type === 'linkedin') {
+      return [t, '', c, '', u].filter(function (line, i) {
+        // Drop empty leading lines but keep intentional blanks between sections.
+        return !(i === 0 && line === '');
+      }).join('\n');
+    }
+    if (type === 'email') {
+      return c + (u ? '\n\nRead the full post: ' + u : '');
+    }
+    if (type === 'youtube') {
+      return c + (u ? '\n\n🔗 ' + u : '');
+    }
+    return [t, c, u].filter(Boolean).join('\n\n');
   }
 
   function copyToClipboard(text) {
