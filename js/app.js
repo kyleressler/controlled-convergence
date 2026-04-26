@@ -5643,18 +5643,21 @@ ${sections}
   }
 
   function switchPage(pageId, navBtn) {
-    // Admin lives in its own top-level shell (admin.html) so the gate logic,
-    // tab nav, and styles stay isolated from the main app shell. Anyone who
-    // tries to route to '#admin' from inside app.html gets redirected; the
-    // admin gate (isAdmin()) runs there, not here.
+    // Admin lives as a route inside the app shell (#admin) so it inherits
+    // sidebars, theme, and top nav. Gate runs here at switch time — non-admins
+    // bounce to home rather than ever seeing the admin chrome.
     if (pageId === 'admin') {
-      if (typeof isAdmin === 'function' && !isAdmin()) {
-        // Not signed in as admin — bounce to home rather than land on a gated page.
+      if (typeof isAdmin !== 'function' || !isAdmin()) {
         window.location.hash = '#home';
         return;
       }
-      window.location.href = 'admin.html';
-      return;
+      // The renderer (admin-shell.js → renderAdminPage) reads the hash to
+      // pick the active tab and dispatches to the matching pane renderer.
+      if (typeof window.renderAdminPage === 'function') {
+        // Defer the call so the page-show below runs first and the panes
+        // are visible when the renderer fills them.
+        setTimeout(window.renderAdminPage, 0);
+      }
     }
 
     // Notify easter-eggs.js of page navigation (resets page-scoped Contra theme)
@@ -5820,16 +5823,16 @@ ${sections}
     if (!e.target.closest('#navAdminDropdown')) closeAdminDropdown();
   });
 
-  // Navigate to a specific admin tab. Defers to switchPage('admin') for the
-  // gate check (isAdmin()), and passes the desired tab via location.hash so
-  // admin.html can pre-select it on load.
+  // Navigate to a specific admin tab inside the app shell. Sets the hash
+  // and lets the hashchange listener route to switchPage('admin'), which
+  // enforces the isAdmin() gate.
   function goToAdmin(tab) {
     if (typeof isAdmin === 'function' && !isAdmin()) {
       // Should never happen — the dropdown is hidden for non-admins — but
       // guard anyway so a stale DOM doesn't leak admin chrome.
       return;
     }
-    window.location.href = 'admin.html#' + (tab || 'insights');
+    window.location.hash = '#admin/' + (tab || 'insights');
   }
 
 
@@ -6389,33 +6392,30 @@ ${sections}
     // hash now nudges the visitor to sign up instead.
     else if (h === '#basic')  { openAuthModal('signup'); }
     else if (h === '#demo')   { setTimeout(function() { loadExampleProject(true); }, 0); }
-    // #admin → admin.html (only if signed in as admin; otherwise nothing happens
-    // and the user stays on the cleaned-up app.html URL).
-    else if (h === '#admin')  {
-      // initAuth() runs async in init(); defer the gate check so the session
-      // has a chance to restore before we decide whether to redirect.
-      setTimeout(function () {
-        if (typeof isAdmin === 'function' && isAdmin()) {
-          window.location.href = 'admin.html';
-        }
-      }, 250);
+    // #admin or #admin/<tab> — gated route inside the app shell.
+    // initAuth() runs async, so defer the gate check until the session has
+    // a chance to restore. The switchPage handler also gates again.
+    else if (h === '#admin' || h.indexOf('#admin/') === 0) {
+      window.history.replaceState(null, '', window.location.pathname + h);
+      setTimeout(function () { switchPage('admin', null); }, 250);
     }
     // #blog or #blog/<slug> — keep the hash so the route stays deep-linkable.
     // Don't replaceState; the blog renderer needs the hash to know what to show.
     else if (h === '#blog' || h.indexOf('#blog/') === 0) {
-      // Re-write the URL bar with the hash intact (the IIFE above stripped it).
       window.history.replaceState(null, '', window.location.pathname + h);
       switchPage('blog', null);
     }
   })();
 
-  // Hash listener: lets back/forward and link clicks within the blog re-route
-  // without a full reload. Only intervenes for blog hashes; other navigation
-  // continues through the existing nav buttons + switchPage flow.
+  // Hash listener: lets back/forward and link clicks within blog/admin
+  // re-route without a full reload. Only intervenes for these hashes; other
+  // navigation continues through the existing nav buttons + switchPage flow.
   window.addEventListener('hashchange', function () {
     const h = window.location.hash;
     if (h === '#blog' || h.indexOf('#blog/') === 0) {
       switchPage('blog', null);
+    } else if (h === '#admin' || h.indexOf('#admin/') === 0) {
+      switchPage('admin', null);
     }
   });
 

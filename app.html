@@ -19,6 +19,11 @@
   <!-- Supabase JS SDK (auth + database) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- Quill rich-text editor — used by the in-app admin blog editor.
+       Defer so it loads in parallel with the rest of app.js without blocking. -->
+  <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css">
+  <script src="https://cdn.quilljs.com/1.3.6/quill.min.js" defer></script>
+
   <!-- PostHog (behavioral analytics + UTM attribution) -->
   <!-- Loads the snippet, then init runs on DOMContentLoaded once config.js has defined POSTHOG_KEY/HOST. -->
   <script>
@@ -281,6 +286,36 @@
   <div id="blogAppContainer">
     <div class="blog-loading">Loading…</div>
   </div>
+</main>
+
+<!-- ── ADMIN PAGE (in-app) ──
+     Admin lives as a route inside the app shell so it inherits sidebars,
+     theme, and top nav. Gate runs at switchPage('admin') time via isAdmin()
+     in js/admin-shell.js. Tab markup mirrors what was in admin.html so the
+     existing admin-insights.js and admin-blog.js find the same DOM IDs. -->
+<main class="main page admin-page" id="page-admin" style="display:none">
+  <div class="admin-shell-tabs">
+    <nav class="admin-tabs" role="tablist">
+      <button class="admin-tab active" data-tab="insights" role="tab" aria-selected="true">Insights</button>
+      <button class="admin-tab" data-tab="blog"     role="tab" aria-selected="false">Blog</button>
+      <button class="admin-tab" data-tab="email"    role="tab" aria-selected="false">Email</button>
+      <span class="admin-tabs-spacer"></span>
+      <button id="adminRefreshBtn" class="admin-refresh-btn" title="Refresh current tab" aria-label="Refresh">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </button>
+    </nav>
+  </div>
+
+  <section id="pane-insights" class="admin-pane active" role="tabpanel"></section>
+  <section id="pane-blog"     class="admin-pane" role="tabpanel"></section>
+  <section id="pane-email"    class="admin-pane" role="tabpanel">
+    <h1>Email</h1>
+    <p class="pane-sub">Kit subscriber stats and campaign attribution.</p>
+    <div class="empty-card">
+      <strong>Kit integration coming later.</strong>
+      Wire your Kit API secret in to surface subscriber counts and campaign performance.
+    </div>
+  </section>
 </main>
 
 <!-- ── PROJ PAGE ── -->
@@ -2800,6 +2835,9 @@
 <script src="js/example.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/blog-app-render.js"></script>
+<script src="js/admin-shell.js"></script>
+<script src="js/admin-insights.js"></script>
+<script src="js/admin-blog.js"></script>
 <script src="js/app.js"></script>
 <script src="js/tour.js"></script>
 <script src="js/easter-eggs.js"></script>
