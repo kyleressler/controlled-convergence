@@ -441,12 +441,9 @@
       </nav>
 
       <div class="admin-user">
-        <!-- Export Analytics: pulls all-posts editorial+performance data and
-             saves it as cc-analytics-YYYY-MM-DD.json. Lives in the topbar so
-             it's reachable from any admin tab, not just Blog. -->
-        <button id="adminExportAnalyticsBtn" class="btn-secondary" title="Download blog analytics JSON" aria-label="Export Analytics" style="padding:4px 10px;font-size:12px">
-          Export Analytics
-        </button>
+        <!-- NOTE: Export Analytics button lives in the in-app admin route
+             (app.html → #admin) per the Chrome Continuity preference, not
+             on this standalone page. See js/admin-shell.js. -->
         <button id="adminRefreshBtn" class="admin-refresh-btn" title="Refresh current tab" aria-label="Refresh">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         </button>
@@ -619,81 +616,6 @@
 
     const refreshBtn = document.getElementById('adminRefreshBtn');
     if (refreshBtn) refreshBtn.addEventListener('click', refreshActiveTab);
-
-    // ── Export Analytics ─────────────────────────────────────────────────
-    // Calls the admin-only Netlify function with the user's Supabase JWT,
-    // receives a JSON blob, and triggers a browser download. We can't use
-    // a plain <a download> here because the endpoint requires an auth
-    // header — fetch + Blob + click-an-anchor is the standard pattern.
-    async function exportAnalytics() {
-      const btn = document.getElementById('adminExportAnalyticsBtn');
-      if (!btn) return;
-      const originalLabel = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Exporting…';
-
-      try {
-        // Refresh + grab the current Supabase access token. Same auth dance
-        // admin-insights uses — keeps the function's bearer-token check happy.
-        let token = '';
-        try {
-          const { data } = await _supabase.auth.getSession();
-          token = (data && data.session && data.session.access_token) || '';
-        } catch (e) { /* fall through */ }
-        if (!token) {
-          alert('Your session expired — refresh the page and try again.');
-          return;
-        }
-
-        const r = await fetch('/.netlify/functions/analytics-export', {
-          method: 'GET',
-          headers: { 'Authorization': 'Bearer ' + token },
-        });
-
-        if (r.status !== 200) {
-          let detail = '';
-          try {
-            const errBody = await r.json();
-            detail = errBody && errBody.error ? ' (' + errBody.error + ')' : '';
-          } catch (e) { /* non-JSON error body */ }
-          alert('Export failed: HTTP ' + r.status + detail);
-          return;
-        }
-
-        // Pull the filename out of Content-Disposition when the function set
-        // one. Falls back to a date-stamped filename so the user always gets
-        // a sensibly-named file.
-        const cd = r.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/i);
-        const today = new Date().toISOString().slice(0, 10);
-        const filename = (m && m[1]) || ('cc-analytics-' + today + '.json');
-
-        const blob = await r.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // Defer revokeObjectURL so the click has a chance to start the download
-        // in all browsers — Safari in particular dislikes immediate revokes.
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-
-        if (typeof trackEvent === 'function') {
-          trackEvent('analytics_exported', { filename: filename });
-        }
-      } catch (e) {
-        console.error('[analytics-export] failed:', e);
-        alert('Export failed: ' + (e && e.message ? e.message : 'network error'));
-      } finally {
-        btn.disabled = false;
-        btn.textContent = originalLabel;
-      }
-    }
-
-    const exportBtn = document.getElementById('adminExportAnalyticsBtn');
-    if (exportBtn) exportBtn.addEventListener('click', exportAnalytics);
   </script>
 </body>
 </html>

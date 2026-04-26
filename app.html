@@ -300,6 +300,12 @@
       <button class="admin-tab" data-tab="blog"     role="tab" aria-selected="false">Blog</button>
       <button class="admin-tab" data-tab="email"    role="tab" aria-selected="false">Email</button>
       <span class="admin-tabs-spacer"></span>
+      <!-- Export Analytics: pulls all-posts editorial + performance data and
+           saves it as cc-analytics-YYYY-MM-DD.json. Visible from any admin
+           tab (insights/blog/email). Click handler lives in admin-shell.js. -->
+      <button id="adminExportAnalyticsBtn" class="btn btn-secondary" title="Download blog analytics JSON" aria-label="Export Analytics" style="font-size:12px;padding:6px 12px">
+        Export Analytics
+      </button>
       <button id="adminRefreshBtn" class="admin-refresh-btn" title="Refresh current tab" aria-label="Refresh">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
       </button>
