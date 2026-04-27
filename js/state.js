@@ -81,7 +81,7 @@ let pughAdvBackup = {};
 // ── Permission / Role ────────────────────────────────────────
 // The current user's role on the active project.
 // null = not determined yet or no project loaded
-// 'owner' | 'editor' | 'scoped_editor' | 'viewer'
+// Phase 2: 'owner' | 'viewer'  (editor returns in Phase 3 with check-out support)
 let currentProjectRole = null;
 
 // Collaborators (project_members rows) for the active project.

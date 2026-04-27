@@ -771,28 +771,26 @@
     document.getElementById('taskDetailModal').classList.remove('open');
   }
 
-  // Grant scoped_editor access via SECURITY DEFINER, then load the project
-  // and navigate to the relevant page (requirements or scoring).
+  // Open the project referenced by a task. Phase 2: tasks no longer auto-grant
+  // project access — the assignee must already be a viewer (invited explicitly
+  // by the owner). If they're not a member, project loading will return nothing
+  // and we surface a helpful message.
   async function loadProjectFromTask(task) {
     var loadProjBtn = document.getElementById('taskDetailLoadProjBtn');
     if (loadProjBtn) { loadProjBtn.textContent = 'Loading…'; loadProjBtn.disabled = true; }
 
-    var { data: result, error: rpcErr } = await _supabase.rpc('grant_task_project_access', { p_task_id: task.id });
-    if (loadProjBtn) { loadProjBtn.textContent = 'Load Project & View Details'; loadProjBtn.disabled = false; }
-
-    if (rpcErr) { alert('Could not access project: ' + rpcErr.message); return; }
-    if (result && result.error) { alert('Could not access project: ' + result.error); return; }
-
     closeTaskDetailModal();
     closeTasksPanel();
 
-    // Reload the full project list — the new membership now makes this project visible
+    // Refresh the project list — RLS will return the project IFF the user
+    // is the owner or has been invited as a viewer.
     await loadProjects(appState.currentUser.id);
+    if (loadProjBtn) { loadProjBtn.textContent = 'Load Project & View Details'; loadProjBtn.disabled = false; }
 
     var projectId = task.project_id;
     var proj = savedProjects.find(function(p) { return p.id === projectId; });
     if (!proj) {
-      alert('Access granted — find the project in Project Manager.');
+      alert('You don\'t have access to this project. Ask the project owner to invite you as a viewer first.');
       return;
     }
 
@@ -1163,13 +1161,12 @@
   }
 
   // Apply/remove CSS role classes on the body element.
+  // Phase 2: only owner and viewer exist. (editor returns in Phase 3 with locks.)
   function _applyRoleClasses() {
     document.body.classList.remove('cc-role-owner', 'cc-role-viewer', 'cc-role-scoped-editor', 'cc-role-editor');
     var role = currentProjectRole;
-    if (role === 'viewer')             document.body.classList.add('cc-role-viewer');
-    else if (role === 'scoped_editor') document.body.classList.add('cc-role-scoped-editor');
-    else if (role === 'editor')        document.body.classList.add('cc-role-editor');
-    else if (role === 'owner')         document.body.classList.add('cc-role-owner');
+    if (role === 'viewer')      document.body.classList.add('cc-role-viewer');
+    else if (role === 'owner')  document.body.classList.add('cc-role-owner');
 
     // Update role badge in nav
     var badge = document.getElementById('navRoleBadge');
@@ -1179,14 +1176,6 @@
     } else if (role === 'viewer') {
       badge.textContent = 'Viewer';
       badge.className   = 'nav-role-badge nav-role-badge-viewer';
-      badge.style.display = '';
-    } else if (role === 'editor') {
-      badge.textContent = 'Editor';
-      badge.className   = 'nav-role-badge nav-role-badge-editor';
-      badge.style.display = '';
-    } else if (role === 'scoped_editor') {
-      badge.textContent = 'Editor';
-      badge.className   = 'nav-role-badge nav-role-badge-editor';
       badge.style.display = '';
     }
   }
@@ -1205,34 +1194,30 @@
     return currentProjectRole === 'viewer';
   }
 
+  // Phase 2: scoped editors no longer exist. Kept as a function for any
+  // call sites we missed; always returns false. Will be removed entirely
+  // once we've verified no callers depend on it.
   function isScopedEditor() {
-    return currentProjectRole === 'scoped_editor';
+    return false;
   }
 
   // True for the implicit project owner only. Used to gate admin actions
-  // (invite, assign tasks, delete project). Does NOT include 'editor'.
+  // (invite, assign tasks, delete project).
   function isOwner() {
     return !currentProjectRole || currentProjectRole === 'owner';
   }
 
-  // True when the user can freely edit all project content (owner or full editor).
+  // Phase 2: only the owner can edit. Editor role returns in Phase 3
+  // with check-out support, where canEdit() will additionally require
+  // the user to hold the project lock.
   function canEdit() {
-    return isOwner() || currentProjectRole === 'editor';
+    return isOwner();
   }
 
   // Returns true if the current user is allowed to edit the given Pugh cell.
-  function canEditScoringCell(reqId, conceptId) {
-    if (canEdit()) return true;
-    if (isViewOnly()) return false;
-    // Scoped editor: must have an assigned task that covers this req + concept
-    return myAssignedScoringTasks.some(function(t) {
-      if (!t.payload) return false;
-      var reqOk = t.payload.requirementIds && t.payload.requirementIds.includes(String(reqId));
-      if (!reqOk) return false;
-      var scope = t.payload.conceptScope;
-      if (scope === 'all') return true;
-      return t.payload.conceptIds && t.payload.conceptIds.includes(String(conceptId));
-    });
+  // Phase 2: collapses to canEdit() — no per-cell scoping anymore.
+  function canEditScoringCell(_reqId, _conceptId) {
+    return canEdit();
   }
 
   // ── PROJECT COLLABORATOR INVITE (Features 6 & 7) ─────────────
@@ -1311,7 +1296,9 @@
       } catch(e) {
         console.warn('[submitInvite] get_user_id_by_email threw:', e);
       }
-      var roleLabel = role === 'editor' ? 'Editor' : role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+      // Phase 2: only the viewer role is supported. The role variable
+      // comes from the share modal which now offers 'viewer' as the only option.
+      var roleLabel = 'Viewer';
       var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
 
       console.log('[submitInvite] inserting task | project_id:', _inviteTargetProjectId,
@@ -1463,17 +1450,17 @@
     listEl.innerHTML = projectCollaborators.map(function(m) {
       var displayName = m.display_name || 'Unknown';
       var safeName = String(displayName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-      var roleLabel = m.role === 'editor' ? 'Editor' : m.role === 'scoped_editor' ? 'Scoped Editor' : 'Viewer';
+      // Phase 2: only viewer exists. Defensive — if a stale row somehow shows
+      // a non-viewer role, label it neutrally as "Member" rather than crash.
+      var roleLabel = m.role === 'viewer' ? 'Viewer' : 'Member';
       var isEditing = editingMemberId && editingMemberId === m.user_id;
 
+      // Phase 2: no role-change dropdown — only one role is available.
+      // Edit-mode collapses to just the Revoke button.
       if (isEditing) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px;background:rgba(var(--accent-rgb,26,86,219),0.04)">'
           + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
-          + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" data-action="collab-role-change" data-user-id="' + m.user_id + '">'
-          +   '<option value="viewer"'        + (m.role === 'viewer'        ? ' selected' : '') + '>Viewer</option>'
-          +   '<option value="editor"'        + (m.role === 'editor'        ? ' selected' : '') + '>Editor</option>'
-          +   '<option value="scoped_editor"' + (m.role === 'scoped_editor' ? ' selected' : '') + '>Scoped Editor</option>'
-          + '</select>'
+          + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
           + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;white-space:nowrap" data-action="collab-done">Done</button>'
           + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" data-action="collab-revoke" data-user-id="' + m.user_id + '">Revoke</button>'
           + '</div>';
@@ -8079,11 +8066,9 @@ ${sections}
 
   function openScorePopup(event, conceptId, reqId) {
     event.stopPropagation();
-    // Viewers cannot score; scoped editors only if this cell is assigned to them
-    if (typeof isViewOnly === 'function' && isViewOnly()) return;
-    if (typeof isScopedEditor === 'function' && isScopedEditor()) {
-      if (typeof canEditScoringCell === 'function' && !canEditScoringCell(reqId, conceptId)) return;
-    }
+    // Phase 2: only the owner can score. Viewers blocked here; in Phase 3
+    // this becomes "current lock holder only."
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const popup = document.getElementById('pughScorePopup');
     if (!popup) return;
 

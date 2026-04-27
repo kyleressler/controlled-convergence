@@ -146,30 +146,31 @@ async function saveProject(project) {
 
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
-    const payload = _buildSaveProjectPayload(project);
 
-    let result;
-    if (isOwner) {
-      // Owner: upsert handles both first-save (INSERT) and subsequent saves (UPDATE).
-      result = await _restPost('projects', {
-        id:         project.id,
-        user_id:    appState.currentUser.id,
-        created_at: project.created_at,
-        ...payload
-      }, { upsert: true });
-    } else {
-      // Collaborator (editor / scoped_editor): UPDATE only — RLS allows it.
-      // (This branch goes away in Phase 2 when we collapse to owner-only writes.)
-      result = await _restPatch('projects', payload,
-        'id=eq.' + encodeURIComponent(project.id));
+    // Phase 2: only the owner may write to a project. Non-owners (viewers)
+    // get a clear client-side error before we even hit the network. RLS
+    // enforces this server-side too, so even if a UI bug let a viewer
+    // attempt a save, the database would reject it.
+    if (!isOwner) {
+      console.warn('[saveProject] non-owner attempted save — blocked',
+                   '| user:', appState.currentUser.id,
+                   '| project:', project.id);
+      return { data: null, error: 'You do not have permission to edit this project.' };
     }
+
+    const payload = _buildSaveProjectPayload(project);
+    const result = await _restPost('projects', {
+      id:         project.id,
+      user_id:    appState.currentUser.id,
+      created_at: project.created_at,
+      ...payload
+    }, { upsert: true });
 
     if (!result.ok) {
       console.error('[saveProject] error:', result.error,
                     '| status:', result.status,
-                    '| user:', appState.currentUser && appState.currentUser.id,
-                    '| project:', project.id,
-                    '| isOwner:', isOwner);
+                    '| user:', appState.currentUser.id,
+                    '| project:', project.id);
       return { data: null, error: result.error };
     }
 
