@@ -6759,18 +6759,13 @@ ${sections}
       ].join(';');
       el.innerHTML = '⚠️ Your session expired — recent changes may not be saved. '
         + '<button id="sessionRefreshBtn" style="background:#fff;color:#b91c1c;border:none;'
-        + 'border-radius:6px;padding:4px 14px;font-weight:700;cursor:pointer;">Refresh session</button>';
+        + 'border-radius:6px;padding:4px 14px;font-weight:700;cursor:pointer;">Log in again</button>';
       document.body.prepend(el);
-      document.getElementById('sessionRefreshBtn').addEventListener('click', async function() {
-        this.textContent = 'Refreshing…';
-        const { error } = await _supabase.auth.refreshSession();
-        if (error) {
-          // Refresh failed — force re-login
-          await logout();
-          window.location.reload();
-        } else {
-          el.remove();
-        }
+      document.getElementById('sessionRefreshBtn').addEventListener('click', function() {
+        // Open the login modal — with the 12-second fetch timeout now in place,
+        // the Supabase client will no longer hang silently. A fresh login
+        // establishes a new session without requiring a page reload.
+        if (typeof openAuthModal === 'function') openAuthModal('login');
       });
     }
   }
@@ -6909,11 +6904,14 @@ ${sections}
     }
   }, 60000);
 
-  // ── SESSION KEEPALIVE: refresh the Supabase auth token every 45 minutes ──
+  // ── SESSION KEEPALIVE: refresh the Supabase auth token every 15 minutes ──
   // Supabase JWTs expire after 1 hour. The SDK auto-refreshes, but in some
   // environments (Netlify previews, Safari) the silent refresh can hang,
   // causing all subsequent saves to queue behind it and never complete.
-  // Proactively refreshing at 45 min keeps the token fresh and avoids the hang.
+  // Proactively refreshing every 15 minutes (well before the 1-hour expiry)
+  // ensures the token is always renewed while the connection is known-good.
+  // With the 12-second fetch timeout in config.js, any hung refresh now
+  // aborts cleanly instead of locking the client forever.
   setInterval(async function() {
     if (appState.currentUser) {
       try {
@@ -6925,10 +6923,15 @@ ${sections}
           _hideSessionWarning(); // clear any existing warning after successful refresh
         }
       } catch(e) {
-        console.warn('[session-keepalive] unexpected error:', e);
+        // AbortError = the 12-second timeout in config.js fired.
+        // This means the network is too slow right now but the session
+        // itself may still be valid — don't immediately warn the user.
+        if (e.name !== 'AbortError') {
+          console.warn('[session-keepalive] unexpected error:', e);
+        }
       }
     }
-  }, 45 * 60 * 1000);
+  }, 15 * 60 * 1000);
 
   // Bootstrap Supabase auth — restores session, sets up onAuthStateChange listener.
   // On success, _onAuthStateUpdated() in auth.js triggers renderProjList() automatically.

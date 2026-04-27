@@ -20,4 +20,25 @@ const POSTHOG_HOST = 'https://us.i.posthog.com';
 
 // Create the Supabase client — available globally as `_supabase`
 // (prefixed to avoid conflict with the supabase CDN global)
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+//
+// CUSTOM FETCH WITH TIMEOUT
+// The Supabase SDK uses navigator.locks to coordinate token refresh.
+// If the refresh network request hangs (network hiccup, server delay),
+// the lock is held indefinitely and every subsequent Supabase call queues
+// behind it — silently, with no error, forever. This caused saves to stop
+// working mid-session without any visible error message.
+//
+// The fix: wrap every Supabase fetch call with a 12-second AbortController
+// timeout. If any request (including the token refresh) doesn't respond in
+// 12 seconds, it's aborted. The SDK then surfaces a real error through the
+// promise chain and the onAuthStateChange handler, instead of hanging silently.
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: {
+    fetch: function(url, options) {
+      const controller = new AbortController();
+      const timer = setTimeout(function() { controller.abort(); }, 12000);
+      return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+        .finally(function() { clearTimeout(timer); });
+    }
+  }
+});
