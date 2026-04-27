@@ -21,57 +21,36 @@ const POSTHOG_HOST = 'https://us.i.posthog.com';
 // ── Supabase client — available globally as `_supabase` ──
 // (prefixed to avoid conflict with the supabase CDN global)
 //
-// LAYERED DEFENSES against silent save failures:
+// SCOPE: this client is now used ONLY for the initial auth flows —
+// signInWithPassword, signUp, signOut. All database reads and writes
+// go through supa-rest.js (raw fetch directly to /rest/v1/*) and all
+// session/token management goes through supa-session.js.
 //
-// 1. `auth.lock` bypass — replaces the default navigator.locks coordinator
-//    with a no-op pass-through. The default uses navigator.locks for
-//    cross-tab token refresh, which can get stuck and freeze the entire
-//    SDK silently. Worst case of bypassing: two tabs each fire one extra
-//    refresh request — harmless.
+// Why: the SDK's hot-path operations have proven unreliable in Safari
+// (stuck refresh promises, hung fetches, multi-instance lock contention).
+// By owning the JWT lifecycle and REST calls ourselves, we eliminate an
+// entire class of failure modes.
 //
-// 2. 12-second `fetch` AbortController — every Supabase fetch has a hard
-//    timeout. If a request stalls (slow network, dropped connection),
-//    it aborts cleanly instead of pending forever.
+// We keep two SDK config options as defense in depth for the auth flows
+// that DO still go through the SDK:
 //
-// 3. Client recreate (see `_recreateSupabaseClient` below) — if the SDK
-//    still gets stuck despite #1 and #2 (e.g. Safari sometimes ignores
-//    AbortController on a stalled fetch, leaving the SDK holding an
-//    orphan promise), the app can call `_recreateSupabaseClient()` to
-//    swap in a brand-new client with no in-flight stuck state. The new
-//    client auto-restores the session from localStorage.
+//   - autoRefreshToken: false — the SDK's background refresh fights with
+//     ours. Disable it; supa-session.js handles refresh with a 60-second
+//     check interval and a 5-minute pre-expiry margin.
 //
-// We declare _supabase with `let` (not const) so the recreate function
-// can reassign it.
-function _createSupabaseClient() {
-  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      // Bypass navigator.locks — signature: (name, acquireTimeout, fn) => Promise<R>
-      lock: function(_name, _acquireTimeout, fn) { return fn(); }
-    },
-    global: {
-      fetch: function(url, options) {
-        const controller = new AbortController();
-        const timer = setTimeout(function() { controller.abort(); }, 12000);
-        return fetch(url, Object.assign({}, options, { signal: controller.signal }))
-          .finally(function() { clearTimeout(timer); });
-      }
+//   - auth.lock: no-op — bypass navigator.locks (which can get stuck in
+//     Safari) for the small amount of auth coordination the SDK still does.
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    lock: function(_name, _acquireTimeout, fn) { return fn(); }
+  },
+  global: {
+    fetch: function(url, options) {
+      const controller = new AbortController();
+      const timer = setTimeout(function() { controller.abort(); }, 12000);
+      return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+        .finally(function() { clearTimeout(timer); });
     }
-  });
-}
-
-let _supabase = _createSupabaseClient();
-
-// Recreate the client from scratch. Used to recover when the SDK gets
-// stuck holding an orphan fetch promise (Safari quirk: AbortController
-// doesn't always actually settle a stalled fetch, leaving the SDK
-// waiting on a promise that will never resolve).
-//
-// After recreating, the auth state listener must be re-bound to the new
-// client — _bindAuthStateListener() (in auth.js) handles that.
-function _recreateSupabaseClient() {
-  console.warn('[_recreateSupabaseClient] swapping in a fresh Supabase client to recover from stuck SDK');
-  _supabase = _createSupabaseClient();
-  if (typeof _bindAuthStateListener === 'function') {
-    _bindAuthStateListener();
   }
-}
+});

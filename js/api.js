@@ -79,8 +79,8 @@ function validateProjectPayload(project) {
  */
 /**
  * Build the row payload that gets written to the `projects` table.
- * Extracted so both `saveProject` (SDK path) and `_rawFetchSaveProject`
- * (raw-fetch fallback path) produce identical writes.
+ * Used by `saveProject`. Centralized so the JSONB shape is defined
+ * in exactly one place.
  */
 function _buildSaveProjectPayload(project) {
   return {
@@ -130,143 +130,60 @@ function _buildSaveProjectPayload(project) {
 }
 
 /**
- * Raw-fetch save fallback. Bypasses the Supabase SDK entirely — reads the
- * JWT directly from localStorage, sends the upsert via PostgREST with our
- * own AbortController-wrapped fetch.
+ * Persist a project. Uses raw fetch (via supa-rest.js) when signed in,
+ * in-memory when not. Bypasses the Supabase SDK entirely on the network
+ * path — saves are reliable regardless of SDK state.
  *
- * Used by `_autoSaveNow` when the SDK save times out (the SDK has gotten
- * itself into a stuck state we can't recover from). This path doesn't
- * touch the SDK, so it works regardless of how broken the SDK is.
- *
- * Only handles the owner case (upsert). Collaborator saves still go
- * through the SDK; if those time out we just show the warning banner.
- *
- * @param {object} project
- * @returns {Promise<{data: object|null, error: string|null}>}
+ * @param {object} project — standardized project schema from projects.js
+ * @returns {Promise<{data: object, error: string|null}>}
  */
-async function _rawFetchSaveProject(project) {
-  const validationError = validateProjectPayload(project);
-  if (validationError) return { data: null, error: validationError };
-  if (!appState.currentUser) return { data: null, error: 'Not signed in' };
-
-  const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
-  if (!isOwner) return { data: null, error: 'Raw-fetch fallback only handles owner saves' };
-
-  // Pull the JWT from localStorage. Supabase v2 stores it under
-  // `sb-{projectRef}-auth-token` as a JSON object containing access_token.
-  const projectRef = SUPABASE_URL.replace('https://', '').split('.')[0];
-  const storageKey = 'sb-' + projectRef + '-auth-token';
-  let accessToken = null;
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      accessToken = parsed && parsed.access_token;
-    }
-  } catch (e) {
-    return { data: null, error: 'Could not read session from localStorage: ' + e.message };
-  }
-  if (!accessToken) return { data: null, error: 'No access token in localStorage' };
-
-  const payload = _buildSaveProjectPayload(project);
-  const body = JSON.stringify({
-    id:         project.id,
-    user_id:    appState.currentUser.id,
-    created_at: project.created_at,
-    ...payload
-  });
-
-  // PostgREST upsert: POST with on_conflict + Prefer: resolution=merge-duplicates.
-  // Equivalent to the SDK's .upsert(...) call.
-  const url = SUPABASE_URL + '/rest/v1/projects?on_conflict=id';
-  const controller = new AbortController();
-  const timer = setTimeout(function() { controller.abort(); }, 12000);
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'apikey':        SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + accessToken,
-        'Content-Type':  'application/json',
-        'Prefer':        'resolution=merge-duplicates,return=representation'
-      },
-      body: body
-    });
-    clearTimeout(timer);
-    if (!response.ok) {
-      const text = await response.text().catch(function() { return ''; });
-      return { data: null, error: 'HTTP ' + response.status + ': ' + text };
-    }
-    // Keep in-memory array in sync (matches what saveProject does)
-    const idx = savedProjects.findIndex(function(p) { return p.id === project.id; });
-    if (idx >= 0) savedProjects[idx] = project; else savedProjects.push(project);
-    appState.projects = savedProjects.slice();
-    return { data: project, error: null };
-  } catch (e) {
-    clearTimeout(timer);
-    return { data: null, error: e && e.message ? e.message : String(e) };
-  }
-}
-
 async function saveProject(project) {
   const validationError = validateProjectPayload(project);
   if (validationError) {
     console.warn('[saveProject] Validation failed:', validationError);
     return { data: null, error: validationError };
   }
+
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
-
     const payload = _buildSaveProjectPayload(project);
 
-    let data, error;
-
+    let result;
     if (isOwner) {
       // Owner: upsert handles both first-save (INSERT) and subsequent saves (UPDATE).
-      ({ data, error } = await _supabase
-        .from('projects')
-        .upsert({ id: project.id, user_id: appState.currentUser.id, created_at: project.created_at, ...payload })
-        .select()
-        .single());
+      result = await _restPost('projects', {
+        id:         project.id,
+        user_id:    appState.currentUser.id,
+        created_at: project.created_at,
+        ...payload
+      }, { upsert: true });
     } else {
-      // Collaborator (editor / scoped_editor): UPDATE only.
-      // Supabase upsert is an INSERT + ON CONFLICT DO UPDATE, so the INSERT RLS check
-      // fires first — which blocks any user whose id doesn't match user_id.
-      // Plain UPDATE bypasses that; the "Owners and editors can update projects" policy allows it.
-      // Do NOT use .select().single() here — viewers are RLS-blocked (0 rows), and .single()
-      // would throw PGRST116. A viewer save is a graceful no-op at the DB level.
-      ({ error } = await _supabase
-        .from('projects')
-        .update(payload)
-        .eq('id', project.id));
-      data = null;
+      // Collaborator (editor / scoped_editor): UPDATE only — RLS allows it.
+      // (This branch goes away in Phase 2 when we collapse to owner-only writes.)
+      result = await _restPatch('projects', payload,
+        'id=eq.' + encodeURIComponent(project.id));
     }
 
-    if (error) {
-      console.error('[saveProject] Supabase error:', error.message,
-                    '| code:', error.code,
-                    '| user:', appState.currentUser?.id,
+    if (!result.ok) {
+      console.error('[saveProject] error:', result.error,
+                    '| status:', result.status,
+                    '| user:', appState.currentUser && appState.currentUser.id,
                     '| project:', project.id,
                     '| isOwner:', isOwner);
-      return { data: null, error: error.message };
+      return { data: null, error: result.error };
     }
 
-    // Keep in-memory array in sync
-    const idx = savedProjects.findIndex(p => p.id === project.id);
+    // Keep in-memory array in sync.
+    const idx = savedProjects.findIndex(function(p) { return p.id === project.id; });
     if (idx >= 0) savedProjects[idx] = project; else savedProjects.push(project);
     appState.projects = savedProjects.slice();
     return { data: project, error: null };
   }
 
-  // Fallback: in-memory only (anonymous visitor — data will not survive a refresh)
+  // Anonymous visitor — in-memory only, will not survive a refresh.
   console.warn('[saveProject] No current user — saving in-memory only. Project will be lost on refresh.');
-  const idx = savedProjects.findIndex(p => p.id === project.id);
-  if (idx >= 0) {
-    savedProjects[idx] = project;
-  } else {
-    savedProjects.push(project);
-  }
+  const idx = savedProjects.findIndex(function(p) { return p.id === project.id; });
+  if (idx >= 0) savedProjects[idx] = project; else savedProjects.push(project);
   appState.projects = savedProjects.slice();
   return { data: project, error: null };
 }
@@ -277,35 +194,31 @@ async function saveProject(project) {
  */
 async function loadProjects(userId) {
   if (appState.currentUser) {
-    // No user_id filter here — RLS handles access control.
-    // After Feature 5 this returns both owned projects AND shared projects
-    // the user is a member of (via project_members RLS policy).
-    const { data, error } = await _supabase
-      .from('projects')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    // No user_id filter — RLS handles access control. Returns both owned
+    // projects AND shared projects the user is a member of.
+    const result = await _restGet('projects', 'select=*&order=updated_at.desc');
 
-    if (error) {
-      console.error('[loadProjects] Supabase error:', error.message, '| code:', error.code);
-      return { data: [], error: error.message };
+    if (!result.ok) {
+      console.error('[loadProjects] error:', result.error, '| status:', result.status);
+      return { data: [], error: result.error };
     }
 
-    // Normalize Supabase rows back to the project model shape
-    const currentUserId = appState.currentUser?.id;
-    const projects = (data || []).map(row => ({
-      id:                  row.id,
-      user_id:             row.user_id,
-      name:                row.name,
-      owner:               row.owner || '',
-      description:         row.description || '',
-      created_at:          row.created_at,
-      updated_at:          row.updated_at,
-      scheduled_delete_at: row.scheduled_delete_at || null,
-      // is_owner: true when this user created the project; false = collaborator
-      is_owner:            row.user_id === currentUserId,
-      // Spread the JSONB data column back to the top level
-      ...(row.data || {})
-    }));
+    const rows = result.data || [];
+    const currentUserId = appState.currentUser && appState.currentUser.id;
+    const projects = rows.map(function(row) {
+      return Object.assign({
+        id:                  row.id,
+        user_id:             row.user_id,
+        name:                row.name,
+        owner:               row.owner || '',
+        description:         row.description || '',
+        created_at:          row.created_at,
+        updated_at:          row.updated_at,
+        scheduled_delete_at: row.scheduled_delete_at || null,
+        // is_owner: true when this user created the project; false = collaborator
+        is_owner:            row.user_id === currentUserId
+      }, row.data || {}); // Spread the JSONB data column back to the top level
+    });
 
     savedProjects = projects;
     appState.projects = projects.slice();

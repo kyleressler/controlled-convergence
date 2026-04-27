@@ -2846,17 +2846,21 @@
 
 <!-- ─────────────────────────────────────────────────────────
      JavaScript — load order is critical:
-       1. config.js    ← Supabase URL + anon key → _supabase client
-       2. state.js     ← mutable app state (globals)
-       3. api.js       ← async backend interface (Supabase)
-       4. auth.js      ← authentication interface (Supabase)
-       5. analytics.js ← event tracking wrapper
-       6. projects.js  ← project model + Stripe gate
-       7. ui.js        ← all render* / update* functions
-       8. app.js       ← event handlers, business logic, init()
+       1. config.js       ← Supabase URL + anon key → _supabase client (auth flows only)
+       2. state.js        ← mutable app state (globals)
+       3. supa-session.js ← JWT lifecycle (read/refresh/auto-refresh) — independent of SDK
+       4. supa-rest.js    ← raw fetch wrappers for /rest/v1/* — independent of SDK
+       5. api.js          ← async backend interface (uses supa-rest, not SDK)
+       6. auth.js         ← authentication interface (uses SDK for login/signup/logout)
+       7. analytics.js    ← event tracking wrapper
+       8. projects.js     ← project model + Stripe gate
+       9. ui.js           ← all render* / update* functions
+      10. app.js          ← event handlers, business logic, init()
      ───────────────────────────────────────────────────────── -->
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
+<script src="js/supa-session.js"></script>
+<script src="js/supa-rest.js"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
   <script src="js/settings.js"></script>

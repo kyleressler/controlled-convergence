@@ -158,43 +158,29 @@ async function initAuth() {
     _onAuthStateUpdated();
   }
 
-  // Subscribe to auth state changes (login, logout, token refresh)
-  _bindAuthStateListener();
-}
-
-/**
- * The callback we register with onAuthStateChange. Pulled out as a named
- * function so we can re-register it after `_recreateSupabaseClient()`
- * swaps in a fresh client (the new client has no listeners attached).
- */
-async function _onSupabaseAuthStateChange(event, session) {
-  if (session && session.user) {
-    const user = await _buildUserFromSession(session.user);
-    appState.currentUser = user;
-    userTier = user.tier || 'free';
-    if (typeof identifyUser === 'function') identifyUser(user);
-    // Session is healthy — clear any warning banner
-    if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
-  } else {
-    appState.currentUser = null;
-    userTier = 'free';
-    if (typeof resetAnalyticsUser === 'function') resetAnalyticsUser();
-    // SIGNED_OUT fired without user clicking logout = session expired mid-session
-    if (event === 'SIGNED_OUT' && typeof _showSessionWarning === 'function') {
-      _showSessionWarning();
+  // Subscribe to auth state changes (login, logout, signup).
+  // The SDK fires this for login/logout. With autoRefreshToken disabled
+  // (config.js) and our own refresh in supa-session.js, the SDK does
+  // less work here than before, but onAuthStateChange still fires for
+  // the user-initiated flows.
+  _supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session && session.user) {
+      const user = await _buildUserFromSession(session.user);
+      appState.currentUser = user;
+      userTier = user.tier || 'free';
+      if (typeof identifyUser === 'function') identifyUser(user);
+      if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
+    } else {
+      appState.currentUser = null;
+      userTier = 'free';
+      if (typeof resetAnalyticsUser === 'function') resetAnalyticsUser();
+      // SIGNED_OUT fired without user clicking logout = session expired mid-session
+      if (event === 'SIGNED_OUT' && typeof _showSessionWarning === 'function') {
+        _showSessionWarning();
+      }
     }
-  }
-  // Refresh UI to reflect the new auth state
-  _onAuthStateUpdated();
-}
-
-/**
- * Bind (or re-bind) the auth state listener to the current `_supabase`
- * client. Called once from initAuth(), and again from _recreateSupabaseClient()
- * after a client swap.
- */
-function _bindAuthStateListener() {
-  _supabase.auth.onAuthStateChange(_onSupabaseAuthStateChange);
+    _onAuthStateUpdated();
+  });
 }
 
 /**

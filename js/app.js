@@ -6790,17 +6790,17 @@ ${sections}
     _autoSaveAttempt(snap);
   }
 
-  // Attempt a save with a 9-second timeout. If the SDK times out (it gets
-  // into stuck states we can't reliably recover, see config.js), fall back
-  // to a raw fetch directly to Supabase's REST API — that bypasses the SDK
-  // entirely and works regardless of how broken the SDK is.
+  // Attempt a save with a 12-second timeout. saveProject now goes through
+  // raw fetch (supa-rest.js) instead of the Supabase SDK, so the only way
+  // it hangs is if the network itself is dead — and the AbortController
+  // inside _restFetch will fire at 12 seconds in that case.
   //
-  // Only the SDK path is affected by this bug; raw fetch reads the JWT
-  // from localStorage and talks to PostgREST directly, so it doesn't
-  // depend on any of the SDK's internal promise machinery.
+  // 12 seconds aligns with the supa-rest fetch timeout. If saveProject
+  // returns an error, we show the warning. If it succeeds, hide any
+  // leftover warning.
   async function _autoSaveAttempt(snap) {
     const timeoutPromise = new Promise(function(_, reject) {
-      setTimeout(function() { reject(Object.assign(new Error('timeout'), { isTimeout: true })); }, 9000);
+      setTimeout(function() { reject(Object.assign(new Error('timeout'), { isTimeout: true })); }, 12000);
     });
     try {
       const result = await Promise.race([saveProject(snap), timeoutPromise]);
@@ -6808,28 +6808,14 @@ ${sections}
         if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
         return;
       }
-      // SDK returned an error (not a timeout) — fall through to raw-fetch fallback
-      console.warn('[_autoSaveNow] SDK save returned error, attempting raw-fetch fallback:', result && result.error);
+      console.warn('[_autoSaveNow] save failed:', result && result.error);
+      _showSessionWarning();
     } catch (err) {
-      if (!err.isTimeout) {
-        console.warn('[_autoSaveNow] SDK save threw, attempting raw-fetch fallback:', err);
+      if (err.isTimeout) {
+        console.warn('[_autoSaveNow] save timed out at 12s');
       } else {
-        console.warn('[_autoSaveNow] SDK save timed out at 9s, attempting raw-fetch fallback');
+        console.warn('[_autoSaveNow] save threw:', err);
       }
-    }
-
-    // Recovery path: bypass the SDK entirely.
-    try {
-      const rawResult = await _rawFetchSaveProject(snap);
-      if (rawResult && !rawResult.error) {
-        console.log('[_autoSaveNow] raw-fetch fallback succeeded');
-        if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
-      } else {
-        console.warn('[_autoSaveNow] raw-fetch fallback also failed:', rawResult && rawResult.error);
-        _showSessionWarning();
-      }
-    } catch (rawErr) {
-      console.warn('[_autoSaveNow] raw-fetch fallback threw:', rawErr);
       _showSessionWarning();
     }
   }
@@ -6938,34 +6924,14 @@ ${sections}
     }
   }, 60000);
 
-  // ── SESSION KEEPALIVE: refresh the Supabase auth token every 15 minutes ──
-  // Supabase JWTs expire after 1 hour. The SDK auto-refreshes, but in some
-  // environments (Netlify previews, Safari) the silent refresh can hang,
-  // causing all subsequent saves to queue behind it and never complete.
-  // Proactively refreshing every 15 minutes (well before the 1-hour expiry)
-  // ensures the token is always renewed while the connection is known-good.
-  // With the 12-second fetch timeout in config.js, any hung refresh now
-  // aborts cleanly instead of locking the client forever.
-  setInterval(async function() {
-    if (appState.currentUser) {
-      try {
-        const { error } = await _supabase.auth.refreshSession();
-        if (error) {
-          console.warn('[session-keepalive] refresh failed:', error.message);
-          _showSessionWarning();
-        } else {
-          _hideSessionWarning(); // clear any existing warning after successful refresh
-        }
-      } catch(e) {
-        // AbortError = the 12-second timeout in config.js fired.
-        // This means the network is too slow right now but the session
-        // itself may still be valid — don't immediately warn the user.
-        if (e.name !== 'AbortError') {
-          console.warn('[session-keepalive] unexpected error:', e);
-        }
-      }
-    }
-  }, 15 * 60 * 1000);
+  // ── SESSION KEEPALIVE ──
+  // Token refresh is now owned by supa-session.js. _authStartAutoRefresh()
+  // runs a 60-second loop that refreshes the JWT whenever it's within
+  // 5 minutes of expiry, via raw POST to /auth/v1/token. No SDK involvement,
+  // so no risk of stuck refresh promises.
+  if (typeof _authStartAutoRefresh === 'function') {
+    _authStartAutoRefresh();
+  }
 
   // Bootstrap Supabase auth — restores session, sets up onAuthStateChange listener.
   // On success, _onAuthStateUpdated() in auth.js triggers renderProjList() automatically.
