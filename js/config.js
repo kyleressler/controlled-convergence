@@ -18,39 +18,60 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const POSTHOG_KEY  = 'phc_kN3iLEBLpdFAh8xR6ebwRqtPBRd93ZW6zqbqrAVdJZRp';
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 
-// Create the Supabase client — available globally as `_supabase`
+// ── Supabase client — available globally as `_supabase` ──
 // (prefixed to avoid conflict with the supabase CDN global)
 //
-// ── BUG FIX: bypass navigator.locks for auth coordination ──
-// By default, the Supabase SDK uses the browser's navigator.locks API to
-// coordinate JWT token refreshes across tabs. In Safari (and occasionally
-// Chrome), this lock can get stuck — e.g. if a background tab dies mid-refresh,
-// or if a refresh request takes too long. Once stuck, EVERY subsequent
-// Supabase call (including all save/load operations) queues at the lock
-// acquisition step and never reaches the network. No error is thrown.
-// Symptom: saves silently stop working mid-session; network tab shows zero
-// requests to supabase.co; calls return Promise {status: "pending"} forever.
+// LAYERED DEFENSES against silent save failures:
 //
-// The fix below replaces the default lock with a no-op pass-through. This
-// removes cross-tab refresh coordination (worst case: two tabs each fire one
-// extra refresh request, which is harmless), but it eliminates the hang
-// entirely — there's no lock to get stuck on.
+// 1. `auth.lock` bypass — replaces the default navigator.locks coordinator
+//    with a no-op pass-through. The default uses navigator.locks for
+//    cross-tab token refresh, which can get stuck and freeze the entire
+//    SDK silently. Worst case of bypassing: two tabs each fire one extra
+//    refresh request — harmless.
 //
-// We keep the 12-second AbortController fetch wrapper as a belt-and-suspenders
-// defense: if any individual fetch ever hangs (e.g. network goes dark), it
-// aborts cleanly instead of pending forever.
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    // Bypass navigator.locks — see comment block above.
-    // Signature: (name, acquireTimeout, fn) => Promise<R>
-    lock: function(_name, _acquireTimeout, fn) { return fn(); }
-  },
-  global: {
-    fetch: function(url, options) {
-      const controller = new AbortController();
-      const timer = setTimeout(function() { controller.abort(); }, 12000);
-      return fetch(url, Object.assign({}, options, { signal: controller.signal }))
-        .finally(function() { clearTimeout(timer); });
+// 2. 12-second `fetch` AbortController — every Supabase fetch has a hard
+//    timeout. If a request stalls (slow network, dropped connection),
+//    it aborts cleanly instead of pending forever.
+//
+// 3. Client recreate (see `_recreateSupabaseClient` below) — if the SDK
+//    still gets stuck despite #1 and #2 (e.g. Safari sometimes ignores
+//    AbortController on a stalled fetch, leaving the SDK holding an
+//    orphan promise), the app can call `_recreateSupabaseClient()` to
+//    swap in a brand-new client with no in-flight stuck state. The new
+//    client auto-restores the session from localStorage.
+//
+// We declare _supabase with `let` (not const) so the recreate function
+// can reassign it.
+function _createSupabaseClient() {
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      // Bypass navigator.locks — signature: (name, acquireTimeout, fn) => Promise<R>
+      lock: function(_name, _acquireTimeout, fn) { return fn(); }
+    },
+    global: {
+      fetch: function(url, options) {
+        const controller = new AbortController();
+        const timer = setTimeout(function() { controller.abort(); }, 12000);
+        return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+          .finally(function() { clearTimeout(timer); });
+      }
     }
+  });
+}
+
+let _supabase = _createSupabaseClient();
+
+// Recreate the client from scratch. Used to recover when the SDK gets
+// stuck holding an orphan fetch promise (Safari quirk: AbortController
+// doesn't always actually settle a stalled fetch, leaving the SDK
+// waiting on a promise that will never resolve).
+//
+// After recreating, the auth state listener must be re-bound to the new
+// client — _bindAuthStateListener() (in auth.js) handles that.
+function _recreateSupabaseClient() {
+  console.warn('[_recreateSupabaseClient] swapping in a fresh Supabase client to recover from stuck SDK');
+  _supabase = _createSupabaseClient();
+  if (typeof _bindAuthStateListener === 'function') {
+    _bindAuthStateListener();
   }
-});
+}

@@ -6787,17 +6787,47 @@ ${sections}
     const snap = snapshotCurrentState(activeProject);
     const idx = savedProjects.findIndex(p => p.id === snap.id);
     if (idx >= 0) savedProjects[idx] = snap;
+    _autoSaveAttempt(snap, false);
+  }
+
+  // Attempt a save with a 9-second timeout. If it times out (the SDK is stuck),
+  // recreate the Supabase client and retry once. The new client has no
+  // in-flight stuck promises, so the retry should succeed quickly. Only show
+  // the user-visible warning if the retry ALSO fails.
+  //
+  // This is the recovery layer for the "Safari sometimes ignores
+  // AbortController on a stalled fetch" failure mode — see the comment block
+  // in config.js for the full picture.
+  async function _autoSaveAttempt(snap, isRetry) {
     const timeoutPromise = new Promise(function(_, reject) {
       setTimeout(function() { reject(Object.assign(new Error('timeout'), { isTimeout: true })); }, 9000);
     });
-    Promise.race([saveProject(snap), timeoutPromise]).catch(async function(err) {
-      if (err.isTimeout) {
-        console.warn('[_autoSaveNow] save timed out — session likely expired, showing warning');
+    try {
+      const result = await Promise.race([saveProject(snap), timeoutPromise]);
+      if (result && !result.error) {
+        // Save succeeded — clear any leftover warning banner
+        if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
+      }
+    } catch (err) {
+      if (err.isTimeout && !isRetry) {
+        console.warn('[_autoSaveNow] save timed out — recreating Supabase client and retrying');
+        try {
+          _recreateSupabaseClient();
+          // Brief delay to let the new client initialize before we hit it
+          setTimeout(function() { _autoSaveAttempt(snap, true); }, 500);
+        } catch (recreateErr) {
+          console.warn('[_autoSaveNow] client recreate failed:', recreateErr);
+          _showSessionWarning();
+        }
+      } else if (err.isTimeout) {
+        // Already retried after a recreate and STILL timed out — give up and
+        // show the user-visible warning so they know saves are not landing.
+        console.warn('[_autoSaveNow] retry after recreate also timed out — showing warning');
         _showSessionWarning();
       } else {
         console.warn('[immediate-save] failed', err);
       }
-    });
+    }
   }
 
   // ── NAV SYNC: bidirectional sync for active project ──
