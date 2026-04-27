@@ -6743,16 +6743,66 @@ ${sections}
     }
   });
 
+  // ── SESSION WARNING BANNER ──
+  // Shows a persistent banner when saves stop responding (expired session).
+  // Dismissed automatically when the session is successfully refreshed.
+  function _showSessionWarning() {
+    let el = document.getElementById('sessionWarningBanner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'sessionWarningBanner';
+      el.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
+        'background:#b91c1c', 'color:#fff', 'padding:12px 20px',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'gap:16px', 'font-size:14px', 'font-weight:500', 'box-shadow:0 2px 8px rgba(0,0,0,.3)'
+      ].join(';');
+      el.innerHTML = '⚠️ Your session expired — recent changes may not be saved. '
+        + '<button id="sessionRefreshBtn" style="background:#fff;color:#b91c1c;border:none;'
+        + 'border-radius:6px;padding:4px 14px;font-weight:700;cursor:pointer;">Refresh session</button>';
+      document.body.prepend(el);
+      document.getElementById('sessionRefreshBtn').addEventListener('click', async function() {
+        this.textContent = 'Refreshing…';
+        const { error } = await _supabase.auth.refreshSession();
+        if (error) {
+          // Refresh failed — force re-login
+          await logout();
+          window.location.reload();
+        } else {
+          el.remove();
+        }
+      });
+    }
+  }
+
+  function _hideSessionWarning() {
+    const el = document.getElementById('sessionWarningBanner');
+    if (el) el.remove();
+  }
+
   // ── IMMEDIATE SAVE HELPER ──
   // Call after any state mutation that doesn't already trigger a nav-save.
   // No-op when there's no active project or the user isn't signed in.
+  // Includes a 9-second timeout: if Supabase stops responding (common when
+  // the auth token expires and the silent refresh hangs), the user sees a
+  // visible warning banner with a one-click session refresh.
   function _autoSaveNow() {
     if (!activeProject) return;
     if (!appState.currentUser && userTier === 'free') return;
     const snap = snapshotCurrentState(activeProject);
     const idx = savedProjects.findIndex(p => p.id === snap.id);
     if (idx >= 0) savedProjects[idx] = snap;
-    saveProject(snap).catch(err => console.warn('[immediate-save] failed', err));
+    const timeoutPromise = new Promise(function(_, reject) {
+      setTimeout(function() { reject(Object.assign(new Error('timeout'), { isTimeout: true })); }, 9000);
+    });
+    Promise.race([saveProject(snap), timeoutPromise]).catch(async function(err) {
+      if (err.isTimeout) {
+        console.warn('[_autoSaveNow] save timed out — session likely expired, showing warning');
+        _showSessionWarning();
+      } else {
+        console.warn('[immediate-save] failed', err);
+      }
+    });
   }
 
   // ── NAV SYNC: bidirectional sync for active project ──
@@ -6858,6 +6908,27 @@ ${sections}
       saveProject(snap).catch(err => console.warn('[auto-save] failed', err));
     }
   }, 60000);
+
+  // ── SESSION KEEPALIVE: refresh the Supabase auth token every 45 minutes ──
+  // Supabase JWTs expire after 1 hour. The SDK auto-refreshes, but in some
+  // environments (Netlify previews, Safari) the silent refresh can hang,
+  // causing all subsequent saves to queue behind it and never complete.
+  // Proactively refreshing at 45 min keeps the token fresh and avoids the hang.
+  setInterval(async function() {
+    if (appState.currentUser) {
+      try {
+        const { error } = await _supabase.auth.refreshSession();
+        if (error) {
+          console.warn('[session-keepalive] refresh failed:', error.message);
+          _showSessionWarning();
+        } else {
+          _hideSessionWarning(); // clear any existing warning after successful refresh
+        }
+      } catch(e) {
+        console.warn('[session-keepalive] unexpected error:', e);
+      }
+    }
+  }, 45 * 60 * 1000);
 
   // Bootstrap Supabase auth — restores session, sets up onAuthStateChange listener.
   // On success, _onAuthStateUpdated() in auth.js triggers renderProjList() automatically.

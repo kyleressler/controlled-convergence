@@ -165,10 +165,16 @@ async function initAuth() {
       appState.currentUser = user;
       userTier = user.tier || 'free';
       if (typeof identifyUser === 'function') identifyUser(user);
+      // Session is healthy — clear any warning banner
+      if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
     } else {
       appState.currentUser = null;
       userTier = 'free';
       if (typeof resetAnalyticsUser === 'function') resetAnalyticsUser();
+      // SIGNED_OUT fired without user clicking logout = session expired mid-session
+      if (event === 'SIGNED_OUT' && typeof _showSessionWarning === 'function') {
+        _showSessionWarning();
+      }
     }
     // Refresh UI to reflect the new auth state
     _onAuthStateUpdated();
