@@ -21,18 +21,30 @@ const POSTHOG_HOST = 'https://us.i.posthog.com';
 // Create the Supabase client — available globally as `_supabase`
 // (prefixed to avoid conflict with the supabase CDN global)
 //
-// CUSTOM FETCH WITH TIMEOUT
-// The Supabase SDK uses navigator.locks to coordinate token refresh.
-// If the refresh network request hangs (network hiccup, server delay),
-// the lock is held indefinitely and every subsequent Supabase call queues
-// behind it — silently, with no error, forever. This caused saves to stop
-// working mid-session without any visible error message.
+// ── BUG FIX: bypass navigator.locks for auth coordination ──
+// By default, the Supabase SDK uses the browser's navigator.locks API to
+// coordinate JWT token refreshes across tabs. In Safari (and occasionally
+// Chrome), this lock can get stuck — e.g. if a background tab dies mid-refresh,
+// or if a refresh request takes too long. Once stuck, EVERY subsequent
+// Supabase call (including all save/load operations) queues at the lock
+// acquisition step and never reaches the network. No error is thrown.
+// Symptom: saves silently stop working mid-session; network tab shows zero
+// requests to supabase.co; calls return Promise {status: "pending"} forever.
 //
-// The fix: wrap every Supabase fetch call with a 12-second AbortController
-// timeout. If any request (including the token refresh) doesn't respond in
-// 12 seconds, it's aborted. The SDK then surfaces a real error through the
-// promise chain and the onAuthStateChange handler, instead of hanging silently.
+// The fix below replaces the default lock with a no-op pass-through. This
+// removes cross-tab refresh coordination (worst case: two tabs each fire one
+// extra refresh request, which is harmless), but it eliminates the hang
+// entirely — there's no lock to get stuck on.
+//
+// We keep the 12-second AbortController fetch wrapper as a belt-and-suspenders
+// defense: if any individual fetch ever hangs (e.g. network goes dark), it
+// aborts cleanly instead of pending forever.
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    // Bypass navigator.locks — see comment block above.
+    // Signature: (name, acquireTimeout, fn) => Promise<R>
+    lock: function(_name, _acquireTimeout, fn) { return fn(); }
+  },
   global: {
     fetch: function(url, options) {
       const controller = new AbortController();
