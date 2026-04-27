@@ -2407,41 +2407,28 @@ body.theme-engineering .sidebar-brand {
   border: 1px solid rgba(99,102,241,0.35);
 }
 
-/* ── VIEWER MODE — hide all edit/delete/add controls ── */
-body.cc-role-viewer .req-item-edit,
-body.cc-role-viewer .req-item-delete,
-body.cc-role-viewer .req-assign-review-btn,
-body.cc-role-viewer #assignScoringTaskBtn,
-body.cc-role-viewer #scorConceptInput,
-body.cc-role-viewer #scorSettingsBtn,
-body.cc-role-viewer .concept-add-row .btn,
-body.cc-role-viewer .concept-card-actions .btn,
-body.cc-role-viewer [onclick*="addRequirement"],
-body.cc-role-viewer [onclick*="addPughConcept"],
-body.cc-role-viewer [onclick*="openEditConceptModal"],
-body.cc-role-viewer [onclick*="deletePughConcept"] {
+/* ── READ-ONLY MODE — hide all edit/delete/add controls ──
+   Phase 3: applied whenever canEdit() returns false. That includes:
+     - viewers (any time, no edit rights)
+     - editors / owners who don't currently hold the project's lock
+   Set by _applyReadonlyClass() in app.js based on canEdit(). */
+body.cc-readonly .req-item-edit,
+body.cc-readonly .req-item-delete,
+body.cc-readonly .req-assign-review-btn,
+body.cc-readonly #assignScoringTaskBtn,
+body.cc-readonly #scorConceptInput,
+body.cc-readonly #scorSettingsBtn,
+body.cc-readonly .concept-add-row .btn,
+body.cc-readonly .concept-card-actions .btn,
+body.cc-readonly [onclick*="addRequirement"],
+body.cc-readonly [onclick*="addPughConcept"],
+body.cc-readonly [onclick*="openEditConceptModal"],
+body.cc-readonly [onclick*="deletePughConcept"] {
   display: none !important;
 }
-body.cc-role-viewer .concept-add-row input {
+body.cc-readonly .concept-add-row input {
   pointer-events: none;
   opacity: 0.5;
-}
-
-/* ── SCOPED EDITOR MODE — same visual restrictions as viewer ── */
-/* The JS layer (canEditScoringCell) handles what they CAN score */
-body.cc-role-scoped-editor .req-item-edit,
-body.cc-role-scoped-editor .req-item-delete,
-body.cc-role-scoped-editor .req-assign-review-btn,
-body.cc-role-scoped-editor #assignScoringTaskBtn,
-body.cc-role-scoped-editor #scorConceptInput,
-body.cc-role-scoped-editor #scorSettingsBtn,
-body.cc-role-scoped-editor .concept-add-row .btn,
-body.cc-role-scoped-editor .concept-card-actions .btn,
-body.cc-role-scoped-editor [onclick*="addRequirement"],
-body.cc-role-scoped-editor [onclick*="addPughConcept"],
-body.cc-role-scoped-editor [onclick*="openEditConceptModal"],
-body.cc-role-scoped-editor [onclick*="deletePughConcept"] {
-  display: none !important;
 }
 
 /* ── ASSIGN REVIEW BUTTON (on requirement cards) ── */

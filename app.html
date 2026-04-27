@@ -288,6 +288,16 @@
 <!-- ── SIDEBAR NUDGE TOOLTIP ── -->
 <div class="sidebar-nudge" id="rightSidebarNudge">Need help? Tap here →</div>
 
+<!-- ── LOCK BANNER (Phase 3) ──
+     Floats above the active page when a project is loaded. Three states:
+     "you're editing", "checked out by X", or "available — check out."
+     Positioned fixed near the top of the viewport so it's visible on every
+     project page. Show/hide + content driven by _renderLockBanner() in app.js. -->
+<div id="lockBanner"
+     style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
+            max-width:680px;width:calc(100% - 32px);z-index:50;
+            box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+
 <!-- ── BLOG PAGE (in-app reader) ──
      Renders the public blog inside the app shell so logged-in users keep
      sidebars, theme, and top nav. Content is filled by js/blog-app-render.js
@@ -2471,12 +2481,13 @@
       </div>
 
       <!-- Permission level -->
-      <!-- Phase 2: only the viewer role is offered. Editor role returns in
-           Phase 3 with check-out / check-in support. -->
+      <!-- Phase 3: editor option restored. Pro-tier owners can invite editors;
+           free-tier owners get an upgrade prompt if they pick editor. -->
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">Permission level</div>
         <select id="inviteRole" class="add-custom-input" style="width:100%">
           <option value="viewer">Viewer — read-only access to the full project</option>
+          <option value="editor">Editor — can check out and edit (Pro feature)</option>
         </select>
       </div>
 

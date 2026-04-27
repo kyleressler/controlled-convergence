@@ -159,11 +159,26 @@ async function saveProject(project) {
     }
 
     const payload = _buildSaveProjectPayload(project);
+
+    // Phase 3: on the FIRST save (project creation), set editing_user_id =
+    // creator so the owner immediately holds the lock. Subsequent saves
+    // require the user to already hold the lock (RLS enforces this on UPDATE).
+    //
+    // We detect "first save" by whether the project exists in our in-memory
+    // savedProjects array. If it doesn't, this is creation and we include
+    // the lock fields. If it does, this is an UPDATE and we don't touch
+    // the lock fields (preserving whoever currently holds it).
+    const isFirstSave = !savedProjects.find(function(p) { return p.id === project.id; });
+    const insertExtras = isFirstSave
+      ? { editing_user_id: appState.currentUser.id, checked_out_at: new Date().toISOString() }
+      : {};
+
     const result = await _restPost('projects', {
       id:         project.id,
       user_id:    appState.currentUser.id,
       created_at: project.created_at,
-      ...payload
+      ...payload,
+      ...insertExtras
     }, { upsert: true });
 
     if (!result.ok) {
@@ -217,7 +232,10 @@ async function loadProjects(userId) {
         updated_at:          row.updated_at,
         scheduled_delete_at: row.scheduled_delete_at || null,
         // is_owner: true when this user created the project; false = collaborator
-        is_owner:            row.user_id === currentUserId
+        is_owner:            row.user_id === currentUserId,
+        // Phase 3: lock state — null editing_user_id means "available to check out"
+        editing_user_id:     row.editing_user_id || null,
+        checked_out_at:      row.checked_out_at || null
       }, row.data || {}); // Spread the JSONB data column back to the top level
     });
 
@@ -321,6 +339,56 @@ async function removeCollabProjectAPI(projectId) {
   savedProjects = savedProjects.filter(p => p.id !== projectId);
   appState.projects = savedProjects.slice();
   return { error: null };
+}
+
+// ── Project lock (check-out / check-in) ─────────────────────
+// Phase 3: a project has at most one active editor at a time. To
+// modify a project's data, a user must first claim the lock.
+// Owner + editor members can claim; viewers cannot. The owner
+// additionally has revoke (force-release) power.
+//
+// All three functions return the wrapper { ok, status, data, error }
+// shape from supa-rest. The actual RPC payload is in `data` and may
+// contain { success: true } or { error: '...' } for permission errors.
+
+/**
+ * Claim the editing lock for a project.
+ * Idempotent: succeeds if you already hold the lock.
+ * @param {string} projectId
+ */
+async function claimLock(projectId) {
+  return await _restRpc('claim_lock', { p_project_id: projectId });
+}
+
+/**
+ * Release the lock you hold on a project.
+ * @param {string} projectId
+ */
+async function releaseLock(projectId) {
+  return await _restRpc('release_lock', { p_project_id: projectId });
+}
+
+/**
+ * Owner force-frees a lock held by another user.
+ * Phase 3: just clears the lock. Phase 5 will additionally
+ * snapshot the current project state attributed to the previous
+ * holder (non-destructive revoke).
+ * @param {string} projectId
+ */
+async function revokeLock(projectId) {
+  return await _restRpc('revoke_lock', { p_project_id: projectId });
+}
+
+/**
+ * Refresh the lock state for a project. Returns the current
+ * editing_user_id, checked_out_at, and updated_at without pulling
+ * the full project payload — used by the auto-poll loop to detect
+ * lock or content changes cheaply.
+ * @param {string} projectId
+ */
+async function fetchLockState(projectId) {
+  return await _restGet('projects',
+    'select=editing_user_id,checked_out_at,updated_at&id=eq.' + encodeURIComponent(projectId));
 }
 
 // ── AI Coaching ───────────────────────────────────────────────

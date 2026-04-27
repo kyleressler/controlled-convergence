@@ -93,6 +93,17 @@ let projectCollaborators = [];
 // Used by scoped editors to know which cells they're allowed to score.
 let myAssignedScoringTasks = [];
 
+// ── Lock state (Phase 3) ─────────────────────────────────────
+// The current check-out / check-in lock state for the active project.
+// null            → no project loaded, or lock state not yet fetched
+// { editing_user_id: null, ... }       → project is unlocked
+// { editing_user_id: <uuid>, ... }     → project is checked out
+//
+// Shape: { editing_user_id, checked_out_at, holder_name, updated_at }
+// holder_name is resolved from projectCollaborators or user_profiles
+// when the banner is rendered.
+let currentProjectLock = null;
+
 // ── Tasks ────────────────────────────────────────────────────
 // Active scoring tasks for the current project (pending or accepted).
 // Populated by loadActiveScoringTasksForProject() whenever a project loads.

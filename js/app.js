@@ -1153,6 +1153,9 @@
     myAssignedScoringTasks = assigned || [];
 
     _applyRoleClasses();
+    // Phase 3: also initialize lock state for the active project.
+    _loadProjectLockFromCache(projectId);
+    _startLockPoll(); // idempotent — safe to call repeatedly
     // Re-render key pages so role-based controls show/hide correctly
     if (typeof renderRequirements           === 'function') renderRequirements();
     if (typeof renderConceptCards           === 'function') renderConceptCards();
@@ -1161,11 +1164,12 @@
   }
 
   // Apply/remove CSS role classes on the body element.
-  // Phase 2: only owner and viewer exist. (editor returns in Phase 3 with locks.)
+  // Phase 3: owner, editor, viewer.
   function _applyRoleClasses() {
     document.body.classList.remove('cc-role-owner', 'cc-role-viewer', 'cc-role-scoped-editor', 'cc-role-editor');
     var role = currentProjectRole;
     if (role === 'viewer')      document.body.classList.add('cc-role-viewer');
+    else if (role === 'editor') document.body.classList.add('cc-role-editor');
     else if (role === 'owner')  document.body.classList.add('cc-role-owner');
 
     // Update role badge in nav
@@ -1177,15 +1181,232 @@
       badge.textContent = 'Viewer';
       badge.className   = 'nav-role-badge nav-role-badge-viewer';
       badge.style.display = '';
+    } else if (role === 'editor') {
+      badge.textContent = 'Editor';
+      badge.className   = 'nav-role-badge nav-role-badge-editor';
+      badge.style.display = '';
     }
   }
 
-  // Clear role state when no project is active.
+  // Clear role + lock state when no project is active.
   function _clearProjectRole() {
     currentProjectRole = null;
     myAssignedScoringTasks = [];
     projectCollaborators = [];
+    currentProjectLock = null;
     _applyRoleClasses();
+    _renderLockBanner();
+  }
+
+  // ── Lock state management (Phase 3) ──
+  // Load the lock state from the in-memory project (already populated by
+  // loadProjects). Called whenever a project becomes active.
+  function _loadProjectLockFromCache(projectId) {
+    var proj = savedProjects.find(function(p) { return p.id === projectId; });
+    if (!proj) {
+      currentProjectLock = null;
+    } else {
+      currentProjectLock = {
+        editing_user_id: proj.editing_user_id || null,
+        checked_out_at:  proj.checked_out_at  || null,
+        updated_at:      proj.updated_at      || null
+      };
+    }
+    _renderLockBanner();
+    _applyReadonlyClass();
+  }
+
+  // Auto-poll: every 60 seconds, refresh the lock state for the active
+  // project. If the lock holder changed, update the banner. If updated_at
+  // advanced AND we don't hold the lock, pull the latest project state
+  // (someone else just checked in their changes).
+  var _lockPollTimer = null;
+  function _startLockPoll() {
+    if (_lockPollTimer) return;
+    _lockPollTimer = setInterval(_pollLockState, 60 * 1000);
+  }
+  function _stopLockPoll() {
+    if (_lockPollTimer) { clearInterval(_lockPollTimer); _lockPollTimer = null; }
+  }
+  async function _pollLockState() {
+    if (!activeProject || !appState.currentUser) return;
+    var result = await fetchLockState(activeProject.id);
+    if (!result.ok || !result.data || !result.data[0]) return;
+    var fresh = result.data[0];
+    var prevLock = currentProjectLock || {};
+    var holderChanged = (fresh.editing_user_id || null) !== (prevLock.editing_user_id || null);
+    var updatedChanged = fresh.updated_at !== prevLock.updated_at;
+    var iHoldLock = appState.currentUser && fresh.editing_user_id === appState.currentUser.id;
+
+    currentProjectLock = {
+      editing_user_id: fresh.editing_user_id || null,
+      checked_out_at:  fresh.checked_out_at  || null,
+      updated_at:      fresh.updated_at      || null
+    };
+
+    if (holderChanged) _renderLockBanner();
+
+    // If someone else checked in changes while I'm viewing, pull fresh state.
+    if (updatedChanged && !iHoldLock) {
+      console.log('[lock-poll] detected remote update, pulling latest project state');
+      await loadProjects(appState.currentUser.id);
+      // Re-load the current project from the refreshed savedProjects
+      if (typeof loadProject === 'function') loadProject(activeProject.id);
+    }
+  }
+
+  // ── Lock action handlers (called from banner buttons) ──
+  async function handleCheckOut() {
+    if (!activeProject || !appState.currentUser) return;
+    var result = await claimLock(activeProject.id);
+    if (!result.ok) { alert('Could not check out: ' + result.error); return; }
+    var rpc = result.data;
+    if (rpc && rpc.error) { alert(rpc.error); return; }
+    // Success — refresh local lock state and re-render so controls enable.
+    currentProjectLock = {
+      editing_user_id: appState.currentUser.id,
+      checked_out_at:  new Date().toISOString(),
+      updated_at:      currentProjectLock && currentProjectLock.updated_at
+    };
+    _renderLockBanner();
+    _rerenderProjectViews();
+  }
+
+  async function handleCheckIn() {
+    if (!activeProject || !appState.currentUser) return;
+    var result = await releaseLock(activeProject.id);
+    if (!result.ok) { alert('Could not check in: ' + result.error); return; }
+    var rpc = result.data;
+    if (rpc && rpc.error) { alert(rpc.error); return; }
+    currentProjectLock = {
+      editing_user_id: null,
+      checked_out_at:  null,
+      updated_at:      currentProjectLock && currentProjectLock.updated_at
+    };
+    _renderLockBanner();
+    _rerenderProjectViews();
+  }
+
+  async function handleRevokeLock() {
+    if (!activeProject || !appState.currentUser) return;
+    if (!confirm('Force-release the current checkout? The other user will lose their editing access.')) return;
+    var result = await revokeLock(activeProject.id);
+    if (!result.ok) { alert('Could not revoke: ' + result.error); return; }
+    var rpc = result.data;
+    if (rpc && rpc.error) { alert(rpc.error); return; }
+    currentProjectLock = {
+      editing_user_id: null,
+      checked_out_at:  null,
+      updated_at:      currentProjectLock && currentProjectLock.updated_at
+    };
+    _renderLockBanner();
+    _rerenderProjectViews();
+  }
+
+  // Re-render UI views that depend on canEdit() so controls enable/disable.
+  function _rerenderProjectViews() {
+    _applyReadonlyClass();
+    if (typeof renderRequirements   === 'function') renderRequirements();
+    if (typeof renderConceptCards   === 'function') renderConceptCards();
+    if (typeof renderPughMatrix     === 'function') renderPughMatrix();
+    if (typeof renderQSMatrix       === 'function') renderQSMatrix();
+    if (typeof renderQSLists        === 'function') renderQSLists();
+    if (typeof renderProjPage       === 'function') renderProjPage();
+  }
+
+  // Add/remove the body-level cc-readonly class so the CSS that hides
+  // edit controls reacts to lock state. Called whenever canEdit() result
+  // might change (lock acquired/released, role loaded, project changed).
+  function _applyReadonlyClass() {
+    if (canEdit()) {
+      document.body.classList.remove('cc-readonly');
+    } else {
+      document.body.classList.add('cc-readonly');
+    }
+  }
+
+  // Render the lock state banner at the top of the project view.
+  // Three states:
+  //   - I hold the lock          → "You're editing — Check in"
+  //   - Someone else holds it    → "Locked by [name]" + (if owner) Revoke
+  //   - Free + I'm owner/editor  → "Available — Check out"
+  //   - Free + I'm a viewer      → no banner (read-only is implicit)
+  function _renderLockBanner() {
+    var banner = document.getElementById('lockBanner');
+    if (!banner) return;
+
+    if (!activeProject || !appState.currentUser || !currentProjectLock) {
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+      return;
+    }
+
+    var iAmOwner   = isOwner();
+    var iAmViewer  = currentProjectRole === 'viewer';
+    var iCanTake   = !iAmViewer; // owner + editor can take the lock
+    var lockedBy   = currentProjectLock.editing_user_id;
+    var iHoldIt    = lockedBy && lockedBy === appState.currentUser.id;
+
+    // Layout that's constant across states. Inline so the existing HTML
+    // <div id="lockBanner"> doesn't need its own CSS class. Per-state look
+    // (background/border/text color) gets appended below.
+    var layoutCss =
+      'position:fixed;top:60px;left:50%;transform:translateX(-50%);'
+      + 'max-width:680px;width:calc(100% - 32px);z-index:50;'
+      + 'box-shadow:0 4px 12px rgba(0,0,0,0.08);'
+      + 'padding:10px 16px;border-radius:8px;'
+      + 'display:flex;align-items:center;justify-content:space-between;gap:12px;'
+      + 'font-size:13px;';
+
+    if (iHoldIt) {
+      banner.style.cssText = layoutCss
+        + 'background:#dcfce7;color:#166534;border:1px solid #86efac;';
+      banner.innerHTML =
+        '<span><strong>✏️ You\'re editing this project.</strong> '
+        + 'Save your work and click "Check in" when you\'re done.</span>'
+        + '<button id="lockCheckInBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Check in</button>';
+      var checkInBtn = document.getElementById('lockCheckInBtn');
+      if (checkInBtn) checkInBtn.onclick = handleCheckIn;
+    } else if (lockedBy) {
+      // Someone else has it. Look up holder name from collaborators.
+      var holderName = '';
+      if (projectCollaborators && projectCollaborators.length) {
+        var m = projectCollaborators.find(function(c) { return c.user_id === lockedBy; });
+        if (m && m.display_name) holderName = m.display_name;
+      }
+      if (!holderName) holderName = 'another user';
+      var since = '';
+      if (currentProjectLock.checked_out_at) {
+        var d = new Date(currentProjectLock.checked_out_at);
+        since = ' (since ' + d.toLocaleString() + ')';
+      }
+      banner.style.cssText = layoutCss
+        + 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;';
+      banner.innerHTML =
+        '<span>🔒 <strong>Currently checked out by ' + _escHtml(holderName) + '</strong>' + _escHtml(since) + '. You can view but not edit.</span>'
+        + (iAmOwner ? '<button id="lockRevokeBtn" class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#92400e">Revoke checkout</button>' : '');
+      var revokeBtn = document.getElementById('lockRevokeBtn');
+      if (revokeBtn) revokeBtn.onclick = handleRevokeLock;
+    } else if (iCanTake) {
+      banner.style.cssText = layoutCss
+        + 'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd;';
+      banner.innerHTML =
+        '<span>This project is available to edit. Check it out to make changes.</span>'
+        + '<button id="lockCheckOutBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Check out</button>';
+      var checkOutBtn = document.getElementById('lockCheckOutBtn');
+      if (checkOutBtn) checkOutBtn.onclick = handleCheckOut;
+    } else {
+      // Viewer with free lock — no banner needed; the read-only state is implicit.
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+    }
+  }
+
+  // Tiny HTML escape helper for user-provided text in the banner.
+  function _escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // ── Role helpers (called throughout the app) ──
@@ -1207,11 +1428,22 @@
     return !currentProjectRole || currentProjectRole === 'owner';
   }
 
-  // Phase 2: only the owner can edit. Editor role returns in Phase 3
-  // with check-out support, where canEdit() will additionally require
-  // the user to hold the project lock.
+  // Phase 3: editing requires holding the lock.
+  // - Anonymous / brand-new local project (no role yet) → allowed
+  // - Viewer → never allowed
+  // - Owner / Editor → must hold the lock
+  //
+  // The lock is claimed via the "Check out" button on the lock banner;
+  // released via "Check in" or by the owner's "Revoke checkout."
   function canEdit() {
-    return isOwner();
+    // No role loaded yet → either anonymous user or brand-new local project.
+    // Allow editing — these projects haven't been saved to Supabase, so
+    // there's no concurrent-write concern.
+    if (!currentProjectRole) return true;
+    if (currentProjectRole === 'viewer') return false;
+    // Owner / editor: must hold the lock.
+    if (!currentProjectLock || !appState.currentUser) return false;
+    return currentProjectLock.editing_user_id === appState.currentUser.id;
   }
 
   // Returns true if the current user is allowed to edit the given Pugh cell.
@@ -1296,9 +1528,15 @@
       } catch(e) {
         console.warn('[submitInvite] get_user_id_by_email threw:', e);
       }
-      // Phase 2: only the viewer role is supported. The role variable
-      // comes from the share modal which now offers 'viewer' as the only option.
-      var roleLabel = 'Viewer';
+      // Phase 3: viewer or editor. Editor requires owner to be on Pro tier.
+      // (We check this here rather than disabling the option, so users get
+      // a clear upgrade prompt instead of an unexplained disabled control.)
+      if (role === 'editor' && !userTierMeets('pro') && userTier !== 'admin') {
+        if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+        showUpgradePrompt('invite-editor');
+        return;
+      }
+      var roleLabel = role === 'editor' ? 'Editor' : 'Viewer';
       var title = 'Invitation to collaborate on "' + (proj ? proj.name : 'a project') + '" (' + roleLabel + ')';
 
       console.log('[submitInvite] inserting task | project_id:', _inviteTargetProjectId,
@@ -1450,17 +1688,18 @@
     listEl.innerHTML = projectCollaborators.map(function(m) {
       var displayName = m.display_name || 'Unknown';
       var safeName = String(displayName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-      // Phase 2: only viewer exists. Defensive — if a stale row somehow shows
-      // a non-viewer role, label it neutrally as "Member" rather than crash.
-      var roleLabel = m.role === 'viewer' ? 'Viewer' : 'Member';
+      // Phase 3: viewer and editor are both valid roles. Defensive fallback
+      // for any unrecognized role (shouldn't happen — CHECK constraint enforces it).
+      var roleLabel = m.role === 'editor' ? 'Editor' : (m.role === 'viewer' ? 'Viewer' : 'Member');
       var isEditing = editingMemberId && editingMemberId === m.user_id;
 
-      // Phase 2: no role-change dropdown — only one role is available.
-      // Edit-mode collapses to just the Revoke button.
       if (isEditing) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px;background:rgba(var(--accent-rgb,26,86,219),0.04)">'
           + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
-          + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
+          + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" data-action="collab-role-change" data-user-id="' + m.user_id + '">'
+          +   '<option value="viewer"' + (m.role === 'viewer' ? ' selected' : '') + '>Viewer</option>'
+          +   '<option value="editor"' + (m.role === 'editor' ? ' selected' : '') + '>Editor</option>'
+          + '</select>'
           + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;white-space:nowrap" data-action="collab-done">Done</button>'
           + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" data-action="collab-revoke" data-user-id="' + m.user_id + '">Revoke</button>'
           + '</div>';
@@ -1475,8 +1714,16 @@
   }
 
   // Update a collaborator's role in Supabase and reflect it locally.
+  // Phase 3: upgrading a collaborator to 'editor' requires the owner
+  // (the caller) to be on Pro tier.
   async function updateCollabRole(memberId, newRole) {
     if (!activeProject || !appState.currentUser) return;
+    if (newRole === 'editor' && !userTierMeets('pro') && userTier !== 'admin') {
+      showUpgradePrompt('invite-editor');
+      // Re-render the row to revert the dropdown selection
+      renderTeamAccessList(memberId);
+      return;
+    }
     var { error } = await _supabase
       .from('project_members')
       .update({ role: newRole })
