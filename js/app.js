@@ -1272,12 +1272,54 @@
     _rerenderProjectViews();
   }
 
-  async function handleCheckIn() {
+  // Phase 4: check-in opens a modal for an optional comment, then calls
+  // releaseLock with the comment. release_lock atomically creates a
+  // version snapshot and releases the lock.
+  function handleCheckIn() {
     if (!activeProject || !appState.currentUser) return;
-    var result = await releaseLock(activeProject.id);
+    openCheckInModal();
+  }
+
+  function openCheckInModal() {
+    var modal = document.getElementById('checkInModal');
+    if (!modal) return;
+    var ta = document.getElementById('checkInComment');
+    if (ta) ta.value = '';
+    modal.classList.add('open');
+    setTimeout(function() { if (ta) ta.focus(); }, 50);
+  }
+
+  function closeCheckInModal() {
+    var modal = document.getElementById('checkInModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  async function submitCheckIn() {
+    if (!activeProject || !appState.currentUser) return;
+    var btn = document.getElementById('checkInSubmitBtn');
+    var ta  = document.getElementById('checkInComment');
+    var comment = ta ? ta.value : '';
+
+    if (btn) { btn.textContent = 'Checking in…'; btn.disabled = true; }
+
+    // Make sure any in-progress edits land in the row BEFORE we snapshot.
+    // saveProject is fire-and-forget normally; here we await it so the
+    // snapshot reflects the final state.
+    try {
+      var snap = snapshotCurrentState(activeProject);
+      await saveProject(snap);
+    } catch (e) {
+      console.warn('[submitCheckIn] pre-checkin save failed:', e);
+    }
+
+    var result = await releaseLock(activeProject.id, comment);
+    if (btn) { btn.textContent = 'Check in'; btn.disabled = false; }
+
     if (!result.ok) { alert('Could not check in: ' + result.error); return; }
     var rpc = result.data;
     if (rpc && rpc.error) { alert(rpc.error); return; }
+
+    closeCheckInModal();
     currentProjectLock = {
       editing_user_id: null,
       checked_out_at:  null,
@@ -1409,6 +1451,180 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // ── PROJECT VERSION HISTORY (Phase 4) ──
+  // List, view, and (in Phase 5) revert to historical snapshots.
+  // Snapshots are created automatically by every check-in via release_lock.
+
+  // Cache the loaded versions so we can look them up quickly when the
+  // user clicks "View this version" without refetching.
+  var _historyVersions = [];
+
+  // Set when the user is viewing a historical snapshot. While set, all
+  // editing is disabled (canEdit returns false). Cleared by clicking
+  // "Return to current" in the historical view banner.
+  var _viewingHistoricalVersionId = null;
+
+  async function openHistoryModal() {
+    if (!activeProject || !appState.currentUser) return;
+    var modal = document.getElementById('historyModal');
+    var body  = document.getElementById('historyModalBody');
+    if (!modal || !body) return;
+
+    body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">Loading…</div>';
+    modal.classList.add('open');
+
+    var result = await loadProjectVersions(activeProject.id);
+    if (!result.ok) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--danger);padding:12px 0">Could not load history: ' + _escHtml(result.error) + '</div>';
+      return;
+    }
+
+    _historyVersions = result.data || [];
+    _renderHistoryList();
+  }
+
+  function closeHistoryModal() {
+    var modal = document.getElementById('historyModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function _renderHistoryList() {
+    var body = document.getElementById('historyModalBody');
+    if (!body) return;
+
+    if (!_historyVersions.length) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">'
+        + 'No check-ins yet. Each time you (or an editor) checks in, a snapshot is saved here.'
+        + '</div>';
+      return;
+    }
+
+    body.innerHTML = _historyVersions.map(function(v) {
+      // Resolve checked_in_by to a display name if we know them
+      var holderName = '';
+      if (projectCollaborators && projectCollaborators.length) {
+        var m = projectCollaborators.find(function(c) { return c.user_id === v.checked_in_by; });
+        if (m && m.display_name) holderName = m.display_name;
+      }
+      if (!holderName && appState.currentUser && v.checked_in_by === appState.currentUser.id) {
+        holderName = 'you';
+      }
+      if (!holderName) holderName = 'someone';
+
+      var when = '';
+      if (v.checked_in_at) {
+        try { when = new Date(v.checked_in_at).toLocaleString(); } catch(e) { when = v.checked_in_at; }
+      }
+
+      var commentBlock = v.comment
+        ? '<div style="margin-top:6px;font-size:13px;color:var(--text);background:var(--bg,rgba(0,0,0,0.04));border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.5;white-space:pre-wrap">' + _escHtml(v.comment) + '</div>'
+        : '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);font-style:italic">(no comment provided)</div>';
+
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
+        +   '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">'
+        +     '<div>'
+        +       '<span style="font-size:13px;font-weight:700;color:var(--text)">Version ' + v.version_number + '</span>'
+        +       '<span style="font-size:12px;color:var(--text-muted);margin-left:8px">checked in by ' + _escHtml(holderName) + ' · ' + _escHtml(when) + '</span>'
+        +     '</div>'
+        +     '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
+        +   '</div>'
+        +   commentBlock
+        + '</div>';
+    }).join('');
+
+    // Wire up "View this version" buttons
+    body.querySelectorAll('[data-action="view-version"]').forEach(function(btn) {
+      btn.onclick = function() { handleViewHistoricalVersion(btn.dataset.versionId); };
+    });
+  }
+
+  // Pull the snapshot for a version and render it as the current view,
+  // read-only. The user can return to the live state via the banner.
+  async function handleViewHistoricalVersion(versionId) {
+    if (!activeProject) return;
+    var result = await loadProjectVersionSnapshot(versionId);
+    if (!result.ok || !result.data || !result.data[0]) {
+      alert('Could not load that version.');
+      return;
+    }
+    var versionRow = result.data[0];
+    var snap = versionRow.snapshot || {};
+
+    // Replace the active project's data with the snapshot (in memory only —
+    // this does NOT save back to the database). Restore via _returnToCurrent.
+    var liveProject = savedProjects.find(function(p) { return p.id === activeProject.id; });
+    if (liveProject) {
+      // Stash the live state so we can restore it without a DB roundtrip.
+      _liveProjectStash = JSON.parse(JSON.stringify(liveProject));
+    }
+
+    // Apply the snapshot to activeProject + savedProjects in place.
+    var applied = Object.assign({}, activeProject, {
+      name:        snap.name || activeProject.name,
+      owner:       snap.owner || activeProject.owner,
+      description: snap.description || activeProject.description,
+      updated_at:  snap.updated_at || activeProject.updated_at
+    }, snap.data || {});
+    Object.keys(applied).forEach(function(k) { activeProject[k] = applied[k]; });
+    var idx = savedProjects.findIndex(function(p) { return p.id === activeProject.id; });
+    if (idx >= 0) savedProjects[idx] = Object.assign({}, savedProjects[idx], applied);
+
+    _viewingHistoricalVersionId = versionId;
+    closeHistoryModal();
+    _renderHistoricalViewBanner(versionRow);
+    if (typeof restoreProjectState === 'function') restoreProjectState(activeProject);
+    _rerenderProjectViews();
+    _applyReadonlyClass();
+  }
+
+  // Stashed live project state while viewing history. Restored by _returnToCurrent.
+  var _liveProjectStash = null;
+
+  function _returnToCurrent() {
+    if (!_viewingHistoricalVersionId || !_liveProjectStash) return;
+    // Restore activeProject + savedProjects from the stash.
+    Object.keys(_liveProjectStash).forEach(function(k) { activeProject[k] = _liveProjectStash[k]; });
+    var idx = savedProjects.findIndex(function(p) { return p.id === activeProject.id; });
+    if (idx >= 0) savedProjects[idx] = JSON.parse(JSON.stringify(_liveProjectStash));
+    _viewingHistoricalVersionId = null;
+    _liveProjectStash = null;
+    _hideHistoricalViewBanner();
+    if (typeof restoreProjectState === 'function') restoreProjectState(activeProject);
+    _rerenderProjectViews();
+    _applyReadonlyClass();
+    _renderLockBanner();
+  }
+
+  function _renderHistoricalViewBanner(versionRow) {
+    var banner = document.getElementById('historicalViewBanner');
+    if (!banner) return;
+    var when = '';
+    try { when = new Date(versionRow.checked_in_at).toLocaleString(); } catch(e) {}
+    banner.style.cssText =
+      'position:fixed;top:60px;left:50%;transform:translateX(-50%);'
+      + 'max-width:680px;width:calc(100% - 32px);z-index:51;'
+      + 'box-shadow:0 4px 12px rgba(0,0,0,0.08);'
+      + 'padding:10px 16px;border-radius:8px;'
+      + 'display:flex;align-items:center;justify-content:space-between;gap:12px;'
+      + 'font-size:13px;'
+      + 'background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;';
+    banner.innerHTML =
+      '<span>📜 <strong>Viewing version ' + versionRow.version_number + '</strong>'
+      + (when ? ' (checked in ' + _escHtml(when) + ')' : '')
+      + ' — read-only.</span>'
+      + '<button id="historicalReturnBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Return to current</button>';
+    var returnBtn = document.getElementById('historicalReturnBtn');
+    if (returnBtn) returnBtn.onclick = _returnToCurrent;
+    // Hide the lock banner while viewing history (less noise)
+    var lockBanner = document.getElementById('lockBanner');
+    if (lockBanner) lockBanner.style.display = 'none';
+  }
+
+  function _hideHistoricalViewBanner() {
+    var banner = document.getElementById('historicalViewBanner');
+    if (banner) { banner.style.display = 'none'; banner.innerHTML = ''; }
+  }
+
   // ── Role helpers (called throughout the app) ──
 
   function isViewOnly() {
@@ -1428,7 +1644,8 @@
     return !currentProjectRole || currentProjectRole === 'owner';
   }
 
-  // Phase 3: editing requires holding the lock.
+  // Phase 3 + 4: editing requires holding the lock AND not viewing history.
+  // - Viewing a historical version → never (Phase 4)
   // - Anonymous / brand-new local project (no role yet) → allowed
   // - Viewer → never allowed
   // - Owner / Editor → must hold the lock
@@ -1436,6 +1653,8 @@
   // The lock is claimed via the "Check out" button on the lock banner;
   // released via "Check in" or by the owner's "Revoke checkout."
   function canEdit() {
+    // Phase 4: viewing a historical snapshot is read-only regardless of role/lock.
+    if (typeof _viewingHistoricalVersionId !== 'undefined' && _viewingHistoricalVersionId) return false;
     // No role loaded yet → either anonymous user or brand-new local project.
     // Allow editing — these projects haven't been saved to Supabase, so
     // there's no concurrent-write concern.

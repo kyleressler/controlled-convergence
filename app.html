@@ -103,6 +103,16 @@
     <span id="navProjectNameText"></span>
   </div>
 
+  <!-- Phase 4: project history button. Visible whenever a project is
+       loaded. Opens the history modal which lists all check-in versions. -->
+  <button id="navHistoryBtn"
+          class="nav-tasks-btn"
+          onclick="openHistoryModal()"
+          title="Project version history"
+          style="display:none">
+    📜 History
+  </button>
+
   <!-- Sync button — shown only when a project is active; re-fetches from server in place -->
   <button class="nav-sync-btn" id="navSyncBtn" onclick="syncActiveProject()" title="Sync project from server" style="display:none" aria-label="Sync project">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
@@ -296,6 +306,61 @@
 <div id="lockBanner"
      style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
             max-width:680px;width:calc(100% - 32px);z-index:50;
+            box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+
+<!-- ── CHECK-IN MODAL (Phase 4) ──
+     Shown when the user clicks "Check in" on the lock banner. Optional
+     comment field describes what they changed in this work session.
+     Submitting calls release_lock with the comment, which atomically
+     creates a project_versions snapshot and releases the lock. -->
+<div class="modal-overlay" id="checkInModal" onclick="if(event.target===this)closeCheckInModal()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Check in changes</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.5">
+        This will save a permanent snapshot of the project as it is now,
+        then release the editing lock so others can check it out.
+      </div>
+      <div>
+        <label for="checkInComment"
+               style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:7px">
+          What did you change? <span style="font-weight:400;text-transform:none">(optional)</span>
+        </label>
+        <textarea id="checkInComment" class="add-custom-input"
+                  rows="3"
+                  placeholder="e.g. Added 3 requirements and scored Concept C2 vs the datum"
+                  style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="checkInSubmitBtn" onclick="submitCheckIn()">Check in</button>
+      <button class="btn btn-secondary" onclick="closeCheckInModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTORY MODAL (Phase 4) ──
+     Lists all version snapshots for the active project. Each entry shows
+     who checked it in, when, and any comment they left. Click "View this
+     version" to see the snapshot read-only (Phase 5 adds revert). -->
+<div class="modal-overlay" id="historyModal" onclick="if(event.target===this)closeHistoryModal()">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-title">Version history</div>
+    <div id="historyModalBody"
+         style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeHistoryModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTORICAL VIEW BANNER (Phase 4) ──
+     Shown when the user is viewing a historical version snapshot.
+     Replaces the lock banner during historical view. The "Return to
+     current" button restores the live project state. -->
+<div id="historicalViewBanner"
+     style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
+            max-width:680px;width:calc(100% - 32px);z-index:51;
             box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
 
 <!-- ── BLOG PAGE (in-app reader) ──

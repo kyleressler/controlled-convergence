@@ -195,17 +195,22 @@ async function _resolveStakEmailTiers(emails) {
   }
 
   function updateNavProjectName() {
-    const wrap     = document.getElementById('navProjectName');
-    const text     = document.getElementById('navProjectNameText');
-    const syncBtn  = document.getElementById('navSyncBtn');
+    const wrap        = document.getElementById('navProjectName');
+    const text        = document.getElementById('navProjectNameText');
+    const syncBtn     = document.getElementById('navSyncBtn');
+    const historyBtn  = document.getElementById('navHistoryBtn'); // Phase 4
     if (!wrap || !text) return;
     if (activeProject && activeProject.name) {
       text.textContent = activeProject.name;
       wrap.style.display = 'flex';
-      if (syncBtn) syncBtn.style.display = 'flex';
+      if (syncBtn)    syncBtn.style.display    = 'flex';
+      // History button only shown for signed-in users (anonymous projects
+      // have no version history). Phase 4.
+      if (historyBtn) historyBtn.style.display = (appState.currentUser ? 'flex' : 'none');
     } else {
       wrap.style.display = 'none';
-      if (syncBtn) syncBtn.style.display = 'none';
+      if (syncBtn)    syncBtn.style.display    = 'none';
+      if (historyBtn) historyBtn.style.display = 'none';
     }
   }
 

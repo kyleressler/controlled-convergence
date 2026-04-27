@@ -361,11 +361,43 @@ async function claimLock(projectId) {
 }
 
 /**
- * Release the lock you hold on a project.
+ * Release the lock you hold on a project. Phase 4: this also creates
+ * a version snapshot in project_versions, attributed to you, with the
+ * comment you provided. The release + snapshot are atomic.
+ *
+ * @param {string} projectId
+ * @param {string} [comment] — optional, what you changed
+ */
+async function releaseLock(projectId, comment) {
+  return await _restRpc('release_lock', {
+    p_project_id: projectId,
+    p_comment:    comment == null ? null : String(comment)
+  });
+}
+
+/**
+ * List all versions for a project (latest first). Each row is the
+ * project_versions table shape: id, project_id, version_number,
+ * snapshot, checked_in_by, checked_in_at, comment.
+ *
  * @param {string} projectId
  */
-async function releaseLock(projectId) {
-  return await _restRpc('release_lock', { p_project_id: projectId });
+async function loadProjectVersions(projectId) {
+  return await _restGet('project_versions',
+    'select=id,project_id,version_number,checked_in_by,checked_in_at,comment'
+    + '&project_id=eq.' + encodeURIComponent(projectId)
+    + '&order=version_number.desc');
+}
+
+/**
+ * Fetch a single version's full snapshot (including the data jsonb
+ * blob). Used for "view this version" and Phase 5's revert flow.
+ *
+ * @param {string} versionId
+ */
+async function loadProjectVersionSnapshot(versionId) {
+  return await _restGet('project_versions',
+    'select=*&id=eq.' + encodeURIComponent(versionId));
 }
 
 /**
