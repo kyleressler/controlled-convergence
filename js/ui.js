@@ -854,12 +854,11 @@ async function _resolveStakEmailTiers(emails) {
           </div>`;
         }
 
-        // ── Assign Review button (owners only, and only when no active/completed review) ──
-        const _userIsOwner = typeof isOwner === 'function' ? isOwner() : true;
-        const showAssignReview = _userIsOwner && !activeReview && !completedReview;
-        const assignReviewBtn = showAssignReview
-          ? `<button class="req-assign-review-btn" onclick="event.stopPropagation();openReqReviewModal(${_rId})" title="Assign review task">Assign Review</button>`
-          : '';
+        // Phase 4.5: 'Assign Review' button removed. The req-review task
+        // type was tied to the scoped-editor model — assignees got scoped
+        // write access. With locks, edit access is binary; tasks are
+        // plain messages. Existing review tasks still display below if any.
+        const assignReviewBtn = '';
 
         return `
         <div class="req-item" ondblclick="editRequirement(${_rId})" title="Double-click to edit" style="cursor:default">

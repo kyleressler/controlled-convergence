@@ -1327,6 +1327,13 @@
     };
     _renderLockBanner();
     _rerenderProjectViews();
+    // Phase 4.5: after check-in, take the user back to Project Manager.
+    // They've finished their editing session — the natural next step is
+    // to see the project list, not stay on whatever sub-page they were on.
+    if (typeof switchPage === 'function') {
+      var projBtn = document.querySelector('[data-page="proj"]');
+      switchPage('proj', projBtn || null);
+    }
   }
 
   async function handleRevokeLock() {
@@ -1365,21 +1372,49 @@
     } else {
       document.body.classList.add('cc-readonly');
     }
+    _applyOwnerClass();
   }
 
-  // Render the lock state banner at the top of the project view.
-  // Three states:
-  //   - I hold the lock          → "You're editing — Check in"
-  //   - Someone else holds it    → "Locked by [name]" + (if owner) Revoke
-  //   - Free + I'm owner/editor  → "Available — Check out"
-  //   - Free + I'm a viewer      → no banner (read-only is implicit)
+  // Phase 4.5 (item #11): owner-only project preferences. When the current
+  // user isn't the owner, add a body class that the CSS uses to dim and
+  // disable preference buttons (.pref-btn). Also stamp a tooltip on each
+  // pref button explaining why they can't change it.
+  function _applyOwnerClass() {
+    var notOwner = currentProjectRole && currentProjectRole !== 'owner';
+    var tooltip  = 'Only the project owner can change this setting.';
+    if (notOwner) {
+      document.body.classList.add('cc-not-owner');
+      document.querySelectorAll('.pref-btn').forEach(function(btn) {
+        if (!btn.dataset.origTitle) btn.dataset.origTitle = btn.title || '';
+        btn.title = tooltip;
+      });
+    } else {
+      document.body.classList.remove('cc-not-owner');
+      document.querySelectorAll('.pref-btn').forEach(function(btn) {
+        if (btn.dataset.origTitle != null) {
+          btn.title = btn.dataset.origTitle;
+          delete btn.dataset.origTitle;
+        } else {
+          btn.title = '';
+        }
+      });
+    }
+  }
+
+  // Render the lock state into a compact pill in the top nav, sitting just
+  // left of the project name. Three states:
+  //   - I hold the lock          → "Editing. To save work" + Check in button
+  //   - Someone else holds it    → "Checked out by [name]" + (owner only) Revoke
+  //   - Free + I'm owner/editor  → "Project available to" + Check out button
+  //   - Free + I'm a viewer      → no pill (read-only is implicit)
+  // All colors come from theme CSS variables; no hard-coded hex values.
   function _renderLockBanner() {
-    var banner = document.getElementById('lockBanner');
-    if (!banner) return;
+    var pill = document.getElementById('lockNavPill');
+    if (!pill) return;
 
     if (!activeProject || !appState.currentUser || !currentProjectLock) {
-      banner.style.display = 'none';
-      banner.innerHTML = '';
+      pill.style.display = 'none';
+      pill.innerHTML = '';
       return;
     }
 
@@ -1389,24 +1424,16 @@
     var lockedBy   = currentProjectLock.editing_user_id;
     var iHoldIt    = lockedBy && lockedBy === appState.currentUser.id;
 
-    // Layout that's constant across states. Inline so the existing HTML
-    // <div id="lockBanner"> doesn't need its own CSS class. Per-state look
-    // (background/border/text color) gets appended below.
-    var layoutCss =
-      'position:fixed;top:60px;left:50%;transform:translateX(-50%);'
-      + 'max-width:680px;width:calc(100% - 32px);z-index:50;'
-      + 'box-shadow:0 4px 12px rgba(0,0,0,0.08);'
-      + 'padding:10px 16px;border-radius:8px;'
-      + 'display:flex;align-items:center;justify-content:space-between;gap:12px;'
-      + 'font-size:13px;';
+    // Reset state classes and content
+    pill.className = 'nav-lock-pill';
+    pill.innerHTML = '';
 
     if (iHoldIt) {
-      banner.style.cssText = layoutCss
-        + 'background:#dcfce7;color:#166534;border:1px solid #86efac;';
-      banner.innerHTML =
-        '<span><strong>✏️ You\'re editing this project.</strong> '
-        + 'Save your work and click "Check in" when you\'re done.</span>'
-        + '<button id="lockCheckInBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Check in</button>';
+      pill.classList.add('nav-lock-pill-editing');
+      pill.innerHTML =
+        '<span class="nav-lock-text">Editing. To save work</span>'
+        + '<button id="lockCheckInBtn" class="nav-lock-btn">Check in</button>';
+      pill.style.display = 'inline-flex';
       var checkInBtn = document.getElementById('lockCheckInBtn');
       if (checkInBtn) checkInBtn.onclick = handleCheckIn;
     } else if (lockedBy) {
@@ -1417,30 +1444,24 @@
         if (m && m.display_name) holderName = m.display_name;
       }
       if (!holderName) holderName = 'another user';
-      var since = '';
-      if (currentProjectLock.checked_out_at) {
-        var d = new Date(currentProjectLock.checked_out_at);
-        since = ' (since ' + d.toLocaleString() + ')';
-      }
-      banner.style.cssText = layoutCss
-        + 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;';
-      banner.innerHTML =
-        '<span>🔒 <strong>Currently checked out by ' + _escHtml(holderName) + '</strong>' + _escHtml(since) + '. You can view but not edit.</span>'
-        + (iAmOwner ? '<button id="lockRevokeBtn" class="btn btn-ghost" style="font-size:12px;padding:6px 14px;color:#92400e">Revoke checkout</button>' : '');
+      pill.classList.add('nav-lock-pill-locked-by-other');
+      pill.innerHTML =
+        '<span class="nav-lock-text">Checked out by ' + _escHtml(holderName) + '</span>'
+        + (iAmOwner ? '<button id="lockRevokeBtn" class="nav-lock-btn nav-lock-btn-secondary">Revoke</button>' : '');
+      pill.style.display = 'inline-flex';
       var revokeBtn = document.getElementById('lockRevokeBtn');
       if (revokeBtn) revokeBtn.onclick = handleRevokeLock;
     } else if (iCanTake) {
-      banner.style.cssText = layoutCss
-        + 'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd;';
-      banner.innerHTML =
-        '<span>This project is available to edit. Check it out to make changes.</span>'
-        + '<button id="lockCheckOutBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Check out</button>';
+      pill.innerHTML =
+        '<span class="nav-lock-text">Project available to</span>'
+        + '<button id="lockCheckOutBtn" class="nav-lock-btn">Check out</button>';
+      pill.style.display = 'inline-flex';
       var checkOutBtn = document.getElementById('lockCheckOutBtn');
       if (checkOutBtn) checkOutBtn.onclick = handleCheckOut;
     } else {
-      // Viewer with free lock — no banner needed; the read-only state is implicit.
-      banner.style.display = 'none';
-      banner.innerHTML = '';
+      // Viewer with free lock — no pill needed; read-only state is implicit.
+      pill.style.display = 'none';
+      pill.innerHTML = '';
     }
   }
 
@@ -1596,32 +1617,22 @@
   }
 
   function _renderHistoricalViewBanner(versionRow) {
-    var banner = document.getElementById('historicalViewBanner');
+    var banner = document.getElementById('historicalNavBanner');
     if (!banner) return;
-    var when = '';
-    try { when = new Date(versionRow.checked_in_at).toLocaleString(); } catch(e) {}
-    banner.style.cssText =
-      'position:fixed;top:60px;left:50%;transform:translateX(-50%);'
-      + 'max-width:680px;width:calc(100% - 32px);z-index:51;'
-      + 'box-shadow:0 4px 12px rgba(0,0,0,0.08);'
-      + 'padding:10px 16px;border-radius:8px;'
-      + 'display:flex;align-items:center;justify-content:space-between;gap:12px;'
-      + 'font-size:13px;'
-      + 'background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;';
     banner.innerHTML =
-      '<span>📜 <strong>Viewing version ' + versionRow.version_number + '</strong>'
-      + (when ? ' (checked in ' + _escHtml(when) + ')' : '')
-      + ' — read-only.</span>'
-      + '<button id="historicalReturnBtn" class="btn btn-primary" style="font-size:12px;padding:6px 14px">Return to current</button>';
+      '<span class="nav-history-text">Viewing version ' + versionRow.version_number + ' (read-only)</span>'
+      + '<button id="historicalReturnBtn" class="nav-lock-btn">Return to current</button>';
+    banner.style.display = 'inline-flex';
     var returnBtn = document.getElementById('historicalReturnBtn');
     if (returnBtn) returnBtn.onclick = _returnToCurrent;
-    // Hide the lock banner while viewing history (less noise)
-    var lockBanner = document.getElementById('lockBanner');
-    if (lockBanner) lockBanner.style.display = 'none';
+    // Hide the lock pill while viewing history (less noise; only one of
+    // the two pills should be visible at a time).
+    var lockPill = document.getElementById('lockNavPill');
+    if (lockPill) lockPill.style.display = 'none';
   }
 
   function _hideHistoricalViewBanner() {
-    var banner = document.getElementById('historicalViewBanner');
+    var banner = document.getElementById('historicalNavBanner');
     if (banner) { banner.style.display = 'none'; banner.innerHTML = ''; }
   }
 
@@ -8730,8 +8741,22 @@ ${sections}
   }
 
   // ── SIDEBAR PREFERENCES ──
+  // Phase 4.5 (item #11): preferences are project STRUCTURE, not content.
+  // Only the project owner may change them — even editors holding the lock
+  // cannot. The CSS dims the buttons (cc-not-owner class), but we also
+  // gate the function bodies as a server-side-equivalent guard.
+  function _prefGuardOwner() {
+    if (currentProjectRole && currentProjectRole !== 'owner') {
+      // Silent no-op — the UI should already show these as disabled
+      // via the .pref-btn pointer-events:none rule. This catches anyone
+      // who might bypass via console or keyboard shortcut.
+      return false;
+    }
+    return true;
+  }
 
   function prefSetPairMode(mode) {
+    if (!_prefGuardOwner()) return;
     if (mode === 'weighted' && userTier === 'free') { showUpgradePrompt('weighted-pair'); return; }
     pairMode = mode;
     syncPairView();
@@ -8740,6 +8765,7 @@ ${sections}
   }
 
   function prefSetPairSubject(subject) {
+    if (!_prefGuardOwner()) return;
     if (subject === 'requirements' && userTier === 'free') { showUpgradePrompt('pair-subject-req'); return; }
     pairSubject = subject;
     initPairPairs();
@@ -8750,6 +8776,7 @@ ${sections}
   }
 
   function prefSetPairMethod(method) {
+    if (!_prefGuardOwner()) return;
     pairMethod = method;
     if (method === 'forcedrank') initForcedRankOrder();
     syncPairView();
@@ -8758,11 +8785,13 @@ ${sections}
   }
 
   function prefSetScoringMode(mode) {
+    if (!_prefGuardOwner()) return;
     setScoringMode(mode);
     syncSidebarPrefs();
   }
 
   function prefSetMAS(on) {
+    if (!_prefGuardOwner()) return;
     if (on && userTier === 'free') { showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMAS = on;
     renderPughMatrix();
@@ -8770,6 +8799,7 @@ ${sections}
   }
 
   function prefSetMTHUS(on) {
+    if (!_prefGuardOwner()) return;
     if (on && userTier === 'free') { showUpgradePrompt('pugh-settings'); return; }
     pughSettings.showMTHUS = on;
     renderPughMatrix();

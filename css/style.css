@@ -2407,15 +2407,99 @@ body.theme-engineering .sidebar-brand {
   border: 1px solid rgba(99,102,241,0.35);
 }
 
-/* ── READ-ONLY MODE — hide all edit/delete/add controls ──
+/* ── LOCK NAV PILL (Phase 4.5) ──
+   Compact lock-state indicator that sits in the top nav next to the
+   project name. Three visual variants depending on state. All colors
+   come from theme variables so the pill follows the active theme. */
+.nav-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  white-space: nowrap;
+}
+.nav-lock-pill .nav-lock-text {
+  color: var(--text-muted);
+}
+.nav-lock-pill .nav-lock-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+}
+.nav-lock-pill .nav-lock-btn:hover {
+  filter: brightness(1.05);
+}
+.nav-lock-pill .nav-lock-btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.nav-lock-pill.nav-lock-pill-editing {
+  border-color: var(--accent);
+}
+.nav-lock-pill.nav-lock-pill-locked-by-other {
+  border-color: var(--border);
+  background: var(--bg-alt, var(--surface));
+}
+
+/* Historical view banner — shown when viewing a past version snapshot.
+   Theme-driven, sits in nav row similar to the lock pill. */
+.nav-history-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 500;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  white-space: nowrap;
+}
+.nav-history-banner .nav-history-text {
+  color: var(--text-muted);
+}
+
+/* ── READ-ONLY MODE — comprehensive lockdown ──
    Phase 3: applied whenever canEdit() returns false. That includes:
      - viewers (any time, no edit rights)
      - editors / owners who don't currently hold the project's lock
-   Set by _applyReadonlyClass() in app.js based on canEdit(). */
+     - anyone viewing a historical version snapshot
+   Set by _applyReadonlyClass() in app.js based on canEdit().
+
+   Phase 4.5 extends this to ALL editing controls across every project
+   page. Filter / sort / pagination / nav remain interactive — those
+   should never be disabled even in read-only mode.
+
+   Strategy:
+     1. Page-scoped: every <input>, <textarea>, <select> inside a project
+        page becomes uneditable (pointer-events:none + opacity).
+     2. Specific add/edit/delete buttons are hidden entirely.
+     3. Selectable cards (stakeholders, ilities) get pointer-events:none
+        on the card itself but their text remains visible.
+     4. Filter / sort controls opt OUT via :not() exceptions and the
+        .readonly-allowed escape hatch.
+*/
+
+/* ─ Hide per-control add/edit/delete buttons (existing list, kept for
+     when CSS specificity needs to override page-level disable) ─ */
 body.cc-readonly .req-item-edit,
 body.cc-readonly .req-item-delete,
-body.cc-readonly .req-assign-review-btn,
-body.cc-readonly #assignScoringTaskBtn,
 body.cc-readonly #scorConceptInput,
 body.cc-readonly #scorSettingsBtn,
 body.cc-readonly .concept-add-row .btn,
@@ -2423,12 +2507,62 @@ body.cc-readonly .concept-card-actions .btn,
 body.cc-readonly [onclick*="addRequirement"],
 body.cc-readonly [onclick*="addPughConcept"],
 body.cc-readonly [onclick*="openEditConceptModal"],
-body.cc-readonly [onclick*="deletePughConcept"] {
+body.cc-readonly [onclick*="deletePughConcept"],
+body.cc-readonly [onclick*="addCustomIlity"],
+body.cc-readonly [onclick*="addCustomStakeholder"],
+body.cc-readonly [onclick*="openEditStakeholder"] {
   display: none !important;
 }
-body.cc-readonly .concept-add-row input {
+
+/* ─ Page-scoped input lockdown ─
+   Disable text/textarea/select on every project page. Filters and other
+   read-only-allowed controls escape via :not(.readonly-allowed). */
+body.cc-readonly main.page input:not(.readonly-allowed):not([type="checkbox"]):not([type="radio"]),
+body.cc-readonly main.page textarea:not(.readonly-allowed),
+body.cc-readonly main.page select:not(.readonly-allowed) {
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-alt, var(--surface)) !important;
+}
+
+/* Read-only checkboxes / radios are technically still clickable but feel
+   inert — fade them and prevent click. */
+body.cc-readonly main.page input[type="checkbox"]:not(.readonly-allowed),
+body.cc-readonly main.page input[type="radio"]:not(.readonly-allowed) {
+  pointer-events: none;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─ Selectable cards (stakeholders, ilities) ─
+   These cards toggle selection on click. In read-only mode the click
+   shouldn't do anything; the card stays visible so users can see what's
+   selected, just dimmed slightly to communicate non-interactivity. */
+body.cc-readonly .stak-card,
+body.cc-readonly .ility-card {
+  pointer-events: none;
+}
+body.cc-readonly .stak-card:not(.selected),
+body.cc-readonly .ility-card:not(.selected) {
+  opacity: 0.55;
+}
+
+/* ─ Project preferences — owner-only (Phase 4.5 item #11) ─
+   The cc-not-owner class is applied to <body> when the current user
+   isn't the project owner (i.e., they're a viewer or editor). Project
+   preferences — weighting mode, comparison method, scoring mode, MAS,
+   MTHUS — are owner-only because they describe the project's structure.
+   Editors holding the lock can edit content but not change how the
+   project is configured.
+
+   Visual: dimmed + not-allowed cursor. The tooltip text is set
+   dynamically via the title attribute by _applyOwnerClass() in app.js. */
+body.cc-not-owner .pref-btn,
+body.cc-not-owner [data-owner-only] {
+  pointer-events: none;
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ── ASSIGN REVIEW BUTTON (on requirement cards) ── */

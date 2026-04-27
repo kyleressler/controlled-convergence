@@ -98,6 +98,15 @@
   <!-- Spacer pushes project name + login to the right -->
   <div style="flex:1"></div>
 
+  <!-- Phase 4.5: lock state pill in the top nav, just left of the project
+       name. Three states (text + button), all theme-driven. Driven by
+       _renderLockNavPill() in app.js. -->
+  <div id="lockNavPill" class="nav-lock-pill" style="display:none"></div>
+
+  <!-- Phase 4.5: historical view indicator. Replaces the lock pill when
+       the user is viewing a past version snapshot. -->
+  <div id="historicalNavBanner" class="nav-history-banner" style="display:none"></div>
+
   <div class="nav-project-name" id="navProjectName" style="display:none">
     <span class="nav-project-label">PROJECT:</span>
     <span id="navProjectNameText"></span>
@@ -109,9 +118,7 @@
           class="nav-tasks-btn"
           onclick="openHistoryModal()"
           title="Project version history"
-          style="display:none">
-    📜 History
-  </button>
+          style="display:none">History</button>
 
   <!-- Sync button — shown only when a project is active; re-fetches from server in place -->
   <button class="nav-sync-btn" id="navSyncBtn" onclick="syncActiveProject()" title="Sync project from server" style="display:none" aria-label="Sync project">
@@ -298,15 +305,10 @@
 <!-- ── SIDEBAR NUDGE TOOLTIP ── -->
 <div class="sidebar-nudge" id="rightSidebarNudge">Need help? Tap here →</div>
 
-<!-- ── LOCK BANNER (Phase 3) ──
-     Floats above the active page when a project is loaded. Three states:
-     "you're editing", "checked out by X", or "available — check out."
-     Positioned fixed near the top of the viewport so it's visible on every
-     project page. Show/hide + content driven by _renderLockBanner() in app.js. -->
-<div id="lockBanner"
-     style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
-            max-width:680px;width:calc(100% - 32px);z-index:50;
-            box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+<!-- Phase 4.5: the floating lock banner has been moved into the nav as
+     a small pill (#lockNavPill above). The old floating banner element is
+     removed. The historical view banner below is also moved into the nav
+     when applicable. -->
 
 <!-- ── CHECK-IN MODAL (Phase 4) ──
      Shown when the user clicks "Check in" on the lock banner. Optional
@@ -354,14 +356,8 @@
   </div>
 </div>
 
-<!-- ── HISTORICAL VIEW BANNER (Phase 4) ──
-     Shown when the user is viewing a historical version snapshot.
-     Replaces the lock banner during historical view. The "Return to
-     current" button restores the live project state. -->
-<div id="historicalViewBanner"
-     style="display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);
-            max-width:680px;width:calc(100% - 32px);z-index:51;
-            box-shadow:0 4px 12px rgba(0,0,0,0.08)"></div>
+<!-- Phase 4.5: the historical view banner has moved into the nav as
+     well, alongside the lock pill. See _renderHistoricalViewBanner in app.js. -->
 
 <!-- ── BLOG PAGE (in-app reader) ──
      Renders the public blog inside the app shell so logged-in users keep
@@ -1095,18 +1091,9 @@
       </div>
     </div>
 
-    <!-- ── Responsible Scorer (Pro, both modes) ── -->
-    <div style="margin-top:12px">
-      <div class="req-form-label" style="display:flex;align-items:center;gap:6px">
-        Responsible Scorer
-        <span class="pro-badge-inline" style="margin-left:0">PRO</span>
-        <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(Optional - Who will score this requirement.)</span>
-      </div>
-      <select class="req-select" id="reqScorer" style="width:100%"
-        onfocus="if(userTier!=='pro'){this.blur();showUpgradePrompt('pro-scorer');}">
-        <option value="">— none —</option>
-      </select>
-    </div>
+    <!-- Phase 4.5: Responsible Scorer field removed. The field served the
+         old scoped-editor model (per-req scorer ownership). With the lock
+         model, edit access is binary — no per-requirement assignment. -->
 
     <!-- ── Tags (shared, both formats) ── -->
     <div style="margin-top:12px">
@@ -1412,10 +1399,9 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       Concept Settings
     </button>
-    <button class="btn btn-ghost" id="assignScoringTaskBtn" style="font-size:12px;display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="openScoringTaskModal()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-      Assign Scoring Task
-    </button>
+    <!-- Phase 4.5: 'Assign Scoring Task' button removed. The scoring-task
+         feature granted scoped-editor permissions to the assignee, which
+         is gone. Tasks are now plain messages and don't grant access. -->
   </div>
 
   <!-- Concept Settings panel -->
@@ -1439,16 +1425,9 @@
 
     <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
 
-    <!-- Section B: Scorer filter -->
-    <div>
-      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Responsible Scorer Filter</div>
-      <select id="scorerFilterSelect" class="add-custom-input" onchange="setScorerFilter(this.value)" style="max-width:300px">
-        <option value="">All Requirements</option>
-      </select>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">Filters which requirements are shown during scoring. Has no effect on Pugh Matrix calculations. Assign scorers on the REQS page.</div>
-    </div>
+    <!-- Phase 4.5: Responsible Scorer Filter removed (the underlying
+         per-requirement scorer field is gone — see Phase 4.5 cleanup). -->
 
-    <div style="border-top:1px solid var(--border);margin:0 0 20px 0"></div>
 
     <!-- Section C: Concept Tag Filter -->
     <div>
@@ -1658,7 +1637,7 @@
 
   <!-- Empty state -->
   <div id="pughEmptyState" style="text-align:center;padding:52px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
-    Go to <strong>SCOR</strong> and add at least two concepts to build the matrix.
+    Go to <strong>Scoring Concepts</strong> and add at least two concepts to build the matrix.
   </div>
 
   <!-- Matrix table -->
