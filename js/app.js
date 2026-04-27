@@ -6787,46 +6787,50 @@ ${sections}
     const snap = snapshotCurrentState(activeProject);
     const idx = savedProjects.findIndex(p => p.id === snap.id);
     if (idx >= 0) savedProjects[idx] = snap;
-    _autoSaveAttempt(snap, false);
+    _autoSaveAttempt(snap);
   }
 
-  // Attempt a save with a 9-second timeout. If it times out (the SDK is stuck),
-  // recreate the Supabase client and retry once. The new client has no
-  // in-flight stuck promises, so the retry should succeed quickly. Only show
-  // the user-visible warning if the retry ALSO fails.
+  // Attempt a save with a 9-second timeout. If the SDK times out (it gets
+  // into stuck states we can't reliably recover, see config.js), fall back
+  // to a raw fetch directly to Supabase's REST API — that bypasses the SDK
+  // entirely and works regardless of how broken the SDK is.
   //
-  // This is the recovery layer for the "Safari sometimes ignores
-  // AbortController on a stalled fetch" failure mode — see the comment block
-  // in config.js for the full picture.
-  async function _autoSaveAttempt(snap, isRetry) {
+  // Only the SDK path is affected by this bug; raw fetch reads the JWT
+  // from localStorage and talks to PostgREST directly, so it doesn't
+  // depend on any of the SDK's internal promise machinery.
+  async function _autoSaveAttempt(snap) {
     const timeoutPromise = new Promise(function(_, reject) {
       setTimeout(function() { reject(Object.assign(new Error('timeout'), { isTimeout: true })); }, 9000);
     });
     try {
       const result = await Promise.race([saveProject(snap), timeoutPromise]);
       if (result && !result.error) {
-        // Save succeeded — clear any leftover warning banner
         if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
+        return;
       }
+      // SDK returned an error (not a timeout) — fall through to raw-fetch fallback
+      console.warn('[_autoSaveNow] SDK save returned error, attempting raw-fetch fallback:', result && result.error);
     } catch (err) {
-      if (err.isTimeout && !isRetry) {
-        console.warn('[_autoSaveNow] save timed out — recreating Supabase client and retrying');
-        try {
-          _recreateSupabaseClient();
-          // Brief delay to let the new client initialize before we hit it
-          setTimeout(function() { _autoSaveAttempt(snap, true); }, 500);
-        } catch (recreateErr) {
-          console.warn('[_autoSaveNow] client recreate failed:', recreateErr);
-          _showSessionWarning();
-        }
-      } else if (err.isTimeout) {
-        // Already retried after a recreate and STILL timed out — give up and
-        // show the user-visible warning so they know saves are not landing.
-        console.warn('[_autoSaveNow] retry after recreate also timed out — showing warning');
-        _showSessionWarning();
+      if (!err.isTimeout) {
+        console.warn('[_autoSaveNow] SDK save threw, attempting raw-fetch fallback:', err);
       } else {
-        console.warn('[immediate-save] failed', err);
+        console.warn('[_autoSaveNow] SDK save timed out at 9s, attempting raw-fetch fallback');
       }
+    }
+
+    // Recovery path: bypass the SDK entirely.
+    try {
+      const rawResult = await _rawFetchSaveProject(snap);
+      if (rawResult && !rawResult.error) {
+        console.log('[_autoSaveNow] raw-fetch fallback succeeded');
+        if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
+      } else {
+        console.warn('[_autoSaveNow] raw-fetch fallback also failed:', rawResult && rawResult.error);
+        _showSessionWarning();
+      }
+    } catch (rawErr) {
+      console.warn('[_autoSaveNow] raw-fetch fallback threw:', rawErr);
+      _showSessionWarning();
     }
   }
 

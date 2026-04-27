@@ -77,6 +77,138 @@ function validateProjectPayload(project) {
  * @param {object} project — standardized project schema from projects.js
  * @returns {Promise<{data: object, error: string|null}>}
  */
+/**
+ * Build the row payload that gets written to the `projects` table.
+ * Extracted so both `saveProject` (SDK path) and `_rawFetchSaveProject`
+ * (raw-fetch fallback path) produce identical writes.
+ */
+function _buildSaveProjectPayload(project) {
+  return {
+    name:        project.name,
+    owner:       project.owner || '',
+    description: project.description || '',
+    data: {
+      // Project type — 'quick' | 'full'. Persisted in JSONB so old DB rows
+      // without this field load as 'full' (defaulted in restoreProjectState).
+      projectType:        project.projectType === 'quick' ? 'quick' : 'full',
+      // Goal
+      goal:               project.goal,
+      goalMode:           project.goalMode,
+      currentPage:        project.currentPage,
+      reqFormat:          project.reqFormat,
+      // Ilities
+      ilities:            project.ilities,
+      customIlities:      project.customIlities,
+      ilityOrder:         project.ilityOrder,
+      // Stakeholders
+      stakeholders:       project.stakeholders,
+      customStakeholders: project.customStakeholders,
+      stakOrder:          project.stakOrder,
+      stakeholderOverrides: project.stakeholderOverrides,
+      // Requirements
+      requirements:       project.requirements,
+      // Pairwise
+      pairComparisons:    project.pairComparisons,
+      pairSubject:        project.pairSubject,
+      pairMethod:         project.pairMethod,
+      pairMode:           project.pairMode,
+      forcedRankOrder:    project.forcedRankOrder,
+      // Pugh / scoring
+      concepts:           project.concepts,
+      matrix:             project.matrix,
+      pughSettings:       project.pughSettings,
+      datumPerformance:   project.datumPerformance,
+      conceptPerformance: project.conceptPerformance,
+      conceptNotes:       project.conceptNotes,
+      conceptCustomFields: project.conceptCustomFields,
+      scorerFilter:       project.scorerFilter,
+      // Convergence
+      convergence:        project.convergence,
+    },
+    updated_at:  new Date().toISOString()
+  };
+}
+
+/**
+ * Raw-fetch save fallback. Bypasses the Supabase SDK entirely — reads the
+ * JWT directly from localStorage, sends the upsert via PostgREST with our
+ * own AbortController-wrapped fetch.
+ *
+ * Used by `_autoSaveNow` when the SDK save times out (the SDK has gotten
+ * itself into a stuck state we can't recover from). This path doesn't
+ * touch the SDK, so it works regardless of how broken the SDK is.
+ *
+ * Only handles the owner case (upsert). Collaborator saves still go
+ * through the SDK; if those time out we just show the warning banner.
+ *
+ * @param {object} project
+ * @returns {Promise<{data: object|null, error: string|null}>}
+ */
+async function _rawFetchSaveProject(project) {
+  const validationError = validateProjectPayload(project);
+  if (validationError) return { data: null, error: validationError };
+  if (!appState.currentUser) return { data: null, error: 'Not signed in' };
+
+  const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
+  if (!isOwner) return { data: null, error: 'Raw-fetch fallback only handles owner saves' };
+
+  // Pull the JWT from localStorage. Supabase v2 stores it under
+  // `sb-{projectRef}-auth-token` as a JSON object containing access_token.
+  const projectRef = SUPABASE_URL.replace('https://', '').split('.')[0];
+  const storageKey = 'sb-' + projectRef + '-auth-token';
+  let accessToken = null;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      accessToken = parsed && parsed.access_token;
+    }
+  } catch (e) {
+    return { data: null, error: 'Could not read session from localStorage: ' + e.message };
+  }
+  if (!accessToken) return { data: null, error: 'No access token in localStorage' };
+
+  const payload = _buildSaveProjectPayload(project);
+  const body = JSON.stringify({
+    id:         project.id,
+    user_id:    appState.currentUser.id,
+    created_at: project.created_at,
+    ...payload
+  });
+
+  // PostgREST upsert: POST with on_conflict + Prefer: resolution=merge-duplicates.
+  // Equivalent to the SDK's .upsert(...) call.
+  const url = SUPABASE_URL + '/rest/v1/projects?on_conflict=id';
+  const controller = new AbortController();
+  const timer = setTimeout(function() { controller.abort(); }, 12000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'apikey':        SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type':  'application/json',
+        'Prefer':        'resolution=merge-duplicates,return=representation'
+      },
+      body: body
+    });
+    clearTimeout(timer);
+    if (!response.ok) {
+      const text = await response.text().catch(function() { return ''; });
+      return { data: null, error: 'HTTP ' + response.status + ': ' + text };
+    }
+    // Keep in-memory array in sync (matches what saveProject does)
+    const idx = savedProjects.findIndex(function(p) { return p.id === project.id; });
+    if (idx >= 0) savedProjects[idx] = project; else savedProjects.push(project);
+    appState.projects = savedProjects.slice();
+    return { data: project, error: null };
+  } catch (e) {
+    clearTimeout(timer);
+    return { data: null, error: e && e.message ? e.message : String(e) };
+  }
+}
+
 async function saveProject(project) {
   const validationError = validateProjectPayload(project);
   if (validationError) {
@@ -86,52 +218,7 @@ async function saveProject(project) {
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
 
-    // Shared content payload — same shape regardless of owner vs. collaborator.
-    // data is a JSONB column; everything that restoreProjectState reads must live here.
-    const payload = {
-      name:        project.name,
-      owner:       project.owner || '',
-      description: project.description || '',
-      data: {
-        // Project type — 'quick' | 'full'. Persisted in JSONB so old DB rows
-        // without this field load as 'full' (defaulted in restoreProjectState).
-        projectType:        project.projectType === 'quick' ? 'quick' : 'full',
-        // Goal
-        goal:               project.goal,
-        goalMode:           project.goalMode,
-        currentPage:        project.currentPage,
-        reqFormat:          project.reqFormat,
-        // Ilities
-        ilities:            project.ilities,
-        customIlities:      project.customIlities,
-        ilityOrder:         project.ilityOrder,
-        // Stakeholders
-        stakeholders:       project.stakeholders,
-        customStakeholders: project.customStakeholders,
-        stakOrder:          project.stakOrder,
-        stakeholderOverrides: project.stakeholderOverrides,
-        // Requirements
-        requirements:       project.requirements,
-        // Pairwise
-        pairComparisons:    project.pairComparisons,
-        pairSubject:        project.pairSubject,
-        pairMethod:         project.pairMethod,
-        pairMode:           project.pairMode,
-        forcedRankOrder:    project.forcedRankOrder,
-        // Pugh / scoring
-        concepts:           project.concepts,
-        matrix:             project.matrix,
-        pughSettings:       project.pughSettings,
-        datumPerformance:   project.datumPerformance,
-        conceptPerformance: project.conceptPerformance,
-        conceptNotes:       project.conceptNotes,
-        conceptCustomFields: project.conceptCustomFields,
-        scorerFilter:       project.scorerFilter,
-        // Convergence
-        convergence:        project.convergence,
-      },
-      updated_at:  new Date().toISOString()
-    };
+    const payload = _buildSaveProjectPayload(project);
 
     let data, error;
 
