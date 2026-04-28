@@ -13,124 +13,82 @@
   //            advance ('next'|'navigate'|'finish'),
   //            nextPage + nextPageLabel (when advance === 'navigate')
   // ─────────────────────────────────────────────────────────────
+  // Phase 8: refreshed for view-only example mode and the current feature
+  // set. No interactive prompts ("try clicking…") — the example project is
+  // strictly view-only; the user saves it to their projects to interact.
+  // Highlights and dimming are gone (Phase 8) — prose carries the tour.
   var STEPS = [
     {
       page: 'proj',
-      body: '<strong>This is your Project Manager.</strong><br><br>'
-          + 'Any projects you own or are collaborating on will appear here. Right now, the UCI Road Bike Frame Design project is active — a real engineering study with 32 requirements and 18 competing frame designs.<br><br>'
-          + '<em>Quick tip: at any point in the tour, click the <strong>ⓘ</strong> icon in the right sidebar to open help related to the current tool.</em><br><br>'
-          + 'Click <strong>Continue to Goal Statement →</strong> to begin.',
-      highlight: null,
-      advance: 'navigate',
-      nextPage: 'tbus',
-      nextPageLabel: 'Goal Statement'
+      body: '<strong>This is your Project Manager — your home base.</strong><br><br>'
+          + 'Any projects you own or collaborate on appear here. Right now the active project is the <strong>UCI Road Bike Frame Design</strong> — a real engineering study with 32 requirements and 18 competing concepts.<br><br>'
+          + '<em>Heads up: this example is view-only. Use the <strong>Save to My Projects</strong> button at the top right anytime if you want to interact with these tools yourself.</em><br><br>'
+          + 'Click <strong>Continue to Goal Statement →</strong>',
+      advance: 'navigate', nextPage: 'tbus', nextPageLabel: 'Goal Statement'
     },
     {
       page: 'tbus',
-      body: '<strong>This is the Goal Statement.</strong><br><br>'
-          + 'Every project starts here — a clear, single statement of what you\'re trying to achieve. For this project, the team defined their goal for the UCI road bike frame design before a single requirement was written.<br><br>'
-          + 'Click inside the text box and try editing it. Don\'t worry — nothing in this example project is saved.<br><br>'
-          + 'When you\'re done, click <strong>Continue to Stakeholders →</strong>',
-      highlight: '#input-goal-basic',
-      advance: 'navigate',
-      nextPage: 'stak',
-      nextPageLabel: 'Stakeholders'
+      body: '<strong>Every project starts with a Goal Statement.</strong><br><br>'
+          + 'A clear, single sentence about what the team is trying to achieve — no requirements yet, no concepts. Just the destination. The team defined this goal before writing any of their 32 requirements.<br><br>'
+          + 'Click <strong>Continue to Stakeholders →</strong>',
+      advance: 'navigate', nextPage: 'stak', nextPageLabel: 'Stakeholders'
     },
     {
       page: 'stak',
-      body: '<strong>These are your project stakeholders.</strong><br><br>'
-          + 'Stakeholders are the people your design needs to serve — riders, race officials, manufacturers, team mechanics, and more. Selecting them here tags your requirements later, so you always know whose needs are covered.<br><br>'
-          + 'Try clicking a card to add or remove a stakeholder from the project.<br><br>'
-          + 'Once you create an account, you can add fully custom stakeholder cards for your specific team or industry.<br><br>'
-          + 'Click <strong>Continue to Lifecycle Properties →</strong> when you\'re ready.',
-      highlight: '#stakGrid',
-      advance: 'navigate',
-      nextPage: 'ilities',
-      nextPageLabel: 'Lifecycle Properties'
+      body: '<strong>Stakeholders are the people your design needs to serve.</strong><br><br>'
+          + 'Selecting them tags every requirement so you can spot whose needs are covered and where the gaps are. Riders, race officials, manufacturers, team mechanics — the bike team selected these. Custom stakeholders for your industry are available with a free account.<br><br>'
+          + 'Click <strong>Continue to Lifecycle Properties →</strong>',
+      advance: 'navigate', nextPage: 'ilities', nextPageLabel: 'Lifecycle Properties'
     },
     {
       page: 'ilities',
-      body: '<strong>These are your project\'s Lifecycle Properties — sometimes called "ilities."</strong><br><br>'
-          + 'They represent the qualities your design must have across its entire life: manufacturability, durability, repairability, and so on. Like stakeholders, selecting them here tags your requirements later for coverage and traceability analysis.<br><br>'
-          + 'Try clicking a card to add or remove a lifecycle property from the project.<br><br>'
-          + 'Custom ilities can be added once you create an account.<br><br>'
-          + 'Click <strong>Continue to Requirements →</strong> when you\'re ready.',
-      highlight: '#ilityGrid',
-      advance: 'navigate',
-      nextPage: 'requirements',
-      nextPageLabel: 'Requirements'
+      body: '<strong>Lifecycle Properties — sometimes called "ilities" — are the qualities your design must have across its full life.</strong><br><br>'
+          + 'Durability, manufacturability, cost, performance, and so on. Like stakeholders, they tag requirements for coverage analysis. Custom ilities are available with a free account.<br><br>'
+          + 'Click <strong>Continue to Requirements →</strong>',
+      advance: 'navigate', nextPage: 'requirements', nextPageLabel: 'Requirements'
     },
     {
       page: 'requirements',
       body: '<strong>This is the Requirements tool.</strong><br><br>'
-          + 'Scroll down to see the 32 requirements already entered for this project. Notice the ility, stakeholder, and custom tags on each one — those come directly from your selections on the previous two pages.<br><br>'
-          + 'Try expanding a <strong>Coverage Chart</strong> or <strong>Traceability Matrix</strong> to see a visual breakdown of how well your requirements cover the project\'s stakeholders and lifecycle properties.',
-      highlight: null,
+          + 'Scroll to see the 32 requirements. Notice the tags on each — they come from the stakeholders and ilities you saw on the previous pages, and they power the <strong>Coverage Charts</strong> and <strong>Traceability Matrix</strong> on the right. New requirements would be added via the <strong>+ Requirement</strong> button in the top right.',
       advance: 'next'
-    },
-    {
-      page: 'requirements',
-      body: '<strong>Adding a new requirement is straightforward.</strong><br><br>'
-          + 'Use the dropdowns to assign a stakeholder and lifecycle property (ility) — then fill in the requirement text and click <strong>Add Requirement</strong>. Every new requirement is automatically included in your coverage and traceability analysis.<br><br>'
-          + 'When you\'re done exploring, click <strong>Continue to Weighting →</strong>',
-      highlight: '#reqFormCard',
-      advance: 'navigate',
-      nextPage: 'pair',
-      nextPageLabel: 'Weighting'
     },
     {
       page: 'pair',
-      body: '<strong>Weighting determines how much each requirement or lifecycle property influences your final concept scores.</strong><br><br>'
-          + 'In a real project, not all requirements carry equal importance — a UCI race frame might prioritize aerodynamic performance and weight savings over cost or repairability. Weighting lets your team encode those priorities so the analysis reflects what actually matters.<br><br>'
-          + 'This example project is set to <strong>equal weighting</strong>, so every requirement counts the same. With a free account, you can switch to weighted mode and prioritize by lifecycle properties or individual requirements.<br><br>'
-          + 'Click <strong>Continue to Concept Scoring →</strong> when you\'re ready.',
-      highlight: null,
-      advance: 'navigate',
-      nextPage: 'scor',
-      nextPageLabel: 'Concept Scoring'
+      body: '<strong>Weighting encodes which requirements (or ilities) matter most.</strong><br><br>'
+          + 'A race frame might prioritize aerodynamic performance over cost — weighting lets the team encode that so the analysis reflects what actually matters. This example uses <strong>equal weighting</strong>; with a free account you can switch to weighted mode and prioritize by lifecycle properties or individual requirements.<br><br>'
+          + 'Click <strong>Continue to Concept Scoring →</strong>',
+      advance: 'navigate', nextPage: 'scor', nextPageLabel: 'Concept Scoring'
     },
     {
       page: 'scor',
-      body: '<strong>This is one of the most powerful tools in Controlled Convergence.</strong><br><br>'
-          + 'Start by clicking the <strong>Datum</strong> card. The Datum is your reference concept — every other design will be scored against it. When the card expands, you\'ll see a requirement and the Datum\'s stated performance level for that requirement.<br><br>'
-          + 'Use the <strong>Next</strong> button to page through a few of the 32 requirements and get familiar with how the Datum performs across the board.',
-      highlight: '.datum-card',
+      body: '<strong>The Datum is your reference concept.</strong><br><br>'
+          + 'Every other design is scored against it. The Datum card (left) expands to show one requirement and the Datum\'s stated performance for that requirement. Page through a few requirements with the navigation buttons to get a feel for the Datum\'s profile.',
       advance: 'next'
     },
     {
       page: 'scor',
-      body: '<strong>Now let\'s score a concept. Click on the Aero Carbon Monocoque card.</strong><br><br>'
-          + 'When it expands, you\'ll see — from top to bottom — a collapsible <strong>Concept Details</strong> panel, the current requirement, the Datum\'s performance for reference, <strong>scoring buttons</strong> (+ if this concept performs better, 0 if the same, − if worse), and two text boxes for notes.<br><br>'
-          + 'Navigate by requirement or by concept using the buttons at the bottom. With an account, you can also assign scoring tasks to specific team members.<br><br>'
-          + 'When you\'ve explored the tool, click <strong>Continue to Pugh Matrix →</strong>',
-      highlight: null,
-      advance: 'navigate',
-      nextPage: 'pugh',
-      nextPageLabel: 'Pugh Matrix'
+      body: '<strong>Each concept is scored against the Datum, requirement by requirement.</strong><br><br>'
+          + 'For every requirement, a concept gets <strong>+</strong> (better than the Datum), <strong>0</strong> (equal), or <strong>−</strong> (worse). The team did this for all 18 concepts × 32 requirements. Notes can be attached to each cell to capture the reasoning.<br><br>'
+          + 'Click <strong>Continue to Pugh Matrix →</strong>',
+      advance: 'navigate', nextPage: 'pugh', nextPageLabel: 'Pugh Matrix'
     },
     {
       page: 'pugh',
-      body: '<strong>The Pugh Matrix is where the scoring data comes together.</strong><br><br>'
-          + 'Requirements are grouped by lifecycle property and collapsed by default. Click any <strong>▶</strong> toggle on the left to expand a group and see individual requirement scores across all 18 frame designs.<br><br>'
-          + 'Scroll down to view each concept\'s <strong>+ Count</strong>, <strong>− Count</strong>, and <strong>Utility Score</strong> — and a Concept Score Summary chart that makes the winning and losing designs immediately visible.<br><br>'
-          + 'Use the sort controls in the top right (<strong>Concept Order</strong>, <strong>Utility Rank</strong>, <strong>Fewest −</strong>) to reframe the analysis from different angles.<br><br>'
-          + 'When you\'ve had a look, click <strong>Continue to Convergence Summary →</strong>',
-      highlight: null,
-      advance: 'navigate',
-      nextPage: 'conv',
-      nextPageLabel: 'Convergence Summary'
+      body: '<strong>The Pugh Matrix brings all the scoring data together.</strong><br><br>'
+          + 'Requirements are grouped by ility and collapsed by default — click any <strong>▶</strong> to expand. Scroll down for <strong>+ Count</strong>, <strong>− Count</strong>, and <strong>Utility Score</strong> per concept, plus a Concept Score Summary chart that makes winning and losing designs immediately visible. Sort controls reframe the analysis from different angles.<br><br>'
+          + 'Click <strong>Continue to Convergence Summary →</strong>',
+      advance: 'navigate', nextPage: 'conv', nextPageLabel: 'Convergence Summary'
     },
     {
       page: 'conv',
-      body: '<strong>This is where the project comes to a close.</strong><br><br>'
-          + 'The Convergence Summary is where your team documents the chosen concept, lessons learned, open risks and assumptions, and next steps — everything needed to hand off to detailed design with confidence.<br><br>'
-          + 'With a pro account, you can export the entire project — requirements, scores, matrix, and summary — to a PDF or Excel report.',
-      highlight: null,
+      body: '<strong>This is where the project closes out.</strong><br><br>'
+          + 'The Convergence Summary documents the chosen concept, lessons learned, open risks and assumptions, and next steps — everything needed to hand off to detailed design with confidence. Pro accounts can export the entire project as a PDF or Excel report.',
       advance: 'finish'
     }
   ];
 
-  var TOTAL = STEPS.length; // 11
+  var TOTAL = STEPS.length; // 10 (was 11; merged the requirements form step into Requirements since the form is collapsed by default now)
 
   // ─────────────────────────────────────────────────────────────
   // STATE
@@ -276,10 +234,10 @@
       '<div class="cc-tour-modal-box">'
     +   '<div class="cc-tour-modal-title">Welcome to the UCI Road Bike Frame Design Project</div>'
     +   '<p class="cc-tour-modal-body">You\'re about to explore a real concept selection study — 32 engineering requirements, 18 competing frame designs, and a structured path to the winning concept.</p>'
-    +   '<p class="cc-tour-modal-body">Take an 11-step guided tour to see how Controlled Convergence works, or dive in on your own.</p>'
+    +   '<p class="cc-tour-modal-body">Take a quick 10-step guided tour to see how Controlled Convergence works, or look around on your own. The example is view-only — when you\'re ready to interact with the tools, click <strong>Save to My Projects</strong> at the top right to get an editable copy.</p>'
     +   '<div class="cc-tour-modal-footer">'
     +     '<button class="btn btn-primary" id="ccTourBtnStart">Start Guided Tour</button>'
-    +     '<button class="btn btn-secondary" id="ccTourBtnSkip">Explore on My Own</button>'
+    +     '<button class="btn btn-secondary" id="ccTourBtnSkip">Look Around on My Own</button>'
     +   '</div>'
     + '</div>';
 
@@ -312,15 +270,15 @@
   function _startTour() {
     _active = true;
     _step   = 0;
-    _createBackdrop();
+    // Phase 8: backdrop dim + highlight rings removed. The balloon at the
+    // bottom carries the prose; the user looks at the actual UI in its
+    // natural visual context.
     _goToStep(0);
   }
 
   function _exitTour() {
     _active = false;
     _disconnectObserver();
-    _clearHighlight();
-    _removeBackdrop();
     _removeBalloon();
   }
 
@@ -345,19 +303,9 @@
   // ─────────────────────────────────────────────────────────────
   function _goToStep(idx) {
     _disconnectObserver(); // always disconnect before setting up new state
-    _clearHighlight();
     _step = idx;
     var step = STEPS[idx];
-
-    // Apply highlight after a short rAF delay to let the page render
-    if (step.highlight) {
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () { _applyHighlight(step.highlight); });
-      });
-    }
-
     _renderBalloon(idx);
-
     // For cross-page advance: watch for the target page becoming active
     if (step.advance === 'navigate') {
       _watchForPage(step.nextPage, function () {
@@ -390,8 +338,6 @@
 
   function _finishTour() {
     _disconnectObserver();
-    _clearHighlight();
-    _removeBackdrop();
     _showCompleteCard();
   }
 
@@ -462,6 +408,16 @@
   function _showCompleteCard() {
     _removeBalloon();
 
+    // Phase 8: wrap-up card. Two CTAs depending on auth state:
+    // - Logged in: "Save This Example to My Projects" calls saveExampleToAccount
+    //   which preserves the example data into a real owned project.
+    // - Anonymous: "Sign up & save this example" opens the signup modal;
+    //   after they sign up they're invited to save.
+    // Plus a neutral "Skip and look around" that just exits the tour.
+    var loggedIn = !!(typeof appState !== 'undefined' && appState.currentUser);
+    var primaryLabel = loggedIn ? 'Save This Example to My Projects' : 'Sign up & save this example';
+    var primaryId    = loggedIn ? 'ccTourSaveExample' : 'ccTourSignup';
+
     var balloon = document.createElement('div');
     balloon.className = 'cc-tour-balloon';
     balloon.id = 'ccTourBalloon';
@@ -470,23 +426,29 @@
       +   '<span class="cc-tour-progress">Tour Complete ✓</span>'
       + '</div>'
       + '<div class="cc-tour-balloon-body">'
-      +   '<div class="cc-tour-complete-title">You\'ve seen the full Controlled Convergence workflow.</div>'
-      +   '<p style="margin:0 0 10px;font-size:13.5px;color:var(--text-muted);line-height:1.65">'
-      +     'From goal statement to concept selection — the same structured process used worldwide by high performing teams, now available to any project and any team size.'
+      +   '<div class="cc-tour-complete-title">That\'s the full Controlled Convergence workflow.</div>'
+      +   '<p style="margin:0 0 14px;font-size:13.5px;color:var(--text-muted);line-height:1.65">'
+      +     'To play with these tools using your own data, save this example as your project — you\'ll get an editable copy of everything you just saw — or start a fresh project from scratch.'
       +   '</p>'
-      +   '<p style="margin:0 0 18px;font-size:14px;font-weight:600;color:var(--text)">Ready to run your own study?</p>'
-      +   '<div style="display:flex;gap:10px">'
-      +     '<button class="btn btn-primary" style="flex:1;justify-content:center" id="ccTourSignup">Create Free Account</button>'
-      +     '<button class="btn btn-secondary" style="flex:1;justify-content:center" id="ccTourKeep">Keep Exploring</button>'
+      +   '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+      +     '<button class="btn btn-primary" style="flex:1;min-width:200px;justify-content:center" id="' + primaryId + '">' + primaryLabel + '</button>'
+      +     '<button class="btn btn-secondary" style="flex:1;min-width:140px;justify-content:center" id="ccTourKeep">Skip and look around</button>'
       +   '</div>'
       + '</div>';
 
     document.body.appendChild(balloon);
 
-    document.getElementById('ccTourSignup').addEventListener('click', function () {
-      _exitTour();
-      if (typeof openAuthModal === 'function') openAuthModal('signup');
-    });
+    if (loggedIn) {
+      document.getElementById('ccTourSaveExample').addEventListener('click', function () {
+        _exitTour();
+        if (typeof saveExampleToAccount === 'function') saveExampleToAccount();
+      });
+    } else {
+      document.getElementById('ccTourSignup').addEventListener('click', function () {
+        _exitTour();
+        if (typeof openAuthModal === 'function') openAuthModal('signup');
+      });
+    }
     document.getElementById('ccTourKeep').addEventListener('click', _exitTour);
   }
 

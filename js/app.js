@@ -1612,6 +1612,21 @@
     var pill = document.getElementById('lockNavPill');
     if (!pill) return;
 
+    // Phase 8: example mode pill. Visitor sees a clear "view only" state
+    // with a one-click path to save the example as their own project.
+    if (typeof exampleMode !== 'undefined' && exampleMode && activeProject) {
+      pill.className = 'nav-lock-pill nav-lock-pill-example';
+      pill.innerHTML =
+        '<span class="nav-lock-text">Example project — view only</span>'
+        + '<button id="lockSaveExampleBtn" class="nav-lock-btn">Save to My Projects</button>';
+      pill.style.display = 'inline-flex';
+      var saveBtn = document.getElementById('lockSaveExampleBtn');
+      if (saveBtn) saveBtn.onclick = function() {
+        if (typeof saveExampleToAccount === 'function') saveExampleToAccount();
+      };
+      return;
+    }
+
     if (!activeProject || !appState.currentUser || !currentProjectLock) {
       pill.style.display = 'none';
       pill.innerHTML = '';
@@ -2055,7 +2070,10 @@
     return !currentProjectRole || currentProjectRole === 'owner';
   }
 
-  // Phase 3 + 4: editing requires holding the lock AND not viewing history.
+  // Phase 3 + 4 + 8: editing requires holding the lock AND not viewing
+  // history AND not in example mode.
+  // - Example mode → always read-only (Phase 8). Visitor saves it to
+  //   their projects to interact.
   // - Viewing a historical version → never (Phase 4)
   // - Anonymous / brand-new local project (no role yet) → allowed
   // - Viewer → never allowed
@@ -2064,6 +2082,10 @@
   // The lock is claimed via the "Check out" button on the lock banner;
   // released via "Check in" or by the owner's "Revoke checkout."
   function canEdit() {
+    // Phase 8: example project is strictly view-only. The cc-readonly CSS
+    // hides edit controls and prevents card clicks; the tour explains the
+    // value and CTAs the user to "Save to My Projects" to interact.
+    if (typeof exampleMode !== 'undefined' && exampleMode) return false;
     // Phase 4: viewing a historical snapshot is read-only regardless of role/lock.
     if (typeof _viewingHistoricalVersionId !== 'undefined' && _viewingHistoricalVersionId) return false;
     // No role loaded yet → either anonymous user or brand-new local project.
@@ -3379,6 +3401,11 @@
       if (appState.currentUser) activeProject.user_id = appState.currentUser.id;
       updateNavProjectName();
     }
+    // Phase 8: example mode is read-only. Apply the readonly class so the
+    // existing view-only CSS hides edit controls. Render the lock pill so
+    // the visitor sees the "Save to My Projects to interact" affordance.
+    if (typeof _applyReadonlyClass === 'function') _applyReadonlyClass();
+    if (typeof _renderLockBanner   === 'function') _renderLockBanner();
     if (typeof renderProjPage === 'function') renderProjPage();
     populateReqForms();
     if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
@@ -5693,6 +5720,11 @@ ${sections}
     try { localStorage.setItem('cc_activeProjectId', snap.id); } catch(e) {}
     saveProject(snap).catch(e => console.warn('[saveExample] failed', e));
     renderProjPage();
+    // Phase 8: refresh canEdit-driven UI now that exampleMode is off and
+    // the user owns the project. saveProject's first-write path also gives
+    // them the lock (Phase 3), so canEdit() will return true.
+    if (typeof _applyReadonlyClass === 'function') _applyReadonlyClass();
+    if (typeof _renderLockBanner   === 'function') _renderLockBanner();
   }
 
   function discardExample() {
@@ -5719,6 +5751,9 @@ ${sections}
     try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     updateNavProjectName();
     renderProjPage();
+    // Phase 8: clear lock state and refresh canEdit-driven UI now that
+    // we've left example mode and have no active project.
+    if (typeof _clearProjectRole === 'function') _clearProjectRole();
     switchPage('proj', document.querySelector('[data-page="proj"]'));
   }
 
