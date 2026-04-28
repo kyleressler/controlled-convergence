@@ -4571,6 +4571,13 @@ ${sections}
   // Forced rank — drag-and-drop handlers.
   // Uses ondragover-with-ID approach to avoid the classic child-element dragleave bug.
   function frDragStart(event, id) {
+    // Phase 4.5.2: gate on canEdit. Drag-and-drop reordering on Weighting
+    // page must be blocked in view-only. preventDefault on dragstart cancels
+    // the drag operation entirely (the card flicks back, no drop target accepts it).
+    if (typeof canEdit === 'function' && !canEdit()) {
+      event.preventDefault();
+      return;
+    }
     _frDragId = id;
     setTimeout(() => {
       const el = document.querySelector(`.pair-forced-card[data-fr-id="${id}"]`);
@@ -6764,6 +6771,10 @@ ${sections}
 
   // ── REQUIREMENT EDIT IN PLACE ──
   function editRequirement(id) {
+    // Phase 4.5.2: gate on canEdit. Requirement cards have ondblclick that
+    // calls editRequirement — without this gate, view-only users could
+    // load a req into the form and then fire Clear All / Add to mutate it.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const req = requirements.find(r => r.id === id);
     if (!req) return;
     _editingReqId = id;
@@ -6837,6 +6848,9 @@ ${sections}
   }
 
   function clearReqForm() {
+    // Phase 4.5.2: gate on canEdit. Clear All on a loaded edit-mode requirement
+    // is effectively a delete-by-side-effect, which view-only must not do.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     // Clear all text inputs and selects in the form — does not affect saved requirements or edit state
     [
       'reqAgileStakeholder','reqAgileIlity','reqAgileWant','reqAgileSoThat','reqAgileSource',
