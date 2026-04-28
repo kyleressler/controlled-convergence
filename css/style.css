@@ -2506,7 +2506,10 @@ body.theme-engineering .sidebar-brand {
 */
 
 /* ─ Hide per-control add/edit/delete buttons (existing list, kept for
-     when CSS specificity needs to override page-level disable) ─ */
+     when CSS specificity needs to override page-level disable) ─
+     Phase 4.5.2 additions: Select All / Deselect All for ilities &
+     stakeholders, forced-rank up/down arrows, requirement tag-suggestion
+     chips. */
 body.cc-readonly .req-item-edit,
 body.cc-readonly .req-item-delete,
 body.cc-readonly #scorConceptInput,
@@ -2519,7 +2522,14 @@ body.cc-readonly [onclick*="openEditConceptModal"],
 body.cc-readonly [onclick*="deletePughConcept"],
 body.cc-readonly [onclick*="addCustomIlity"],
 body.cc-readonly [onclick*="addCustomStakeholder"],
-body.cc-readonly [onclick*="openEditStakeholder"] {
+body.cc-readonly [onclick*="openEditStakeholder"],
+body.cc-readonly [onclick*="selectAllIlities"],
+body.cc-readonly [onclick*="deselectAllIlities"],
+body.cc-readonly [onclick*="selectAllStakeholders"],
+body.cc-readonly [onclick*="deselectAllStakeholders"],
+body.cc-readonly [onclick*="moveForcedRankCard"],
+body.cc-readonly #reqTagSuggestions,
+body.cc-readonly .pair-forced-card-arrows {
   display: none !important;
 }
 

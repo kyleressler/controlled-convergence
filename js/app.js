@@ -4556,7 +4556,9 @@ ${sections}
   }
 
   // Forced rank — move a card up or down by one position.
+  // Phase 4.5.2: gate on canEdit so view-only / non-lock-holders can't reorder.
   function moveForcedRankCard(id, dir) {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const idx = forcedRankOrder.indexOf(id);
     if (idx === -1) return;
     const newIdx = idx + dir;
@@ -5917,6 +5919,8 @@ ${sections}
 
 
   function toggleIlity(id) {
+    // Phase 4.5.2: gate on canEdit so non-lock-holders can't toggle.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (selectedIlities.has(id)) selectedIlities.delete(id);
     else selectedIlities.add(id);
     renderIlityGrid();
@@ -5924,6 +5928,7 @@ ${sections}
   }
 
   function selectAllIlities() {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     ILITIES.forEach(il => selectedIlities.add(il.id));
     customIlities.forEach(il => selectedIlities.add(il.id));
     renderIlityGrid();
@@ -5961,6 +5966,7 @@ ${sections}
   }
 
   function deselectAllIlities() {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     selectedIlities.clear();
     renderIlityGrid();
     populateReqForms();
@@ -5969,6 +5975,7 @@ ${sections}
   // ── STAKEHOLDERS ──
 
   function toggleStak(id) {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (selectedStakeholders.has(id)) selectedStakeholders.delete(id);
     else selectedStakeholders.add(id);
     renderStakGrid();
@@ -5976,6 +5983,7 @@ ${sections}
   }
 
   function selectAllStakeholders() {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     STAKEHOLDERS.forEach(s => selectedStakeholders.add(s.id));
     customStakeholders.forEach(s => selectedStakeholders.add(s.id));
     renderStakGrid();
@@ -5983,6 +5991,7 @@ ${sections}
   }
 
   function deselectAllStakeholders() {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     selectedStakeholders.clear();
     renderStakGrid();
     populateReqForms();
@@ -8286,6 +8295,9 @@ ${sections}
 
   function saveDatumField() {
     // Saves data on every keystroke without re-rendering, so focus is never lost.
+    // Phase 4.5.2: gate on canEdit so view-only / non-lock-holders don't
+    // mutate the datum performance state via tab-into-input edge cases.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const req = requirements[datumDefIndex];
     if (!req) return;
     const level       = document.getElementById('datumLevelInput')?.value     || '';
@@ -8300,12 +8312,17 @@ ${sections}
 
   function saveDatumFieldAndRefresh() {
     // Called on blur — saves data and then updates the concept cards.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     saveDatumField();
     renderConceptCards();
     _autoSaveNow();
   }
 
   function setDatumMAS(value) {
+    // Phase 4.5.2: gate on canEdit. Without this, the MAS toggle buttons
+    // remain clickable in view-only mode (they aren't covered by the
+    // page-scoped input/select rule because they're <button> elements).
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const req = requirements[datumDefIndex];
     if (!req) return;
     if (!datumPerformance[req.id]) datumPerformance[req.id] = {};
@@ -8645,6 +8662,10 @@ ${sections}
   }
 
   function applyScoreFromPopup(value) {
+    // Phase 4.5.2: defense-in-depth gate. openScorePopup also checks canEdit
+    // before rendering the popup, but if the popup got opened somehow we
+    // still don't want a score change to land.
+    if (typeof canEdit === 'function' && !canEdit()) { closeScorePopup(); return; }
     const key = _scorePopupConcept + '_' + _scorePopupReq;
     if (value === null || value === undefined) {
       delete pughScores[key];
@@ -8978,7 +8999,10 @@ ${sections}
   }
 
   // ── Score a cell in the QS matrix ──
+  // Phase 4.5.2: gate on canEdit. The Quick Score path doesn't go through
+  // openScorePopup so the canEdit check there doesn't apply here.
   function setQSScore(conceptId, reqId, score) {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     const key = conceptId + '_' + reqId;
     // Toggle: clicking the active score again clears it
     if (pughScores[key] === score) { delete pughScores[key]; } else { pughScores[key] = score; }
