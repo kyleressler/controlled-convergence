@@ -30,8 +30,10 @@ async function _resolveStakEmailTiers(emails) {
     console.warn('[_resolveStakEmailTiers] threw:', e);
     return;
   }
-  // Re-render with freshly populated cache
-  renderStakGrid();
+  // Re-render with freshly populated cache. Both renderers are no-ops
+  // if their target element isn't in the DOM, so it's safe to call both.
+  if (typeof renderStakGrid === 'function') renderStakGrid();
+  if (typeof renderTeamAccessList === 'function') renderTeamAccessList();
 }
 
 

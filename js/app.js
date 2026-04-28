@@ -2315,6 +2315,18 @@
       return;
     }
 
+    // Phase 7: collect all member emails so we can fire the existing
+    // tier resolver (lookup_stakeholder_emails RPC). The verified badge
+    // appears next to each member name. Cache lives in _stakEmailTierCache.
+    var emailsForBadge = [];
+    projectCollaborators.forEach(function(m) {
+      if (m.display_name && m.display_name.indexOf('@') !== -1
+          && typeof _stakEmailTierCache !== 'undefined'
+          && _stakEmailTierCache[m.display_name] === undefined) {
+        emailsForBadge.push(m.display_name);
+      }
+    });
+
     listEl.innerHTML = projectCollaborators.map(function(m) {
       var displayName = m.display_name || 'Unknown';
       var safeName = String(displayName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2322,10 +2334,20 @@
       // for any unrecognized role (shouldn't happen — CHECK constraint enforces it).
       var roleLabel = m.role === 'editor' ? 'Editor' : (m.role === 'viewer' ? 'Viewer' : 'Member');
       var isEditing = editingMemberId && editingMemberId === m.user_id;
+      // Phase 7: verified badge — pulls cached tier from _stakEmailTierCache.
+      // _verifiedBadgeHtml returns '' if tier is null/undefined, so it's a
+      // safe no-op until the resolver populates the cache.
+      var badgeHtml = '';
+      if (typeof _verifiedBadgeHtml === 'function'
+          && typeof _stakEmailTierCache !== 'undefined'
+          && m.display_name) {
+        badgeHtml = _verifiedBadgeHtml(_stakEmailTierCache[m.display_name]);
+      }
+      var nameHtml = safeName + badgeHtml;
 
       if (isEditing) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px;background:rgba(var(--accent-rgb,26,86,219),0.04)">'
-          + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
+          + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:0">' + nameHtml + '</div>'
           + '<select class="add-custom-input" style="font-size:12px;padding:4px 8px;width:auto;min-width:130px" data-action="collab-role-change" data-user-id="' + m.user_id + '">'
           +   '<option value="viewer"' + (m.role === 'viewer' ? ' selected' : '') + '>Viewer</option>'
           +   '<option value="editor"' + (m.role === 'editor' ? ' selected' : '') + '>Editor</option>'
@@ -2336,11 +2358,18 @@
       }
 
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px">'
-        + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text)">' + safeName + '</div>'
+        + '<div style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:0">' + nameHtml + '</div>'
         + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
         + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" data-action="collab-edit" data-user-id="' + m.user_id + '">Edit</button>'
         + '</div>';
     }).join('');
+
+    // Phase 7: kick off tier resolution for any uncached emails. The
+    // resolver populates _stakEmailTierCache and triggers a re-render
+    // of the team access modal via _resolveStakEmailTiers.
+    if (emailsForBadge.length && typeof _resolveStakEmailTiers === 'function') {
+      _resolveStakEmailTiers(emailsForBadge);
+    }
   }
 
   // Update a collaborator's role in Supabase and reflect it locally.

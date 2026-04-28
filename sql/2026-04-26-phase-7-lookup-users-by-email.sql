@@ -1,0 +1,10 @@
+-- ============================================================
+-- DO NOT RUN — superseded.
+--
+-- This file was created in error during Phase 7. The codebase already
+-- has a working email-verification system using the existing
+-- lookup_stakeholder_emails RPC, _stakEmailTierCache (ui.js), and
+-- _verifiedBadgeHtml (ui.js). My duplicate work has been reverted.
+--
+-- Safe to delete this file.
+-- ============================================================
