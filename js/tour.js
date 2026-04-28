@@ -50,8 +50,9 @@
     {
       page: 'requirements',
       body: '<strong>This is the Requirements tool.</strong><br><br>'
-          + 'Scroll to see the 32 requirements. Notice the tags on each — they come from the stakeholders and ilities you saw on the previous pages, and they power the <strong>Coverage Charts</strong> and <strong>Traceability Matrix</strong> on the right. New requirements would be added via the <strong>+ Requirement</strong> button in the top right.',
-      advance: 'next'
+          + 'Scroll to see the 32 requirements. Notice the tags on each — they come from the stakeholders and ilities you saw on the previous pages, and they power the <strong>Coverage Charts</strong> and <strong>Traceability Matrix</strong> on the right. New requirements would be added via the <strong>+ Requirement</strong> button in the top right.<br><br>'
+          + 'Click <strong>Continue to Weighting →</strong>',
+      advance: 'navigate', nextPage: 'pair', nextPageLabel: 'Weighting'
     },
     {
       page: 'pair',
@@ -62,14 +63,8 @@
     },
     {
       page: 'scor',
-      body: '<strong>The Datum is your reference concept.</strong><br><br>'
-          + 'Every other design is scored against it. The Datum card (left) expands to show one requirement and the Datum\'s stated performance for that requirement. Page through a few requirements with the navigation buttons to get a feel for the Datum\'s profile.',
-      advance: 'next'
-    },
-    {
-      page: 'scor',
-      body: '<strong>Each concept is scored against the Datum, requirement by requirement.</strong><br><br>'
-          + 'For every requirement, a concept gets <strong>+</strong> (better than the Datum), <strong>0</strong> (equal), or <strong>−</strong> (worse). The team did this for all 18 concepts × 32 requirements. Notes can be attached to each cell to capture the reasoning.<br><br>'
+      body: '<strong>This is where the scoring happens — Datum vs every other concept.</strong><br><br>'
+          + 'The <strong>Datum</strong> is your reference concept. Try expanding the Datum card to see one of the 32 requirements and the Datum\'s stated performance for it. Then expand any other concept card to see how it scores against the Datum: <strong>+</strong> (better), <strong>0</strong> (equal), or <strong>−</strong> (worse), per requirement. Notes can be attached to each cell to capture the reasoning. The team did this for all 18 concepts × 32 requirements.<br><br>'
           + 'Click <strong>Continue to Pugh Matrix →</strong>',
       advance: 'navigate', nextPage: 'pugh', nextPageLabel: 'Pugh Matrix'
     },
@@ -234,7 +229,7 @@
       '<div class="cc-tour-modal-box">'
     +   '<div class="cc-tour-modal-title">Welcome to the UCI Road Bike Frame Design Project</div>'
     +   '<p class="cc-tour-modal-body">You\'re about to explore a real concept selection study — 32 engineering requirements, 18 competing frame designs, and a structured path to the winning concept.</p>'
-    +   '<p class="cc-tour-modal-body">Take a quick 10-step guided tour to see how Controlled Convergence works, or look around on your own. The example is view-only — when you\'re ready to interact with the tools, click <strong>Save to My Projects</strong> at the top right to get an editable copy.</p>'
+    +   '<p class="cc-tour-modal-body">Take a quick 9-step guided tour to see how Controlled Convergence works, or look around on your own. The example is view-only — when you\'re ready to interact with the tools, click <strong>Save to My Projects</strong> at the top right to get an editable copy.</p>'
     +   '<div class="cc-tour-modal-footer">'
     +     '<button class="btn btn-primary" id="ccTourBtnStart">Start Guided Tour</button>'
     +     '<button class="btn btn-secondary" id="ccTourBtnSkip">Look Around on My Own</button>'
