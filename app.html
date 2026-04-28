@@ -389,6 +389,23 @@
   </div>
 </div>
 
+<!-- ── DIFF MODAL (Phase 6) ──
+     Shows tracked changes between a version and the one before it.
+     Section-aware human-readable summary built by buildVersionDiff()
+     in js/diff-render.js. -->
+<div class="modal-overlay" id="diffModal" onclick="if(event.target===this)closeDiffModal()">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-title" id="diffModalTitle">Changes</div>
+    <div id="diffModalSubtitle"
+         style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></div>
+    <div id="diffModalBody"
+         style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDiffModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── HISTORY MODAL (Phase 4) ──
      Lists all version snapshots for the active project. Each entry shows
      who checked it in, when, and any comment they left. Click "View this
@@ -2989,6 +3006,8 @@
 <script src="js/supa-rest.js"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
+<!-- Phase 6: tracked-changes diff renderer for the version history modal. -->
+<script src="js/diff-render.js"></script>
   <script src="js/settings.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/projects.js"></script>

@@ -1797,13 +1797,21 @@
         ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="revert-version" data-version-number="' + v.version_number + '">Revert to this version</button>'
         : '';
 
+      // Phase 6: View changes button. Available on every version except
+      // version 1 (no predecessor to diff against). Anyone who can see
+      // history (owner + members) can view diffs.
+      var viewChangesBtn = (v.version_number > 1)
+        ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version-diff" data-version-number="' + v.version_number + '">View changes</button>'
+        : '';
+
       return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
         +   '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">'
         +     '<div>'
         +       '<span style="font-size:13px;font-weight:700;color:var(--text)">Version ' + v.version_number + '</span>'
         +       '<span style="font-size:12px;color:var(--text-muted);margin-left:8px">checked in by ' + _escHtml(holderName) + ' · ' + _escHtml(when) + '</span>'
         +     '</div>'
-        +     '<div style="display:flex;gap:6px;flex-shrink:0">'
+        +     '<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">'
+        +       viewChangesBtn
         +       '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
         +       revertBtn
         +     '</div>'
@@ -1820,6 +1828,84 @@
     body.querySelectorAll('[data-action="revert-version"]').forEach(function(btn) {
       btn.onclick = function() { handleRevertToVersion(parseInt(btn.dataset.versionNumber, 10)); };
     });
+    // Wire up "View changes" buttons (Phase 6)
+    body.querySelectorAll('[data-action="view-version-diff"]').forEach(function(btn) {
+      btn.onclick = function() { handleViewVersionChanges(parseInt(btn.dataset.versionNumber, 10)); };
+    });
+  }
+
+  // ── PROJECT VERSION DIFF (Phase 6) ──
+  // Show tracked changes between a version and its immediate predecessor.
+  // Pulls both snapshots in parallel, runs buildVersionDiff (diff-render.js),
+  // renders the section-aware result in the diff modal.
+  async function handleViewVersionChanges(versionNumber) {
+    if (!activeProject || !appState.currentUser) return;
+    if (typeof buildVersionDiff !== 'function') {
+      alert('Diff renderer not loaded. Refresh the page.');
+      return;
+    }
+    if (versionNumber <= 1) return; // no predecessor
+
+    var modal = document.getElementById('diffModal');
+    var titleEl = document.getElementById('diffModalTitle');
+    var subEl   = document.getElementById('diffModalSubtitle');
+    var body    = document.getElementById('diffModalBody');
+    if (!modal || !body) return;
+
+    if (titleEl) titleEl.textContent = 'Changes in version ' + versionNumber;
+    if (subEl)   subEl.textContent   = 'Compared to version ' + (versionNumber - 1);
+    body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">Loading…</div>';
+    modal.classList.add('open');
+
+    // Find the IDs for both versions in our cached _historyVersions list.
+    var thisVer = _historyVersions.find(function(v) { return v.version_number === versionNumber; });
+    var prevVer = _historyVersions.find(function(v) { return v.version_number === (versionNumber - 1); });
+    if (!thisVer || !prevVer) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--danger);padding:12px 0">Could not locate one or both versions in history.</div>';
+      return;
+    }
+
+    // Fetch both snapshots in parallel.
+    var results = await Promise.all([
+      loadProjectVersionSnapshot(thisVer.id),
+      loadProjectVersionSnapshot(prevVer.id)
+    ]);
+    var thisRes = results[0], prevRes = results[1];
+    if (!thisRes.ok || !thisRes.data || !thisRes.data[0] ||
+        !prevRes.ok || !prevRes.data || !prevRes.data[0]) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--danger);padding:12px 0">Could not load one or both snapshots.</div>';
+      return;
+    }
+    var thisData = (thisRes.data[0].snapshot && thisRes.data[0].snapshot.data) || {};
+    var prevData = (prevRes.data[0].snapshot && prevRes.data[0].snapshot.data) || {};
+
+    var diff = buildVersionDiff(prevData, thisData);
+    _renderDiffModalBody(diff);
+  }
+
+  function closeDiffModal() {
+    var modal = document.getElementById('diffModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  function _renderDiffModalBody(diff) {
+    var body = document.getElementById('diffModalBody');
+    if (!body) return;
+    if (!diff || !diff.sections || !diff.sections.length) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">'
+        + 'No tracked changes between these versions. The check-in may have been a manual save with no actual edits, or only changed fields the diff renderer doesn\u2019t track yet.'
+        + '</div>';
+      return;
+    }
+    body.innerHTML = diff.sections.map(function(sec) {
+      var bullets = sec.lines.map(function(line) {
+        return '<li style="margin:4px 0;line-height:1.5;color:var(--text)">' + _escHtml(line) + '</li>';
+      }).join('');
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
+        +   '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px">' + _escHtml(sec.name) + '</div>'
+        +   '<ul style="margin:0;padding-left:18px;font-size:13px">' + bullets + '</ul>'
+        + '</div>';
+    }).join('');
   }
 
   // Phase 5: revert the project to a historical version.
