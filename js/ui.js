@@ -578,14 +578,16 @@ async function _resolveStakEmailTiers(emails) {
   function updateIlityTierNote() {
     const note = document.getElementById('ilityTierNote');
     if (!note) return;
-    const ILITY_LIMITS = { free: 0, account: 10, pro: Infinity, admin: Infinity };
+    const ILITY_LIMITS = { free: 0, account: 5, pro: 100, admin: Infinity };
     const limit = ILITY_LIMITS[userTier] !== undefined ? ILITY_LIMITS[userTier] : 0;
     if (!appState.currentUser) {
-      note.textContent = 'Free tier: Sign up for a free account to add up to 10 custom lifecycle properties.';
+      note.textContent = 'Free tier: Sign up for a free account to add up to 5 custom lifecycle properties.';
     } else if (userTier === 'account') {
-      note.textContent = 'Free Account: ' + customIlities.length + ' of ' + limit + ' custom lifecycle properties. Upgrade to Pro for unlimited.';
+      note.textContent = 'Free Account: ' + customIlities.length + ' of ' + limit + ' custom lifecycle properties. Upgrade to Pro for up to 100.';
+    } else if (userTier === 'pro') {
+      note.textContent = 'Pro tier: ' + customIlities.length + ' of ' + limit + ' custom lifecycle properties.';
     } else {
-      note.textContent = 'Pro tier: ' + customIlities.length + ' custom lifecycle properties. Unlimited.';
+      note.textContent = 'Admin: ' + customIlities.length + ' custom lifecycle properties.';
     }
   }
 
@@ -692,14 +694,16 @@ async function _resolveStakEmailTiers(emails) {
   function updateStakTierNote() {
     const note = document.getElementById('stakTierNote');
     if (!note) return;
-    const STAK_LIMITS = { free: 0, account: 10, pro: Infinity, admin: Infinity };
+    const STAK_LIMITS = { free: 0, account: 5, pro: 100, admin: Infinity };
     const limit = STAK_LIMITS[userTier] !== undefined ? STAK_LIMITS[userTier] : 0;
     if (!appState.currentUser) {
-      note.textContent = 'Free tier: Sign up for a free account to add up to 10 custom stakeholders.';
+      note.textContent = 'Free tier: Sign up for a free account to add up to 5 custom stakeholders.';
     } else if (userTier === 'account') {
-      note.textContent = 'Free Account: ' + customStakeholders.length + ' of ' + limit + ' custom stakeholders. Upgrade to Pro for unlimited.';
+      note.textContent = 'Free Account: ' + customStakeholders.length + ' of ' + limit + ' custom stakeholders. Upgrade to Pro for up to 100.';
+    } else if (userTier === 'pro') {
+      note.textContent = 'Pro tier: ' + customStakeholders.length + ' of ' + limit + ' custom stakeholders.';
     } else {
-      note.textContent = 'Pro tier: ' + customStakeholders.length + ' custom stakeholders. Unlimited.';
+      note.textContent = 'Admin: ' + customStakeholders.length + ' custom stakeholders.';
     }
   }
 
