@@ -289,13 +289,15 @@
       }).join('');
 
       // Note: content is HTML produced by Quill in the admin editor, then
-      // sanitized by Quill before storage. We render it directly.
+      // sanitized by Quill before storage. We strip Quill's empty <p><br></p>
+      // paragraphs (created by double-Enter between paragraphs) so spacing
+      // stays consistent — see stripEmptyParagraphs below.
       return '' +
         '<article class="article-wrap">' +
           '<div class="article-meta">' + date + ' · ' + minutes + ' min read</div>' +
           '<h1 class="article-title">' + escapeHtml(p.title || '') + '</h1>' +
           (tags ? '<div class="article-tags">' + tags + '</div>' : '<div style="margin-bottom:36px"></div>') +
-          '<div class="article-body">' + (p.content || '') + '</div>' +
+          '<div class="article-body">' + stripEmptyParagraphs(p.content) + '</div>' +
           '<div class="article-footer">' +
             '<a href="/blog">← Back to all posts</a>' +
           '</div>' +
@@ -357,6 +359,17 @@
       const text = String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       if (!text) return 1;
       return Math.max(1, Math.round(text.split(' ').length / 225));
+    }
+
+    // Quill emits <p><br></p> for blank lines (e.g. when the user double-taps
+    // Enter between paragraphs). Those empty paragraphs render as a full line
+    // plus their own top/bottom margins, which stacks into a huge gap. Strip
+    // them out at render time so paragraph spacing is consistent.
+    function stripEmptyParagraphs(html) {
+      return String(html || '').replace(
+        /<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi,
+        ''
+      );
     }
 
     function escapeHtml(s) {

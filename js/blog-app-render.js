@@ -63,6 +63,17 @@
     return Math.max(1, Math.round(text.split(' ').length / 225));
   }
 
+  // Quill emits <p><br></p> for blank lines (e.g. when the user double-taps
+  // Enter between paragraphs). Those empty paragraphs render as a full line
+  // plus their own top/bottom margins, which stacks into a huge gap. Strip
+  // them out at render time so paragraph spacing is consistent.
+  function stripEmptyParagraphs(html) {
+    return String(html || '').replace(
+      /<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi,
+      ''
+    );
+  }
+
   // ── Index view ────────────────────────────────────────────────
   async function renderIndex(root) {
     root.innerHTML = '<div class="blog-app-loading">Loading posts…</div>';
@@ -176,7 +187,7 @@
           readTimeMinutes(post.content) + ' min read</div>' +
         '<h1>' + escapeHtml(post.title || '') + '</h1>' +
         (tags ? '<div class="article-tags">' + tags + '</div>' : '') +
-        '<div class="blog-app-body">' + (post.content || '') + '</div>' +
+        '<div class="blog-app-body">' + stripEmptyParagraphs(post.content) + '</div>' +
       '</article>';
   }
 })();
