@@ -2406,17 +2406,26 @@ body.theme-engineering .sidebar-brand {
   color: #6366f1;
   border: 1px solid rgba(99,102,241,0.35);
 }
+/* Phase 4.5.1: owner badge variant — uses the theme accent so it stands
+   out as the privileged role. */
+.nav-role-badge-owner {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
 
-/* ── LOCK NAV PILL (Phase 4.5) ──
+/* ── LOCK NAV INDICATOR (Phase 4.5 + 4.5.1) ──
    Compact lock-state indicator that sits in the top nav next to the
    project name. Three visual variants depending on state. All colors
-   come from theme variables so the pill follows the active theme. */
+   come from theme variables so it follows the active theme.
+   Phase 4.5.1: rectangular (border-radius:6px) instead of pill, to
+   match the surrounding nav buttons (.nav-tasks-btn, etc.). */
 .nav-lock-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 5px 10px 5px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 12px;
   line-height: 1.2;
   font-weight: 500;
@@ -2432,7 +2441,7 @@ body.theme-engineering .sidebar-brand {
   font-size: 11px;
   font-weight: 600;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: 4px;
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--surface);
@@ -2462,7 +2471,7 @@ body.theme-engineering .sidebar-brand {
   align-items: center;
   gap: 8px;
   padding: 5px 10px 5px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 12px;
   line-height: 1.2;
   font-weight: 500;
@@ -2535,32 +2544,34 @@ body.cc-readonly main.page input[type="radio"]:not(.readonly-allowed) {
   cursor: not-allowed;
 }
 
-/* ─ Selectable cards (stakeholders, ilities) ─
-   These cards toggle selection on click. In read-only mode the click
-   shouldn't do anything; the card stays visible so users can see what's
-   selected, just dimmed slightly to communicate non-interactivity. */
-body.cc-readonly .stak-card,
-body.cc-readonly .ility-card {
+/* ─ Selectable chips (stakeholders, ilities) ─
+   These chips toggle selection on click. In read-only mode the click
+   shouldn't do anything; the chip stays visible so users can see what's
+   selected, just dimmed slightly to communicate non-interactivity.
+   Phase 4.5.1: actual classes are .stak-chip / .ility-chip — the earlier
+   .stak-card / .ility-card selectors were wrong and didn't match. */
+body.cc-readonly .stak-chip,
+body.cc-readonly .ility-chip {
   pointer-events: none;
 }
-body.cc-readonly .stak-card:not(.selected),
-body.cc-readonly .ility-card:not(.selected) {
+body.cc-readonly .stak-chip:not(.selected),
+body.cc-readonly .ility-chip:not(.selected) {
   opacity: 0.55;
 }
 
 /* ─ Project preferences — owner-only (Phase 4.5 item #11) ─
    The cc-not-owner class is applied to <body> when the current user
-   isn't the project owner (i.e., they're a viewer or editor). Project
-   preferences — weighting mode, comparison method, scoring mode, MAS,
-   MTHUS — are owner-only because they describe the project's structure.
+   isn't the project owner. Project preferences — weighting mode,
+   comparison method, scoring mode, MAS, MTHUS — are owner-only.
    Editors holding the lock can edit content but not change how the
    project is configured.
 
-   Visual: dimmed + not-allowed cursor. The tooltip text is set
-   dynamically via the title attribute by _applyOwnerClass() in app.js. */
+   Phase 4.5.1: do NOT use pointer-events:none here — that prevents
+   hover events including the browser's title-attribute tooltip. The
+   click is harmless because prefSet* functions guard via _prefGuardOwner.
+   Cursor + opacity provide the visual cue; the tooltip explains why. */
 body.cc-not-owner .pref-btn,
 body.cc-not-owner [data-owner-only] {
-  pointer-events: none;
   opacity: 0.55;
   cursor: not-allowed;
 }

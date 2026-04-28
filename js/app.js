@@ -1172,10 +1172,12 @@
     else if (role === 'editor') document.body.classList.add('cc-role-editor');
     else if (role === 'owner')  document.body.classList.add('cc-role-owner');
 
-    // Update role badge in nav
+    // Update role badge in nav. Phase 4.5.1: show all three roles
+    // (was previously hiding the owner badge — Kyle wants explicit
+    // confirmation in the nav of which role they're operating as).
     var badge = document.getElementById('navRoleBadge');
     if (!badge) return;
-    if (!role || role === 'owner') {
+    if (!role) {
       badge.style.display = 'none';
     } else if (role === 'viewer') {
       badge.textContent = 'Viewer';
@@ -1184,6 +1186,10 @@
     } else if (role === 'editor') {
       badge.textContent = 'Editor';
       badge.className   = 'nav-role-badge nav-role-badge-editor';
+      badge.style.display = '';
+    } else if (role === 'owner') {
+      badge.textContent = 'Owner';
+      badge.className   = 'nav-role-badge nav-role-badge-owner';
       badge.style.display = '';
     }
   }
@@ -6359,6 +6365,14 @@ ${sections}
   }
 
   function switchPage(pageId, navBtn) {
+    // Phase 4.5.1 diagnostic: log every navigation with a stack trace so
+    // we can find what's silently navigating to home after check-in.
+    // Remove this once the bug is identified.
+    if (window.console && console.log) {
+      console.log('[switchPage] →', pageId, '(from ' + _currentPage + ')');
+      try { console.log('[switchPage] caller:', new Error().stack.split('\n').slice(2, 5).join('\n')); } catch(e) {}
+    }
+
     // Admin lives as a route inside the app shell (#admin) so it inherits
     // sidebars, theme, and top nav. Gate runs here at switch time — non-admins
     // bounce to home rather than ever seeing the admin chrome.
