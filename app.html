@@ -310,6 +310,21 @@
      removed. The historical view banner below is also moved into the nav
      when applicable. -->
 
+<!-- ── GENERIC THEMED CONFIRM MODAL (Phase 4.6.1) ──
+     Replaces browser confirm() for a UI that matches the app theme.
+     Driven by _showConfirm(title, message, confirmLabel, isDanger) in app.js
+     which returns a Promise resolving true/false. -->
+<div class="modal-overlay" id="genericConfirmModal" onclick="if(event.target===this)_resolveConfirm(false)">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title" id="genericConfirmTitle">Confirm</div>
+    <div id="genericConfirmBody" style="font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="genericConfirmOkBtn" onclick="_resolveConfirm(true)">OK</button>
+      <button class="btn btn-secondary" onclick="_resolveConfirm(false)">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── CHECK-IN MODAL (Phase 4) ──
      Shown when the user clicks "Check in" on the lock banner. Optional
      comment field describes what they changed in this work session.
@@ -373,7 +388,7 @@
      Shows for logged-in users with no active project on work pages
      (anywhere past Project Manager). Themed via CSS variables. -->
 <div id="activateProjectBanner" class="activate-project-banner" style="display:none">
-  <span class="activate-project-text">You're working in a temporary project. Your changes are not saved.</span>
+  <span class="activate-project-text">Your in-progress work isn't saved to any project yet. Save as a new project to keep it.</span>
   <button class="activate-project-btn" onclick="saveAsNewProject()">Save as a new project</button>
 </div>
 

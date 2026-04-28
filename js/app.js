@@ -1366,12 +1366,49 @@
     }
   }
 
+  // ── THEMED CONFIRM MODAL (Phase 4.6.1) ──
+  // Replaces browser confirm() with a modal that follows the app theme.
+  // Returns a Promise<boolean> — true if the user clicked the OK button.
+  // Internally uses module-level state to track the pending resolver.
+  var _confirmResolver = null;
+  function _showConfirm(title, message, confirmLabel, isDanger) {
+    return new Promise(function(resolve) {
+      _confirmResolver = resolve;
+      var modal = document.getElementById('genericConfirmModal');
+      var titleEl = document.getElementById('genericConfirmTitle');
+      var bodyEl  = document.getElementById('genericConfirmBody');
+      var okBtn   = document.getElementById('genericConfirmOkBtn');
+      if (titleEl) titleEl.textContent = title || 'Confirm';
+      if (bodyEl)  bodyEl.textContent  = message || '';
+      if (okBtn) {
+        okBtn.textContent = confirmLabel || 'OK';
+        // Danger styling for destructive actions
+        if (isDanger) { okBtn.style.background = 'var(--danger,#e53e3e)'; okBtn.style.borderColor = 'var(--danger,#e53e3e)'; }
+        else          { okBtn.style.background = ''; okBtn.style.borderColor = ''; }
+      }
+      if (modal) modal.classList.add('open');
+    });
+  }
+  function _resolveConfirm(ok) {
+    var modal = document.getElementById('genericConfirmModal');
+    if (modal) modal.classList.remove('open');
+    if (_confirmResolver) {
+      var r = _confirmResolver; _confirmResolver = null; r(!!ok);
+    }
+  }
+
   // Phase 4.6: discard checkout — release the lock and revert any changes
   // made since checkout. Server-side discard_checkout RPC reverts the
   // project's data fields to the snapshot taken at checkout time.
   async function submitDiscardCheckout() {
     if (!activeProject || !appState.currentUser) return;
-    if (!confirm('Discard your checkout?\n\nAny changes you made since checking out will be reverted. The project will return to the state it was in when you checked out.')) return;
+    var ok = await _showConfirm(
+      'Discard your checkout?',
+      'Any changes you made since checking out will be reverted. The project will return to the state it was in when you checked out.',
+      'Discard',
+      true
+    );
+    if (!ok) return;
 
     var btn = document.getElementById('discardCheckoutBtn');
     if (btn) { btn.textContent = 'Discarding…'; btn.disabled = true; }
@@ -1407,7 +1444,13 @@
 
   async function handleRevokeLock() {
     if (!activeProject || !appState.currentUser) return;
-    if (!confirm('Force-release the current checkout? The other user will lose their editing access.')) return;
+    var ok = await _showConfirm(
+      'Force-release the current checkout?',
+      'The other user will lose their editing access. Any changes they made since checking out will remain in the project (until Phase 5 adds non-destructive revoke).',
+      'Revoke',
+      true
+    );
+    if (!ok) return;
     var result = await revokeLock(activeProject.id);
     if (!result.ok) { alert('Could not revoke: ' + result.error); return; }
     var rpc = result.data;
@@ -1564,14 +1607,31 @@
   }
 
   // Click handler for the "Save as a new project" button on the activate
-  // banner. Navigates to Project Manager so the user can fill in the
-  // create-project form. (The form is pre-populated from current state
-  // since the project model reads goal/ilities/etc from globals.)
-  function saveAsNewProject() {
-    if (typeof switchPage === 'function') {
-      var projBtn = document.querySelector('[data-page="proj"]');
-      switchPage('proj', projBtn || null);
+  // banner. Phase 4.6.1: instead of routing through the create-project
+  // form (which clears state), auto-create a project with a default name
+  // that PRESERVES the user's in-memory work. They can rename later via
+  // Edit on the project card.
+  async function saveAsNewProject() {
+    if (!appState.currentUser) {
+      // Anonymous users can't save projects — nudge them to sign up.
+      if (typeof openAuthModal === 'function') openAuthModal('signup');
+      return;
     }
+    // Generate a default name. Avoid collisions with existing projects.
+    var base = 'Untitled project';
+    var name = base;
+    var i = 2;
+    while (savedProjects.some(function(p) { return p.name && p.name.toLowerCase() === name.toLowerCase(); })) {
+      name = base + ' ' + i;
+      i++;
+    }
+    // Default to Full unless current page is the basic-mode view.
+    var projType = (_currentPage === 'basic' || appMode === 'basic') ? 'quick' : 'full';
+    createProject(projType, { name: name, preserveState: true });
+    // The create flow leaves us on the right page (full mode = stay where
+    // we were; quick mode = navigates to basic). Refresh the activate banner
+    // so it disappears now that activeProject is set.
+    if (typeof _renderActivateProjectBanner === 'function') _renderActivateProjectBanner();
   }
 
   // ── PROJECT VERSION HISTORY (Phase 4) ──
@@ -4822,15 +4882,34 @@ ${sections}
     if (errEl) errEl.style.display = 'none';
   }
 
-  function createProject(projectType) {
+  // createProject(projectType, opts)
+  //   projectType: 'quick' | 'full'
+  //   opts.preserveState: if true, do NOT clear in-memory project state
+  //     (ilities, requirements, scoring, etc.) before activating. Used by
+  //     saveAsNewProject (Phase 4.6.1) to convert temporary in-memory work
+  //     into a saved project without losing what the user has done.
+  //   opts.name / opts.owner / opts.description: if provided, use these
+  //     instead of reading from the form inputs. Used by saveAsNewProject
+  //     to skip the form entirely.
+  function createProject(projectType, opts) {
+    opts = opts || {};
     projectType = (projectType === 'quick') ? 'quick' : 'full';
     const input = document.getElementById('projNameInput');
     const ownerInput = document.getElementById('projOwnerInput');
     const descInput  = document.getElementById('projDescInput');
+    // Phase 4.6.1: prefer opts.name etc. when provided (saveAsNewProject path).
+    // Otherwise, read from the form inputs (the +New Project form path).
+    const _useOpts = opts && (opts.name != null || opts.preserveState);
     const errEl = document.getElementById('projFormError');
-    if (!input) return;
-    const name = input.value.trim();
-    if (!name) { input.focus(); return; }
+    // Phase 4.6.1: when called via saveAsNewProject (opts.name), the form
+    // inputs may not even be in the DOM. Use opts in that case.
+    const name = _useOpts
+      ? String(opts.name || '').trim()
+      : (input ? input.value.trim() : '');
+    if (!name) {
+      if (!_useOpts && input) input.focus();
+      return;
+    }
     // Duplicate name check (case-insensitive)
     const isDup = savedProjects.some(p => p.name.toLowerCase() === name.toLowerCase());
     if (isDup) {
@@ -4847,9 +4926,14 @@ ${sections}
       return;
     }
 
-    const description = descInput ? descInput.value.trim() : '';
-    // Owner: prefer the signed-in user's name; otherwise the typed value.
-    const typedOwner = ownerInput ? ownerInput.value.trim() : '';
+    const description = _useOpts
+      ? String(opts.description || '').trim()
+      : (descInput ? descInput.value.trim() : '');
+    // Owner: prefer the signed-in user's name; otherwise the typed value
+    // (or opts.owner for the saveAsNewProject path).
+    const typedOwner = _useOpts
+      ? String(opts.owner || '').trim()
+      : (ownerInput ? ownerInput.value.trim() : '');
     const owner = (appState.currentUser && appState.currentUser.name)
       ? appState.currentUser.name
       : typedOwner;
@@ -4863,30 +4947,35 @@ ${sections}
       userId: appState.currentUser ? appState.currentUser.id : null
     });
 
-    // Clear all tool state so the new project starts fresh
-    selectedIlities.clear(); customIlities = [];  ilityOrder = [];
-    selectedStakeholders.clear(); customStakeholders = []; stakOrder = [];
-    // Reset contact fields on built-in stakeholders so they don't bleed into the new project's first save.
-    STAKEHOLDERS.forEach(s => { s.contactName = ''; s.contactTitle = ''; s.contactEmail = ''; });
-    requirements = []; reqIdCounter = 0; _editingReqId = null;
-    pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
-    pughConcepts = []; pughScores = {}; pughAdvBackup = {};
-    pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
-    conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
-    scorTagFilter = []; scorTagMatchMode = 'any';
-    scorReqTagFilter = []; scorReqTagMatchMode = 'any';
-    reqPageIlityFilter = []; reqPageIlityMatchMode = 'any';
-    reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
-    reqPageTagFilter = []; reqPageTagMatchMode = 'any';
-    pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
-    pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
-    goalMode = 'basic';
+    // Phase 4.6.1: when opts.preserveState is set (saveAsNewProject path),
+    // skip the state-clearing so the user's in-progress work carries over
+    // into the new project. The +New Project form path always clears.
+    if (!opts.preserveState) {
+      // Clear all tool state so the new project starts fresh
+      selectedIlities.clear(); customIlities = [];  ilityOrder = [];
+      selectedStakeholders.clear(); customStakeholders = []; stakOrder = [];
+      // Reset contact fields on built-in stakeholders so they don't bleed into the new project's first save.
+      STAKEHOLDERS.forEach(s => { s.contactName = ''; s.contactTitle = ''; s.contactEmail = ''; });
+      requirements = []; reqIdCounter = 0; _editingReqId = null;
+      pairComparisons = {}; pairPairs = []; pairIndex = 0; pairSubject = 'ilities'; pairMethod = 'pairwise'; forcedRankOrder = [];
+      pughConcepts = []; pughScores = {}; pughAdvBackup = {};
+      pughConceptCounter = 0; datumPerformance = {}; conceptPerformance = {}; conceptNotes = {};
+      conceptCustomFields = []; _cfIdCounter = 0; scorerFilter = ''; datumDefActive = false;
+      scorTagFilter = []; scorTagMatchMode = 'any';
+      scorReqTagFilter = []; scorReqTagMatchMode = 'any';
+      reqPageIlityFilter = []; reqPageIlityMatchMode = 'any';
+      reqPageStakeholderFilter = []; reqPageStakeholderMatchMode = 'any';
+      reqPageTagFilter = []; reqPageTagMatchMode = 'any';
+      pughSettings = { advancedScoring: false, showMTHUS: false, showMAS: false, freezeTopRow: true };
+      pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
+      goalMode = 'basic';
 
-    // Clear goal fields
-    ['input-to','input-by','input-using','input-while','input-goal-basic'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
+      // Clear goal fields
+      ['input-to','input-by','input-using','input-while','input-goal-basic'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    }
 
     // Activate the new project
     activeProject = project;
@@ -4905,7 +4994,7 @@ ${sections}
       try { localStorage.removeItem('cc_activeProjectId'); } catch(e) {}
     }
 
-    input.value = '';
+    if (input)      input.value      = '';
     if (ownerInput) ownerInput.value = '';
     if (descInput)  descInput.value  = '';
     updateNavProjectName();
