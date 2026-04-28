@@ -1768,7 +1768,7 @@
       return;
     }
 
-    body.innerHTML = _historyVersions.map(function(v) {
+    body.innerHTML = _historyVersions.map(function(v, idx) {
       // Resolve checked_in_by to a display name if we know them
       var holderName = '';
       if (projectCollaborators && projectCollaborators.length) {
@@ -1797,10 +1797,15 @@
         ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="revert-version" data-version-number="' + v.version_number + '">Revert to this version</button>'
         : '';
 
-      // Phase 6: View changes button. Available on every version except
-      // version 1 (no predecessor to diff against). Anyone who can see
-      // history (owner + members) can view diffs.
-      var viewChangesBtn = (v.version_number > 1)
+      // Phase 6: View changes button. Available on every version EXCEPT
+      // the oldest (no predecessor to diff against). Use array index
+      // rather than version_number > 1 — version numbers are sparse
+      // because claim_lock's checkout snapshots use them too and get
+      // deleted on check-in, so checkins can be 1, 3, 5...
+      // _historyVersions is sorted DESC by version_number, so the last
+      // entry (highest index) is the oldest.
+      var isOldest = (idx === _historyVersions.length - 1);
+      var viewChangesBtn = !isOldest
         ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version-diff" data-version-number="' + v.version_number + '">View changes</button>'
         : '';
 
@@ -1852,18 +1857,24 @@
     var body    = document.getElementById('diffModalBody');
     if (!modal || !body) return;
 
-    if (titleEl) titleEl.textContent = 'Changes in version ' + versionNumber;
-    if (subEl)   subEl.textContent   = 'Compared to version ' + (versionNumber - 1);
-    body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">Loading…</div>';
-    modal.classList.add('open');
-
     // Find the IDs for both versions in our cached _historyVersions list.
-    var thisVer = _historyVersions.find(function(v) { return v.version_number === versionNumber; });
-    var prevVer = _historyVersions.find(function(v) { return v.version_number === (versionNumber - 1); });
-    if (!thisVer || !prevVer) {
-      body.innerHTML = '<div style="font-size:13px;color:var(--danger);padding:12px 0">Could not locate one or both versions in history.</div>';
+    // _historyVersions is sorted DESC by version_number, so the entry at
+    // index N+1 is the previous CHECKIN — version numbers are sparse
+    // (Phase 4.6 checkout snapshots get numbers and then get deleted on
+    // check-in), so we can't just look for versionNumber - 1.
+    var thisIdx = _historyVersions.findIndex(function(v) { return v.version_number === versionNumber; });
+    if (thisIdx === -1 || thisIdx >= _historyVersions.length - 1) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--danger);padding:12px 0">No previous version to compare against.</div>';
+      modal.classList.add('open');
       return;
     }
+    var thisVer = _historyVersions[thisIdx];
+    var prevVer = _historyVersions[thisIdx + 1];
+
+    if (titleEl) titleEl.textContent = 'Changes in version ' + thisVer.version_number;
+    if (subEl)   subEl.textContent   = 'Compared to version ' + prevVer.version_number;
+    body.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">Loading…</div>';
+    modal.classList.add('open');
 
     // Fetch both snapshots in parallel.
     var results = await Promise.all([

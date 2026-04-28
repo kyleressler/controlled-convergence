@@ -2480,6 +2480,13 @@ body.theme-engineering .sidebar-brand {
   z-index: 1050;
 }
 
+/* Diff modal (Phase 6) — opens from inside the history modal which is
+   at z-index 1000, so this needs to stack on top. Mirror the same z-index
+   pattern used by the generic confirm. */
+#diffModal {
+  z-index: 1100;
+}
+
 .activate-project-banner {
   display: flex;
   align-items: center;
