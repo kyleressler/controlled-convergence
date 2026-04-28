@@ -584,6 +584,13 @@
     var projectHint = task.project_id ? ('<span>' + _escHtml(projName) + '</span>') : '';
     var expiryHint  = task.expires_at ? ('<span>Expires ' + _relativeDate(task.expires_at) + '</span>') : '';
     var dateHint    = task.created_at ? ('<span>' + _relativeDate(task.created_at) + '</span>') : '';
+    // Show "to: recipient" on tasks I sent, "from: sender" on tasks I received.
+    // Without this, you can't tell who an outgoing invite was sent to without
+    // opening the detail modal — and even there it wasn't shown until now.
+    var recipientHint = '';
+    if (role === 'assigner' && task.assignee_email) {
+      recipientHint = '<span>To: ' + _escHtml(task.assignee_email) + '</span>';
+    }
 
     // Top row: title + status chip
     var top = document.createElement('div');
@@ -592,10 +599,10 @@
                   + '<span class="task-status ' + statusClass + '">' + statusLabel + '</span>';
     card.appendChild(top);
 
-    // Meta row: project name + expiry (if set) + date
+    // Meta row: project name + recipient (for outgoing) + expiry + date
     var meta = document.createElement('div');
     meta.className = 'task-card-meta';
-    meta.innerHTML = projectHint + expiryHint + dateHint;
+    meta.innerHTML = projectHint + recipientHint + expiryHint + dateHint;
     card.appendChild(meta);
 
     // Action buttons
@@ -690,9 +697,15 @@
       ['Type',    _taskTypeLabel(task.task_type)],
       ['Status',  statusText],
       ['Project', projName],
-      ['Created', task.created_at ? new Date(task.created_at).toLocaleString() : '—'],
-      ['Expires', task.expires_at ? new Date(task.expires_at).toLocaleString() : 'No expiry'],
     ];
+    // Show recipient row when viewing as the sender, sender row when viewing
+    // as the recipient. Without this you couldn't tell who an outgoing invite
+    // went to without leaving the modal.
+    if (role === 'assigner' && task.assignee_email) {
+      rows.push(['Sent to', task.assignee_email]);
+    }
+    rows.push(['Created', task.created_at ? new Date(task.created_at).toLocaleString() : '—']);
+    rows.push(['Expires', task.expires_at ? new Date(task.expires_at).toLocaleString() : 'No expiry']);
     var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
     rows.forEach(function(r) {
       html += '<tr><td style="padding:6px 12px 6px 0;color:var(--text-muted);white-space:nowrap;vertical-align:top;font-weight:600">'
