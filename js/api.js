@@ -395,16 +395,17 @@ async function releaseLock(projectId, comment) {
 }
 
 /**
- * List all versions for a project (latest first). Each row is the
- * project_versions table shape: id, project_id, version_number,
- * snapshot, checked_in_by, checked_in_at, comment.
+ * List check-in versions for a project (latest first). Filters out the
+ * 'checkout' kind snapshots which are bookkeeping for discard_checkout
+ * (Phase 4.6) and shouldn't appear in the user-facing history view.
  *
  * @param {string} projectId
  */
 async function loadProjectVersions(projectId) {
   return await _restGet('project_versions',
-    'select=id,project_id,version_number,checked_in_by,checked_in_at,comment'
+    'select=id,project_id,version_number,checked_in_by,checked_in_at,comment,kind'
     + '&project_id=eq.' + encodeURIComponent(projectId)
+    + '&kind=eq.checkin'
     + '&order=version_number.desc');
 }
 
@@ -428,6 +429,21 @@ async function loadProjectVersionSnapshot(versionId) {
  */
 async function revokeLock(projectId) {
   return await _restRpc('revoke_lock', { p_project_id: projectId });
+}
+
+/**
+ * Discard the current checkout — release the lock AND revert any changes
+ * made since checkout. Phase 4.6.
+ *
+ * Implementation: claim_lock writes a 'checkout' snapshot to project_versions
+ * when you take the lock. discard_checkout reverts the project's data to that
+ * snapshot, deletes the snapshot, and releases the lock. Net effect: as if
+ * you never checked out.
+ *
+ * @param {string} projectId
+ */
+async function discardCheckout(projectId) {
+  return await _restRpc('discard_checkout', { p_project_id: projectId });
 }
 
 /**

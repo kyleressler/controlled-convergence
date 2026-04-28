@@ -1366,6 +1366,45 @@
     }
   }
 
+  // Phase 4.6: discard checkout — release the lock and revert any changes
+  // made since checkout. Server-side discard_checkout RPC reverts the
+  // project's data fields to the snapshot taken at checkout time.
+  async function submitDiscardCheckout() {
+    if (!activeProject || !appState.currentUser) return;
+    if (!confirm('Discard your checkout?\n\nAny changes you made since checking out will be reverted. The project will return to the state it was in when you checked out.')) return;
+
+    var btn = document.getElementById('discardCheckoutBtn');
+    if (btn) { btn.textContent = 'Discarding…'; btn.disabled = true; }
+
+    var result = await discardCheckout(activeProject.id);
+    if (btn) { btn.textContent = 'Discard Checkout (Don\'t Save)'; btn.disabled = false; }
+
+    if (!result.ok) { alert('Could not discard: ' + result.error); return; }
+    var rpc = result.data;
+    if (rpc && rpc.error) { alert(rpc.error); return; }
+
+    closeCheckInModal();
+
+    // Reload the project from server so reverted state is reflected locally.
+    await loadProjects(appState.currentUser.id);
+    if (typeof loadProject === 'function') loadProject(activeProject.id);
+
+    currentProjectLock = {
+      editing_user_id: null,
+      checked_out_at:  null,
+      updated_at:      currentProjectLock && currentProjectLock.updated_at
+    };
+    _refreshCachedLockState();
+    _renderLockBanner();
+    _rerenderProjectViews();
+
+    // Same post-checkin behavior: navigate to Project Manager.
+    if (typeof switchPage === 'function') {
+      var projBtn = document.querySelector('[data-page="proj"]');
+      switchPage('proj', projBtn || null);
+    }
+  }
+
   async function handleRevokeLock() {
     if (!activeProject || !appState.currentUser) return;
     if (!confirm('Force-release the current checkout? The other user will lose their editing access.')) return;
@@ -1502,6 +1541,37 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── ACTIVATE PROJECT BANNER (Phase 4.6) ──
+  // Shown for logged-in users with no active project, on work pages
+  // past Project Manager. Reminds them their changes won't persist
+  // unless they create a project.
+  var _ACTIVATE_BANNER_PAGES = [
+    'tbus', 'stak', 'ilities', 'requirements', 'pair', 'scor', 'pugh', 'conv', 'basic'
+  ];
+  function _renderActivateProjectBanner() {
+    var banner = document.getElementById('activateProjectBanner');
+    if (!banner) return;
+    var loggedIn         = !!appState.currentUser;
+    var noActiveProject  = !activeProject;
+    var onWorkPage       = _ACTIVATE_BANNER_PAGES.indexOf(_currentPage) !== -1;
+    if (loggedIn && noActiveProject && onWorkPage) {
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  // Click handler for the "Save as a new project" button on the activate
+  // banner. Navigates to Project Manager so the user can fill in the
+  // create-project form. (The form is pre-populated from current state
+  // since the project model reads goal/ilities/etc from globals.)
+  function saveAsNewProject() {
+    if (typeof switchPage === 'function') {
+      var projBtn = document.querySelector('[data-page="proj"]');
+      switchPage('proj', projBtn || null);
+    }
   }
 
   // ── PROJECT VERSION HISTORY (Phase 4) ──
@@ -4700,6 +4770,58 @@ ${sections}
    * and not pushed to savedProjects, so it never shows up in the owned list).
    * Signed-in users get the existing save flow, with per-type limits enforced.
    */
+  // Phase 4.6: collapsible requirement create form. Unlike new-project,
+  // this form stays open after each Add — requirements are typically
+  // entered in batches. Closes via the Done button or by toggling.
+  function toggleNewRequirementForm() {
+    var card = document.getElementById('reqFormCard');
+    if (!card) return;
+    if (card.style.display === 'none' || card.style.display === '') {
+      showNewRequirementForm();
+    } else {
+      hideNewRequirementForm();
+    }
+  }
+  function showNewRequirementForm() {
+    var card = document.getElementById('reqFormCard');
+    if (card) card.style.display = '';
+    setTimeout(function() {
+      // Focus whichever text input is visible (depends on agile vs incose mode)
+      var t = document.getElementById('reqAgileWant') ||
+              document.getElementById('reqText');
+      if (t && t.offsetParent !== null) t.focus();
+    }, 50);
+  }
+  function hideNewRequirementForm() {
+    var card = document.getElementById('reqFormCard');
+    if (card) card.style.display = 'none';
+  }
+
+  // Phase 4.6: collapsible project create form.
+  function toggleNewProjectForm() {
+    var card = document.getElementById('projFormCard');
+    if (!card) return;
+    if (card.style.display === 'none' || card.style.display === '') {
+      showNewProjectForm();
+    } else {
+      hideNewProjectForm();
+    }
+  }
+  function showNewProjectForm() {
+    var card = document.getElementById('projFormCard');
+    if (card) card.style.display = '';
+    setTimeout(function() {
+      var input = document.getElementById('projNameInput');
+      if (input) input.focus();
+    }, 50);
+  }
+  function hideNewProjectForm() {
+    var card = document.getElementById('projFormCard');
+    if (card) card.style.display = 'none';
+    var errEl = document.getElementById('projFormError');
+    if (errEl) errEl.style.display = 'none';
+  }
+
   function createProject(projectType) {
     projectType = (projectType === 'quick') ? 'quick' : 'full';
     const input = document.getElementById('projNameInput');
@@ -4788,6 +4910,8 @@ ${sections}
     if (descInput)  descInput.value  = '';
     updateNavProjectName();
     renderProjPage();
+    // Phase 4.6: auto-close the create form on success.
+    if (typeof hideNewProjectForm === 'function') hideNewProjectForm();
 
     // Route based on project type. setMode handles its own page switch:
     //   'quick' → switchPage('basic') and applies Quick Project defaults
@@ -6411,13 +6535,8 @@ ${sections}
   }
 
   function switchPage(pageId, navBtn) {
-    // Phase 4.5.1 diagnostic: log every navigation with a stack trace so
-    // we can find what's silently navigating to home after check-in.
-    // Remove this once the bug is identified.
-    if (window.console && console.log) {
-      console.log('[switchPage] →', pageId, '(from ' + _currentPage + ')');
-      try { console.log('[switchPage] caller:', new Error().stack.split('\n').slice(2, 5).join('\n')); } catch(e) {}
-    }
+    // (Phase 4.5.1 diagnostic console.log removed in Phase 4.6 — bug
+    // identified and fixed in setMode + _refreshCachedLockState.)
 
     // Admin lives as a route inside the app shell (#admin) so it inherits
     // sidebars, theme, and top nav. Gate runs here at switch time — non-admins
@@ -6480,6 +6599,9 @@ ${sections}
     document.querySelectorAll('.nav-tool').forEach(b => b.classList.remove('active'));
     if (navBtn) navBtn.classList.add('active');
     updateNavCompletion();
+
+    // Phase 4.6: refresh the activate-project banner on every page switch.
+    if (typeof _renderActivateProjectBanner === 'function') _renderActivateProjectBanner();
 
 
     // Stop any running project poll when leaving the Projects page

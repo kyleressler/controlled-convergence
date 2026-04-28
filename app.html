@@ -333,9 +333,19 @@
                   placeholder="e.g. Added 3 requirements and scored Concept C2 vs the datum"
                   style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
       </div>
+      <!-- Phase 4.6: Discard option for the case where the user took a
+           checkout but didn't actually make meaningful changes. Reverts
+           any in-progress changes back to the pre-checkout state and
+           releases the lock without creating a history entry. -->
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;border-top:1px solid var(--border);padding-top:12px">
+        Made no real changes? Use <strong>Discard Checkout</strong> below to release
+        the lock without creating a history entry. Any changes you made since
+        checkout will be reverted.
+      </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="display:flex;flex-wrap:wrap;gap:8px">
       <button class="btn btn-primary" id="checkInSubmitBtn" onclick="submitCheckIn()">Check in</button>
+      <button class="btn btn-ghost" id="discardCheckoutBtn" onclick="submitDiscardCheckout()" style="color:var(--danger,#e53e3e)">Discard Checkout (Don't Save)</button>
       <button class="btn btn-secondary" onclick="closeCheckInModal()">Cancel</button>
     </div>
   </div>
@@ -358,6 +368,14 @@
 
 <!-- Phase 4.5: the historical view banner has moved into the nav as
      well, alongside the lock pill. See _renderHistoricalViewBanner in app.js. -->
+
+<!-- Phase 4.6: "you're working in a temporary project" banner.
+     Shows for logged-in users with no active project on work pages
+     (anywhere past Project Manager). Themed via CSS variables. -->
+<div id="activateProjectBanner" class="activate-project-banner" style="display:none">
+  <span class="activate-project-text">You're working in a temporary project. Your changes are not saved.</span>
+  <button class="activate-project-btn" onclick="saveAsNewProject()">Save as a new project</button>
+</div>
 
 <!-- ── BLOG PAGE (in-app reader) ──
      Renders the public blog inside the app shell so logged-in users keep
@@ -407,9 +425,12 @@
     <div class="page-subtitle">Name and create your project.</div>
   </div>
 
-  <!-- Top navigation button -->
-  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+  <!-- Top navigation buttons -->
+  <!-- Phase 4.6: + New Project button toggles projFormCard visibility.
+       Form is hidden by default; auto-closes on successful create. -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px;gap:8px">
     <div></div>
+    <button class="btn btn-secondary" id="newProjectToggleBtn" onclick="toggleNewProjectForm()">+ New Project</button>
     <button class="btn btn-continue" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
       Continue to Goal Statement →
     </button>
@@ -442,7 +463,9 @@
     </div>
   </div>
 
-  <div class="proj-form-card" id="projFormCard">
+  <!-- Phase 4.6: hidden by default; toggled via "+ New Project" button above.
+       Auto-closes on successful create (createProject calls hideNewProjectForm). -->
+  <div class="proj-form-card" id="projFormCard" style="display:none">
     <div style="margin-bottom:12px">
       <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
       <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
@@ -456,9 +479,12 @@
       <input type="text" class="add-custom-input" id="projDescInput" placeholder="Brief description of the project goal or context..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
     </div>
     <div id="projFormError" style="color:var(--danger,#e53e3e);font-size:12px;margin-bottom:8px;display:none"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-primary" onclick="createProject('quick')" title="Single-page rapid analysis — no account required">⚡ Start Quick Project</button>
       <button class="btn btn-primary" onclick="createProject('full')" title="Full multi-page workflow — no account required">◈ Start Full Project</button>
+      <!-- Phase 4.6: Cancel link in the bottom right of the form -->
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="hideNewProjectForm()">Cancel</button>
     </div>
     <div class="proj-tier-note" id="projTierNote"></div>
   </div>
@@ -994,16 +1020,20 @@
   </div>
 
   <!-- Top navigation buttons -->
-  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+  <!-- Phase 4.6: + Requirement button toggles reqFormCard visibility.
+       Form is hidden by default; STAYS open after submit (batch entry). -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px;gap:8px">
     <button class="btn btn-back" onclick="switchPage('ilities', document.querySelector('[data-page=ilities]'))">
       ← Return to Lifecycle Properties
     </button>
+    <span style="flex:1"></span>
+    <button class="btn btn-secondary" id="newRequirementToggleBtn" onclick="toggleNewRequirementForm()">+ Requirement</button>
     <button class="btn btn-continue" onclick="switchPage('pair', document.querySelector('[data-page=pair]'))">
       Continue to Weighting →
     </button>
   </div>
 
-  <div class="req-form-card" id="reqFormCard">
+  <div class="req-form-card" id="reqFormCard" style="display:none">
     <div class="req-form-label">Type</div>
     <div class="req-type-selector" id="reqTypeSelector">
       <button class="req-type-chip active" data-type="essential" onclick="setReqType('essential', this)">Essential</button>
@@ -1108,6 +1138,9 @@
       <button class="btn btn-primary" id="reqAddBtn" onclick="addRequirement()">Add Requirement</button>
       <button class="btn btn-ghost" id="reqCancelEdit" style="display:none" onclick="cancelReqEdit()">Cancel</button>
       <button class="btn btn-ghost" style="margin-left:auto" onclick="clearReqForm()">Clear All</button>
+      <!-- Phase 4.6: Done closes the requirement form. The form stays open
+           after each Add Requirement so you can batch-enter requirements. -->
+      <button class="btn btn-secondary" onclick="hideNewRequirementForm()">Done</button>
     </div>
   </div>
 

@@ -2464,6 +2464,49 @@ body.theme-engineering .sidebar-brand {
   background: var(--bg-alt, var(--surface));
 }
 
+/* ── ACTIVATE PROJECT BANNER (Phase 4.6) ──
+   Shown for logged-in users with no active project, on any work page
+   (past Project Manager). Reminds them their changes won't persist
+   unless they create a project. Theme-driven. */
+.activate-project-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 720px;
+  width: calc(100% - 32px);
+  z-index: 50;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.activate-project-banner .activate-project-text {
+  flex: 1;
+  color: var(--text);
+}
+.activate-project-banner .activate-project-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.activate-project-banner .activate-project-btn:hover {
+  filter: brightness(1.05);
+}
+
 /* Historical view banner — shown when viewing a past version snapshot.
    Theme-driven, sits in nav row similar to the lock pill. */
 .nav-history-banner {
