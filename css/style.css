@@ -2521,15 +2521,16 @@ body.cc-readonly [onclick*="addPughConcept"],
 body.cc-readonly [onclick*="openEditConceptModal"],
 body.cc-readonly [onclick*="deletePughConcept"],
 body.cc-readonly [onclick*="addCustomIlity"],
-body.cc-readonly [onclick*="addCustomStakeholder"],
+body.cc-readonly [onclick*="addCustomStak"],
 body.cc-readonly [onclick*="openEditStakeholder"],
 body.cc-readonly [onclick*="selectAllIlities"],
 body.cc-readonly [onclick*="deselectAllIlities"],
 body.cc-readonly [onclick*="selectAllStakeholders"],
 body.cc-readonly [onclick*="deselectAllStakeholders"],
 body.cc-readonly [onclick*="moveForcedRankCard"],
+body.cc-readonly [onclick*="resetPair"],
 body.cc-readonly #reqTagSuggestions,
-body.cc-readonly .pair-forced-card-arrows {
+body.cc-readonly .pair-rank-arrows {
   display: none !important;
 }
 

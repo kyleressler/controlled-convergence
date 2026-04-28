@@ -5936,6 +5936,8 @@ ${sections}
   }
 
   function addCustomIlity() {
+    // Phase 4.5.2: gate on canEdit (defense in depth — CSS hides the button).
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (userTier === 'free') {
       showUpgradePrompt('free-custom-ility');
       return;
@@ -5998,6 +6000,8 @@ ${sections}
   }
 
   function addCustomStak() {
+    // Phase 4.5.2: gate on canEdit (defense in depth — CSS hides the button).
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (userTier === 'free') {
       showUpgradePrompt('free-custom-stak');
       return;
@@ -6888,6 +6892,10 @@ ${sections}
   }
 
   function resetPair() {
+    // Phase 4.5.2: gate on canEdit. Reset wipes pairwise comparisons —
+    // a destructive mutation that view-only / non-lock-holders shouldn't
+    // be able to trigger.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (!confirm('Reset all pairwise comparisons? This will clear all rankings and start over.')) return;
     pairComparisons = {};
     pairIndex = 0;
@@ -8376,6 +8384,10 @@ ${sections}
   }
 
   function setScore(score) {
+    // Phase 4.5.2 (third pass): the dedicated Concept Scoring view has
+    // its own score buttons that bypass the openScorePopup gate. This
+    // is what Kyle was hitting — scores changed even in view-only.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (!scoringConceptId) return;
     const req = getFilteredReqs()[scoringReqIndex];
     if (!req) return;
@@ -8398,6 +8410,9 @@ ${sections}
   }
 
   function saveConceptPerf() {
+    // Phase 4.5.2: gate on canEdit so view-only users can't mutate
+    // conceptPerformance via tab-into-input edge cases.
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (!scoringConceptId) return;
     const req = getFilteredReqs()[scoringReqIndex];
     if (!req) return;
@@ -8411,6 +8426,7 @@ ${sections}
   }
 
   function saveConceptNote() {
+    if (typeof canEdit === 'function' && !canEdit()) return;
     if (!scoringConceptId) return;
     const req = getFilteredReqs()[scoringReqIndex];
     if (!req) return;
