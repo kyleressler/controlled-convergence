@@ -2468,6 +2468,12 @@ body.theme-engineering .sidebar-brand {
    Shown for logged-in users with no active project, on any work page
    (past Project Manager). Reminds them their changes won't persist
    unless they create a project. Theme-driven. */
+/* Generic confirm modal (Phase 4.6.1) sits above other modals so it
+   stacks on top of check-in / share / etc. when those open it. */
+#genericConfirmModal {
+  z-index: 1100;
+}
+
 .activate-project-banner {
   display: flex;
   align-items: center;
