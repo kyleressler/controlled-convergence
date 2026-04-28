@@ -1442,25 +1442,93 @@
     }
   }
 
-  async function handleRevokeLock() {
+  // Phase 5: revoke is now a two-step flow.
+  // 1. handleRevokeLock opens the choice modal (Keep / Discard / Cancel).
+  // 2. handleRevokeChoice opens the are-you-sure confirm with appropriate
+  //    copy, then calls revokeLockKeep or revokeLockDiscard as chosen.
+  function handleRevokeLock() {
     if (!activeProject || !appState.currentUser) return;
-    var ok = await _showConfirm(
-      'Force-release the current checkout?',
-      'The other user will lose their editing access. Any changes they made since checking out will remain in the project (until Phase 5 adds non-destructive revoke).',
-      'Revoke',
-      true
-    );
+    if (!currentProjectLock || !currentProjectLock.editing_user_id) return;
+
+    // Look up the holder's display name from collaborators.
+    var holderName = '';
+    var lockedBy = currentProjectLock.editing_user_id;
+    if (projectCollaborators && projectCollaborators.length) {
+      var m = projectCollaborators.find(function(c) { return c.user_id === lockedBy; });
+      if (m && m.display_name) holderName = m.display_name;
+    }
+    if (!holderName) holderName = 'another user';
+
+    var modal = document.getElementById('revokeChoiceModal');
+    var nameEl = document.getElementById('revokeHolderName');
+    var inlineEl = document.getElementById('revokeHolderNameInline');
+    if (nameEl)   nameEl.textContent   = holderName;
+    if (inlineEl) inlineEl.textContent = holderName;
+    if (modal)    modal.classList.add('open');
+  }
+
+  function closeRevokeChoiceModal() {
+    var modal = document.getElementById('revokeChoiceModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  async function handleRevokeChoice(choice) {
+    if (!activeProject || !appState.currentUser) return;
+    if (!currentProjectLock || !currentProjectLock.editing_user_id) {
+      closeRevokeChoiceModal();
+      return;
+    }
+
+    var lockedBy = currentProjectLock.editing_user_id;
+    var holderName = '';
+    if (projectCollaborators && projectCollaborators.length) {
+      var m = projectCollaborators.find(function(c) { return c.user_id === lockedBy; });
+      if (m && m.display_name) holderName = m.display_name;
+    }
+    if (!holderName) holderName = 'they';
+
+    var ok;
+    if (choice === 'keep') {
+      ok = await _showConfirm(
+        'Keep ' + holderName + '\u2019s changes and revoke?',
+        holderName + '\u2019s work since checkout will be saved as a new version in history, attributed to them. They\u2019ll lose editing access immediately and won\u2019t get a chance to add a comment. Continue?',
+        'Yes, save and revoke',
+        false
+      );
+    } else if (choice === 'discard') {
+      ok = await _showConfirm(
+        'Discard ' + holderName + '\u2019s changes and revoke?',
+        holderName + '\u2019s work since checkout will be permanently deleted — the project reverts to the state it was in when they checked out. They\u2019ll lose editing access immediately. This cannot be undone. Continue?',
+        'Yes, discard and revoke',
+        true
+      );
+    } else {
+      return;
+    }
     if (!ok) return;
-    var result = await revokeLock(activeProject.id);
+
+    closeRevokeChoiceModal();
+
+    var result = (choice === 'keep')
+      ? await revokeLockKeep(activeProject.id)
+      : await revokeLockDiscard(activeProject.id);
+
     if (!result.ok) { alert('Could not revoke: ' + result.error); return; }
     var rpc = result.data;
     if (rpc && rpc.error) { alert(rpc.error); return; }
+
+    // For discard, the project's data was reverted server-side. Reload locally
+    // so the in-memory state matches.
+    if (choice === 'discard') {
+      await loadProjects(appState.currentUser.id);
+      if (typeof loadProject === 'function') loadProject(activeProject.id);
+    }
+
     currentProjectLock = {
       editing_user_id: null,
       checked_out_at:  null,
       updated_at:      currentProjectLock && currentProjectLock.updated_at
     };
-    // Phase 4.5.1: see _refreshCachedLockState comment in handleCheckOut.
     _refreshCachedLockState();
     _renderLockBanner();
     _rerenderProjectViews();
@@ -1703,13 +1771,24 @@
         ? '<div style="margin-top:6px;font-size:13px;color:var(--text);background:var(--bg,rgba(0,0,0,0.04));border:1px solid var(--border);border-radius:6px;padding:8px 10px;line-height:1.5;white-space:pre-wrap">' + _escHtml(v.comment) + '</div>'
         : '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);font-style:italic">(no comment provided)</div>';
 
+      // Phase 5: Revert button on each entry (owners only). Reverts the
+      // project's current data to this version, leaving the version itself
+      // in history. The action creates a new checkin entry.
+      var iAmOwner = isOwner();
+      var revertBtn = iAmOwner
+        ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="revert-version" data-version-number="' + v.version_number + '">Revert to this version</button>'
+        : '';
+
       return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
         +   '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">'
         +     '<div>'
         +       '<span style="font-size:13px;font-weight:700;color:var(--text)">Version ' + v.version_number + '</span>'
         +       '<span style="font-size:12px;color:var(--text-muted);margin-left:8px">checked in by ' + _escHtml(holderName) + ' · ' + _escHtml(when) + '</span>'
         +     '</div>'
-        +     '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
+        +     '<div style="display:flex;gap:6px;flex-shrink:0">'
+        +       '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
+        +       revertBtn
+        +     '</div>'
         +   '</div>'
         +   commentBlock
         + '</div>';
@@ -1719,6 +1798,47 @@
     body.querySelectorAll('[data-action="view-version"]').forEach(function(btn) {
       btn.onclick = function() { handleViewHistoricalVersion(btn.dataset.versionId); };
     });
+    // Wire up "Revert to this version" buttons (Phase 5)
+    body.querySelectorAll('[data-action="revert-version"]').forEach(function(btn) {
+      btn.onclick = function() { handleRevertToVersion(parseInt(btn.dataset.versionNumber, 10)); };
+    });
+  }
+
+  // Phase 5: revert the project to a historical version.
+  async function handleRevertToVersion(versionNumber) {
+    if (!activeProject || !appState.currentUser) return;
+
+    // Block if currently checked out — server will refuse anyway, but the
+    // client-side check gives a clearer message faster.
+    if (currentProjectLock && currentProjectLock.editing_user_id) {
+      alert('This project is currently checked out. Check in or revoke the checkout before reverting.');
+      return;
+    }
+
+    var ok = await _showConfirm(
+      'Revert to version ' + versionNumber + '?',
+      'The project\u2019s current state will be replaced with the data from version ' + versionNumber +
+      '. The version you\u2019re reverting to stays in history, and a new checkin entry will be created so the revert itself is tracked. The current state will not be saved as a separate version unless you check in first.\n\nContinue?',
+      'Revert',
+      true
+    );
+    if (!ok) return;
+
+    var result = await revertProjectToVersion(activeProject.id, versionNumber);
+    if (!result.ok) { alert('Could not revert: ' + result.error); return; }
+    var rpc = result.data;
+    if (rpc && rpc.error) { alert(rpc.error); return; }
+
+    // Reload from server so the reverted state is reflected locally.
+    await loadProjects(appState.currentUser.id);
+    if (typeof loadProject === 'function') loadProject(activeProject.id);
+
+    closeHistoryModal();
+    _renderLockBanner();
+    _rerenderProjectViews();
+
+    // Refresh history so the new "Reverted to version X" entry shows.
+    if (typeof openHistoryModal === 'function') openHistoryModal();
   }
 
   // Pull the snapshot for a version and render it as the current view,

@@ -310,6 +310,29 @@
      removed. The historical view banner below is also moved into the nav
      when applicable. -->
 
+<!-- ── REVOKE CHECKOUT CHOICE MODAL (Phase 5) ──
+     First step of the two-step revoke flow. Owner picks Keep or Discard.
+     Each choice opens the generic confirm modal (z-index 1100) on top of
+     this one (z-index 1050) for the are-you-sure step. -->
+<div class="modal-overlay revoke-choice-overlay" id="revokeChoiceModal" onclick="if(event.target===this)closeRevokeChoiceModal()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Revoke <span id="revokeHolderName">someone</span>'s checkout</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.55;margin-bottom:14px">
+      <span id="revokeHolderNameInline">They</span> currently have this project checked out.
+      What should happen to the work they've done since checking out?
+    </div>
+    <div class="modal-footer" style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn btn-primary"
+              onclick="handleRevokeChoice('keep')">Keep their changes</button>
+      <button class="btn btn-ghost"
+              style="background:var(--danger,#e53e3e);color:#fff;border-color:var(--danger,#e53e3e)"
+              onclick="handleRevokeChoice('discard')">Discard their changes</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-secondary" onclick="closeRevokeChoiceModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── GENERIC THEMED CONFIRM MODAL (Phase 4.6.1) ──
      Replaces browser confirm() for a UI that matches the app theme.
      Driven by _showConfirm(title, message, confirmLabel, isDanger) in app.js

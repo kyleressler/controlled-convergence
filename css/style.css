@@ -2474,6 +2474,12 @@ body.theme-engineering .sidebar-brand {
   z-index: 1100;
 }
 
+/* Revoke choice modal (Phase 5) — sits above default modals (1000) but
+   BELOW the generic confirm (1100) so the are-you-sure step renders on top. */
+#revokeChoiceModal {
+  z-index: 1050;
+}
+
 .activate-project-banner {
   display: flex;
   align-items: center;

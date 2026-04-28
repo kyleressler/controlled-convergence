@@ -421,14 +421,42 @@ async function loadProjectVersionSnapshot(versionId) {
 }
 
 /**
- * Owner force-frees a lock held by another user.
- * Phase 3: just clears the lock. Phase 5 will additionally
- * snapshot the current project state attributed to the previous
- * holder (non-destructive revoke).
+ * Owner force-frees a lock held by another user — non-destructive variant.
+ * Phase 5: snapshots the editor's current work as a checkin attributed
+ * to them (with a system comment), then frees the lock. Their work is
+ * preserved in history.
  * @param {string} projectId
  */
-async function revokeLock(projectId) {
-  return await _restRpc('revoke_lock', { p_project_id: projectId });
+async function revokeLockKeep(projectId) {
+  return await _restRpc('revoke_lock_keep', { p_project_id: projectId });
+}
+
+/**
+ * Owner force-frees a lock held by another user — destructive variant.
+ * Phase 5: reverts the project to the editor's pre-checkout snapshot,
+ * then frees the lock. The editor's changes since checkout are gone
+ * permanently. No checkin row is created.
+ * @param {string} projectId
+ */
+async function revokeLockDiscard(projectId) {
+  return await _restRpc('revoke_lock_discard', { p_project_id: projectId });
+}
+
+/**
+ * Owner reverts the project to a historical version. The reverted-to
+ * state replaces the project's current data, and a new checkin entry
+ * is created representing the revert action. The original version
+ * stays in history (revert isn't destructive of history).
+ *
+ * Project must NOT be currently checked out.
+ * @param {string} projectId
+ * @param {number} versionNumber
+ */
+async function revertProjectToVersion(projectId, versionNumber) {
+  return await _restRpc('revert_project_to_version', {
+    p_project_id:     projectId,
+    p_version_number: versionNumber
+  });
 }
 
 /**
