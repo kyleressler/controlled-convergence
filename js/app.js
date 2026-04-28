@@ -1261,6 +1261,23 @@
     }
   }
 
+  // After a lock action (check-out / check-in / revoke), the projects row's
+  // updated_at advances on the server. Without this, the next _pollLockState
+  // tick sees that change and (mis)interprets it as "someone else updated"
+  // — triggering a loadProject that navigates away unexpectedly. Refreshing
+  // the cached lock state immediately keeps the poll comparison honest.
+  async function _refreshCachedLockState() {
+    if (!activeProject || !appState.currentUser) return;
+    var result = await fetchLockState(activeProject.id);
+    if (!result.ok || !result.data || !result.data[0]) return;
+    var fresh = result.data[0];
+    currentProjectLock = {
+      editing_user_id: fresh.editing_user_id || null,
+      checked_out_at:  fresh.checked_out_at  || null,
+      updated_at:      fresh.updated_at      || null
+    };
+  }
+
   // ── Lock action handlers (called from banner buttons) ──
   async function handleCheckOut() {
     if (!activeProject || !appState.currentUser) return;
@@ -1274,6 +1291,10 @@
       checked_out_at:  new Date().toISOString(),
       updated_at:      currentProjectLock && currentProjectLock.updated_at
     };
+    // Phase 4.5.1: pull the freshly-bumped updated_at from the server
+    // so the next _pollLockState tick doesn't see our own change as a
+    // "remote update" and trigger a loadProject (which navigates away).
+    _refreshCachedLockState();
     _renderLockBanner();
     _rerenderProjectViews();
   }
@@ -1331,6 +1352,9 @@
       checked_out_at:  null,
       updated_at:      currentProjectLock && currentProjectLock.updated_at
     };
+    // Phase 4.5.1: sync the cached updated_at with the server's new value
+    // so the lock-poll doesn't trigger a loadProject (which navigates).
+    _refreshCachedLockState();
     _renderLockBanner();
     _rerenderProjectViews();
     // Phase 4.5: after check-in, take the user back to Project Manager.
@@ -1354,6 +1378,8 @@
       checked_out_at:  null,
       updated_at:      currentProjectLock && currentProjectLock.updated_at
     };
+    // Phase 4.5.1: see _refreshCachedLockState comment in handleCheckOut.
+    _refreshCachedLockState();
     _renderLockBanner();
     _rerenderProjectViews();
   }
@@ -9305,6 +9331,12 @@ ${sections}
 
   function setMode(mode) {
     if (mode === appMode && mode === 'basic' && _currentPage === 'basic') return;
+    // Phase 4.5.1 fix: when we're already in the requested mode, setMode
+    // is a no-op. Without this guard, calling setMode('full') while already
+    // in full mode (e.g. from loadProject during a lock-poll re-load) would
+    // run _doSetMode('full') which navigates to _lastFullPage || 'home',
+    // yanking the user to the marketing home page.
+    if (mode === appMode) return;
 
     // If switching to Full Mode as anon user with data, show the nudge modal first
     if (mode === 'full' && _anonHasBasicData()) {

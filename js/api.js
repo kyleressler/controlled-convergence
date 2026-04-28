@@ -169,6 +169,25 @@ async function saveProject(project) {
     // the lock fields. If it does, this is an UPDATE and we don't touch
     // the lock fields (preserving whoever currently holds it).
     const isFirstSave = !savedProjects.find(function(p) { return p.id === project.id; });
+
+    // Phase 4.5.1: for subsequent saves (UPDATE path), RLS requires us to
+    // be the current lock holder. If we're not, the request will return 403
+    // and clutter the console. Skip silently — the in-memory state is
+    // already updated by the caller, and a future save with the lock will
+    // catch up. This commonly happens when an auto-save fires after the
+    // user has just checked in.
+    if (!isFirstSave && typeof currentProjectLock !== 'undefined' && currentProjectLock) {
+      const holderId = currentProjectLock.editing_user_id;
+      if (holderId && holderId !== appState.currentUser.id) {
+        // Someone else holds the lock — silently skip.
+        return { data: project, error: null };
+      }
+      if (!holderId) {
+        // No one holds the lock — silently skip (we'd 403 anyway).
+        return { data: project, error: null };
+      }
+    }
+
     const insertExtras = isFirstSave
       ? { editing_user_id: appState.currentUser.id, checked_out_at: new Date().toISOString() }
       : {};
