@@ -1222,14 +1222,17 @@
     _applyReadonlyClass();
   }
 
-  // Auto-poll: every 60 seconds, refresh the lock state for the active
+  // Auto-poll: every 30 seconds, refresh the lock state for the active
   // project. If the lock holder changed, update the banner. If updated_at
   // advanced AND we don't hold the lock, pull the latest project state
   // (someone else just checked in their changes).
+  // Phase 5.1: tightened from 60s -> 30s. Costs one tiny GET per active
+  // project per 30s; gain is collaboration that feels responsive instead
+  // of stale.
   var _lockPollTimer = null;
   function _startLockPoll() {
     if (_lockPollTimer) return;
-    _lockPollTimer = setInterval(_pollLockState, 60 * 1000);
+    _lockPollTimer = setInterval(_pollLockState, 30 * 1000);
   }
   function _stopLockPoll() {
     if (_lockPollTimer) { clearInterval(_lockPollTimer); _lockPollTimer = null; }
@@ -1282,9 +1285,24 @@
   async function handleCheckOut() {
     if (!activeProject || !appState.currentUser) return;
     var result = await claimLock(activeProject.id);
-    if (!result.ok) { alert('Could not check out: ' + result.error); return; }
+    if (!result.ok) {
+      alert('Could not check out: ' + result.error);
+      // Phase 5.1: refresh lock state on failure too — the server's
+      // rejection probably means someone else has it. Show that holder
+      // immediately rather than waiting for the next auto-poll.
+      await _refreshCachedLockState();
+      _renderLockBanner();
+      return;
+    }
     var rpc = result.data;
-    if (rpc && rpc.error) { alert(rpc.error); return; }
+    if (rpc && rpc.error) {
+      alert(rpc.error);
+      // Phase 5.1: same idea — RPC told us "already checked out by X",
+      // refresh local state so the lock pill shows the actual holder.
+      await _refreshCachedLockState();
+      _renderLockBanner();
+      return;
+    }
     // Success — refresh local lock state and re-render so controls enable.
     currentProjectLock = {
       editing_user_id: appState.currentUser.id,
@@ -1816,9 +1834,11 @@
     }
 
     var ok = await _showConfirm(
-      'Revert to version ' + versionNumber + '?',
-      'The project\u2019s current state will be replaced with the data from version ' + versionNumber +
-      '. The version you\u2019re reverting to stays in history, and a new checkin entry will be created so the revert itself is tracked. The current state will not be saved as a separate version unless you check in first.\n\nContinue?',
+      'Revert this project to version ' + versionNumber + '?',
+      'This changes the live project for EVERYONE with access. Anyone viewing it now will see the reverted state on their next sync (within ~30 seconds) or page refresh.\n\n'
+      + 'What gets reverted: requirements, ilities, stakeholders, scoring, weights, goal — everything in the project.\n\n'
+      + 'What\u2019s preserved: the version you\u2019re reverting to stays in history, and a new entry will be created on top so this revert is itself tracked. You can revert forward (or to any other version) afterwards.\n\n'
+      + 'What\u2019s lost: the current state is overwritten and will not be saved as a separate version unless you check in first. If you want to keep a snapshot of the current state before reverting, cancel this and check in first.',
       'Revert',
       true
     );
@@ -7767,6 +7787,15 @@ ${sections}
       console.error('[syncActiveProject] unexpected error:', e);
     } finally {
       if (btn) btn.classList.remove('spinning');
+      // Phase 5.1: also refresh the lock state so the lock pill reflects
+      // the latest server state. Without this, the user's manual sync
+      // doesn't update lock holder / availability — they'd have to wait
+      // for the 30-second auto-poll or hard-refresh the page.
+      if (typeof _refreshCachedLockState === 'function') {
+        _refreshCachedLockState().then(function() {
+          if (typeof _renderLockBanner === 'function') _renderLockBanner();
+        });
+      }
     }
   }
 
