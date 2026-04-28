@@ -3019,6 +3019,11 @@
   }
 
   function exportToXlsx() {
+    // Pro gating: Excel export is a Pro feature alongside PDF export.
+    if (typeof userTierMeets === 'function' && !userTierMeets('pro')) {
+      showUpgradePrompt('export-excel');
+      return;
+    }
     if (typeof XLSX === 'undefined') {
       alert('Excel export library not loaded. Please refresh and try again.');
       return;
@@ -5045,16 +5050,17 @@ ${sections}
   // action: 'pro'    → calls handleProUpgrade() — see that function for STRIPE_TODO details
   // action: 'none'   → closes the modal only (fallback)
   const upgradeMessages = {
-    'free-custom-ility':    { title: 'Sign Up to Add Custom Ilities',           body: 'Creating a free account lets you add up to 10 custom ilities and save your project. It\'s free — just an email and you\'re in.',                                                                          cta: 'Create Free Account', action: 'signup' },
-    'free-custom-stak':     { title: 'Sign Up to Add Custom Stakeholders',       body: 'Creating a free account lets you add up to 10 custom stakeholders and save your project. It\'s free — just an email and you\'re in.',                                                                      cta: 'Create Free Account', action: 'signup' },
+    'free-custom-ility':    { title: 'Sign Up to Add Custom Ilities',           body: 'Creating a free account lets you add up to 5 custom ilities and save your project. It\'s free — just an email and you\'re in.',                                                                           cta: 'Create Free Account', action: 'signup' },
+    'free-custom-stak':     { title: 'Sign Up to Add Custom Stakeholders',       body: 'Creating a free account lets you add up to 5 custom stakeholders and save your project. It\'s free — just an email and you\'re in.',                                                                       cta: 'Create Free Account', action: 'signup' },
     'weighted-pair':        { title: 'Weighted Pairwise is an Account Feature',  body: 'Sign up for a free account to unlock weighted pairwise comparison and assign relative importance to each ility.',                                                                                          cta: 'Create Free Account', action: 'signup' },
     'pugh-settings':        { title: 'Matrix Settings require an Account',       body: 'Account users can unlock Advanced Scoring (±3), MTHUS / MTHUWS ratios, and Minimum Acceptable Score (MAS) tracking by creating a free account. It\'s free — just an email and you\'re in.',              cta: 'Create Free Account', action: 'signup' },
     'account-contact-name': { title: 'Contact Name is an Account Feature',       body: 'Create a free Account to attach a contact name to each stakeholder. Helps your team track who the key voice is for each stakeholder type.',                                                               cta: 'Create Free Account', action: 'signup' },
     'pair-subject-req':     { title: 'Requirements Comparison is an Account Feature', body: 'Create a free Account to compare requirements head-to-head in the pairwise matrix. Ilities comparison is always free.',                                                                              cta: 'Create Free Account', action: 'signup' },
-    'account-ility-limit':  { title: 'Ility Limit Reached',                     body: 'Account users can add up to 10 custom ilities. Delete one to make room, or upgrade to Pro for unlimited ilities.',                                                                                        cta: 'Upgrade to Pro',      action: 'pro'    },
-    'account-stak-limit':   { title: 'Stakeholder Limit Reached',                body: 'Account users can add up to 10 custom stakeholders. Delete one to make room, or upgrade to Pro for unlimited stakeholders.',                                                                              cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-ility-limit':  { title: 'Ility Limit Reached',                     body: 'Account users can add up to 5 custom ilities. Delete one to make room, or upgrade to Pro for up to 100 custom ilities.',                                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
+    'account-stak-limit':   { title: 'Stakeholder Limit Reached',                body: 'Account users can add up to 5 custom stakeholders. Delete one to make room, or upgrade to Pro for up to 100 custom stakeholders.',                                                                        cta: 'Upgrade to Pro',      action: 'pro'    },
     'coaching':             { title: 'AI Coaching is a Pro Feature',             body: 'Pro users get personalized AI coaching on each section of their goal statement, with contextual feedback as they write.',                                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
     'export-report':        { title: 'Report Export is a Pro Feature',           body: 'Pro users can export their full Controlled Convergence analysis as a formatted PDF report.',                                                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
+    'export-excel':         { title: 'Excel Export is a Pro Feature',            body: 'Pro users can export their full Controlled Convergence project — requirements, scores, matrix, summary — as a multi-sheet Excel workbook.',                                                                  cta: 'Upgrade to Pro',      action: 'pro'    },
     'account-project-limit':{ title: 'Project Limit Reached',                   body: 'Free Accounts can own 3 Quick Projects and 3 Full Projects. Delete a project of this type to make room, or upgrade to Pro for more.',                                                                cta: 'Upgrade to Pro',      action: 'pro'    },
     'account-collab-limit': { title: 'Collaborating Limit Reached',             body: 'Free Accounts can collaborate on up to 3 projects. Remove a project from your collaborating list to make room, or upgrade to Pro for unlimited.',                                                            cta: 'Upgrade to Pro',      action: 'pro'    },
     'invite-collab':        { title: 'Inviting Collaborators requires Pro',     body: 'Upgrade to Pro to invite collaborators to your projects. The people you invite do not need Pro — only the project owner does.',                                                                               cta: 'Upgrade to Pro',      action: 'pro'    },
@@ -6470,8 +6476,12 @@ ${sections}
       showUpgradePrompt('free-custom-ility');
       return;
     }
-    if (userTier === 'account' && customIlities.length >= 10) {
+    if (userTier === 'account' && customIlities.length >= 5) {
       showUpgradePrompt('account-ility-limit');
+      return;
+    }
+    if (userTier === 'pro' && customIlities.length >= 100) {
+      alert('You\u2019ve reached the Pro limit of 100 custom lifecycle properties. Delete one to make room.');
       return;
     }
     const nameInput = document.getElementById('customIlityName');
@@ -6537,8 +6547,12 @@ ${sections}
       showUpgradePrompt('free-custom-stak');
       return;
     }
-    if (userTier === 'account' && customStakeholders.length >= 10) {
+    if (userTier === 'account' && customStakeholders.length >= 5) {
       showUpgradePrompt('account-stak-limit');
+      return;
+    }
+    if (userTier === 'pro' && customStakeholders.length >= 100) {
+      alert('You\u2019ve reached the Pro limit of 100 custom stakeholders. Delete one to make room.');
       return;
     }
     const nameInput         = document.getElementById('customStakName');
