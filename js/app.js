@@ -6379,9 +6379,15 @@ ${sections}
   function toggleIlity(id) {
     // Phase 4.5.2: gate on canEdit so non-lock-holders can't toggle.
     if (typeof canEdit === 'function' && !canEdit()) return;
-    if (selectedIlities.has(id)) selectedIlities.delete(id);
-    else selectedIlities.add(id);
-    renderIlityGrid();
+    var nowSelected = !selectedIlities.has(id);
+    if (nowSelected) selectedIlities.add(id);
+    else             selectedIlities.delete(id);
+    // Phase 6.x: surgical class toggle instead of full re-render. A full
+    // renderIlityGrid() destroys and recreates the chip element, which
+    // breaks ondblclick (browser requires both clicks on the SAME element).
+    // The chip's other state doesn't depend on a re-render.
+    var el = document.getElementById('chip-' + id);
+    if (el) el.classList.toggle('selected', nowSelected);
     populateReqForms();
   }
 
@@ -6436,9 +6442,12 @@ ${sections}
 
   function toggleStak(id) {
     if (typeof canEdit === 'function' && !canEdit()) return;
-    if (selectedStakeholders.has(id)) selectedStakeholders.delete(id);
-    else selectedStakeholders.add(id);
-    renderStakGrid();
+    var nowSelected = !selectedStakeholders.has(id);
+    if (nowSelected) selectedStakeholders.add(id);
+    else             selectedStakeholders.delete(id);
+    // Phase 6.x: surgical class toggle (see toggleIlity comment).
+    var el = document.getElementById('stak-chip-' + id);
+    if (el) el.classList.toggle('selected', nowSelected);
     populateReqForms();
   }
 
