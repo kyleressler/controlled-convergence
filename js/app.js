@@ -1809,19 +1809,20 @@
         ? '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version-diff" data-version-number="' + v.version_number + '">View changes</button>'
         : '';
 
-      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
-        +   '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">'
-        +     '<div>'
-        +       '<span style="font-size:13px;font-weight:700;color:var(--text)">Version ' + v.version_number + '</span>'
-        +       '<span style="font-size:12px;color:var(--text-muted);margin-left:8px">checked in by ' + _escHtml(holderName) + ' · ' + _escHtml(when) + '</span>'
-        +     '</div>'
-        +     '<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">'
-        +       viewChangesBtn
-        +       '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
-        +       revertBtn
-        +     '</div>'
+      // Phase 6 hotfix: stack vertically — header row, comment, action buttons.
+      // Avoids the squeeze when long names + multiple buttons fight for one
+      // horizontal line in a 680px-wide modal.
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
+        +   '<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">'
+        +     '<span style="font-size:13px;font-weight:700;color:var(--text)">Version ' + v.version_number + '</span>'
+        +     '<span style="font-size:12px;color:var(--text-muted)">checked in by ' + _escHtml(holderName) + ' · ' + _escHtml(when) + '</span>'
         +   '</div>'
         +   commentBlock
+        +   '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +     viewChangesBtn
+        +     '<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" data-action="view-version" data-version-id="' + v.id + '">View this version</button>'
+        +     revertBtn
+        +   '</div>'
         + '</div>';
     }).join('');
 
