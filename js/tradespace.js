@@ -19,35 +19,79 @@ function _tradeThemeColors() {
   return { text, muted, grid };
 }
 
-// Per-theme concept color palette — vibrant on dark bg, rich on light bg
+// Per-theme concept color palette — 10 hue groups × 5 shades = 50 colors.
+// Interleaved so concepts 1-10 get maximally distinct hues, then concepts
+// 11-20 get a second shade of each hue, and so on.
 function _tradeGetPalette() {
   const body = document.body;
-  if (body.classList.contains('theme-dark')) return [
-    '#60a5fa','#f87171','#34d399','#c084fc','#22d3ee',
-    '#fb923c','#f472b6','#2dd4bf','#a3e635','#818cf8',
-    '#fbbf24','#86efac',
-  ];
-  if (body.classList.contains('theme-red-black')) return [
-    '#f87171','#fb923c','#fbbf24','#4ade80','#22d3ee',
-    '#60a5fa','#c084fc','#f472b6','#a3e635','#e2e8f0',
-    '#86efac','#fda4af',
-  ];
-  if (body.classList.contains('theme-green-yellow')) return [
-    '#15803d','#92400e','#1d4ed8','#7c3aed','#0e7490',
-    '#b45309','#be123c','#166534','#0369a1','#6d28d9',
-    '#065f46','#78350f',
-  ];
-  if (body.classList.contains('theme-engineering')) return [
-    '#1e40af','#991b1b','#065f46','#5b21b6','#0c4a6e',
-    '#78350f','#831843','#1e3a5f','#14532d','#312e81',
-    '#7f1d1d','#134e4a',
-  ];
-  // Light (default)
-  return [
-    '#3b82f6','#ef4444','#10b981','#8b5cf6','#06b6d4',
-    '#f97316','#ec4899','#14b8a6','#84cc16','#6366f1',
-    '#e11d48','#0ea5e9',
-  ];
+
+  // Each inner array is [shade1, shade2, shade3, shade4, shade5] for one hue.
+  let groups;
+
+  if (body.classList.contains('theme-dark') || body.classList.contains('theme-red-black')) {
+    groups = [
+      ['#60a5fa','#93c5fd','#3b82f6','#7ab8fb','#bfdbfe'], // blue
+      ['#f87171','#fca5a5','#ef4444','#f97b7b','#fecaca'], // red
+      ['#34d399','#6ee7b7','#10b981','#3ddaa0','#a7f3d0'], // emerald
+      ['#c084fc','#d8b4fe','#a855f7','#c994fc','#e9d5ff'], // violet
+      ['#22d3ee','#67e8f9','#06b6d4','#2ddaf5','#a5f3fc'], // cyan
+      ['#fb923c','#fdba74','#f97316','#fc9e4f','#fed7aa'], // orange
+      ['#f472b6','#f9a8d4','#ec4899','#f57dc0','#fbcfe8'], // pink
+      ['#2dd4bf','#5eead4','#14b8a6','#3ddcc8','#99f6e4'], // teal
+      ['#a3e635','#bef264','#84cc16','#aee83e','#d9f99d'], // lime
+      ['#818cf8','#a5b4fc','#6366f1','#8c97f9','#c7d2fe'], // indigo
+    ];
+  } else if (body.classList.contains('theme-green-yellow')) {
+    groups = [
+      ['#1d4ed8','#1e40af','#2563eb','#1e3a8a','#3b82f6'], // blue
+      ['#b45309','#92400e','#d97706','#7c2d12','#ca6c0d'], // amber
+      ['#15803d','#14532d','#16a34a','#052e16','#1a9449'], // green
+      ['#7c3aed','#5b21b6','#8b5cf6','#4c1d95','#6d28d9'], // violet
+      ['#0e7490','#164e63','#0891b2','#083344','#0a8ead'], // cyan
+      ['#c2410c','#7c2d12','#9a3412','#431407','#b45309'], // rust
+      ['#be123c','#881337','#e11d48','#9f1239','#dc2626'], // rose
+      ['#0f766e','#134e4a','#0d9488','#042f2e','#147a71'], // teal
+      ['#4d7c0f','#365314','#65a30d','#1a2e05','#578b0e'], // lime
+      ['#4338ca','#312e81','#6366f1','#1e1b4b','#3730a3'], // indigo
+    ];
+  } else if (body.classList.contains('theme-engineering')) {
+    groups = [
+      ['#1e40af','#1e3a8a','#1d4ed8','#172554','#2563eb'], // navy
+      ['#991b1b','#7f1d1d','#b91c1c','#450a0a','#a51c1c'], // maroon
+      ['#065f46','#052e16','#047857','#022c22','#0a7055'], // forest
+      ['#5b21b6','#3b0764','#6d28d9','#2e1065','#4c1d95'], // deep violet
+      ['#0c4a6e','#082f49','#0e7490','#0a2540','#0d5c87'], // deep teal
+      ['#78350f','#451a03','#92400e','#431407','#8a3c10'], // brown
+      ['#881337','#500724','#9f1239','#4c0519','#7a1030'], // deep rose
+      ['#1e3a5f','#0f172a','#263d63','#172040','#1a3558'], // slate navy
+      ['#14532d','#052e16','#166534','#032014','#185c33'], // deep green
+      ['#312e81','#1e1b4b','#3730a3','#16125a','#2a2870'], // deep indigo
+    ];
+  } else {
+    // Light (default)
+    groups = [
+      ['#3b82f6','#1d4ed8','#2563eb','#60a5fa','#1e40af'], // blue
+      ['#ef4444','#dc2626','#f87171','#b91c1c','#e53e3e'], // red
+      ['#10b981','#059669','#34d399','#047857','#0a8c6a'], // emerald
+      ['#8b5cf6','#7c3aed','#a78bfa','#6d28d9','#5b21b6'], // violet
+      ['#06b6d4','#0891b2','#22d3ee','#0e7490','#0284c7'], // cyan
+      ['#f97316','#ea580c','#fb923c','#c2410c','#d97706'], // orange
+      ['#ec4899','#db2777','#f472b6','#be185d','#e879a0'], // pink
+      ['#14b8a6','#0f766e','#2dd4bf','#0d9488','#0e9f8b'], // teal
+      ['#84cc16','#65a30d','#a3e635','#4d7c0f','#77b80f'], // lime
+      ['#6366f1','#4338ca','#818cf8','#3730a3','#5561ea'], // indigo
+    ];
+  }
+
+  // Interleave: all shade[0]s first, then all shade[1]s, etc.
+  // → concepts 1-10 get one color from each hue group (maximally distinct)
+  // → concepts 11-20 get a second shade of each hue, and so on
+  const palette = [];
+  const numShades = groups[0].length; // 5
+  for (let s = 0; s < numShades; s++) {
+    for (const group of groups) palette.push(group[s]);
+  }
+  return palette; // 50 colors
 }
 
 const TRADE_DATUM_COLOR = '#f59e0b'; // amber — always datum
@@ -685,22 +729,6 @@ function _tradeRenderRadar() {
   const labels   = allIlities.map(il => il.name);
   const datasets = [];
 
-  // Concept space envelope — dotted gray boundary (max per axis across ALL concepts)
-  datasets.push({
-    label:           '__envelope__',
-    data:            allIlities.map(il => {
-      const s = _tradeCalcScoreForIlity(il.id);
-      return Math.max(...pughConcepts.map(c => s[c.id] ?? 50));
-    }),
-    borderColor:     'rgba(155,155,148,0.55)',
-    backgroundColor: 'rgba(0,0,0,0)',
-    borderWidth:     1.5,
-    borderDash:      [4,3],
-    pointRadius:     0,
-    pointHitRadius:  0,
-    order:           99,
-  });
-
   // Datum ring at 50% on every spoke
   datasets.push({
     label:           'Datum (50%)',
@@ -733,6 +761,36 @@ function _tradeRenderRadar() {
     });
 
   const rtc = _tradeThemeColors();
+
+  // Envelope plugin — draws the concept-space boundary polygon via canvas directly.
+  // Chart.js 4.x borderDash on radar datasets is unreliable; afterDraw is the safe approach.
+  const envelopePlugin = {
+    id: 'radarEnvelope',
+    afterDraw(chart) {
+      const scale = chart.scales.r;
+      if (!scale) return;
+      // Max score across ALL concepts (including datum) on each axis
+      const envValues = allIlities.map(il => {
+        const s = _tradeCalcScoreForIlity(il.id);
+        return Math.max(...pughConcepts.map(c => s[c.id] ?? 50));
+      });
+      const { ctx } = chart;
+      const points = envValues.map((val, i) => scale.getPointPositionForValue(i, val));
+      if (!points.length) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(155,155,148,0.75)';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([5, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    },
+  };
+
   _tradeRadar = new Chart(canvas, {
     type: 'radar',
     data: { labels, datasets },
@@ -761,8 +819,7 @@ function _tradeRenderRadar() {
             color:   rtc.text,
             padding: 8,
             filter(item) {
-              // Hide envelope and datum ring from legend — they're structural
-              return item.text !== '__envelope__' && item.text !== 'Datum (50%)';
+              return item.text !== 'Datum (50%)';
             },
           },
         },
@@ -775,6 +832,7 @@ function _tradeRenderRadar() {
         },
       },
     },
+    plugins: [envelopePlugin],
   });
 }
 
