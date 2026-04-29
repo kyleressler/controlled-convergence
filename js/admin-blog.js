@@ -42,11 +42,12 @@
   let _calendarAnchor = null;    // Date — first day of currently-viewed month
   let _hubPieces = [];           // cached pieces for the active campaign (used by schedule views)
 
-  // Sort prefs for the two sections of the blog post list. Each section's date
-  // column is independently flippable (click the column header). Defaults to
-  // newest-first, which matches the natural "what did I touch most recently"
-  // and "what did I publish most recently" reading order.
+  // Sort prefs for the three sections of the blog post list. Each section's date
+  // column is independently flippable (click the column header). Drafts and
+  // published default to newest-first; scheduled defaults to soonest-first so
+  // the next post to go live is always at the top.
   let _draftsSort    = { col: 'updated_at',   dir: 'desc' };
+  let _scheduledSort = { col: 'scheduled_at', dir: 'asc'  };
   let _publishedSort = { col: 'published_at', dir: 'desc' };
 
   // Where each platform's composer lives. We open these in a new tab as a
@@ -126,7 +127,7 @@
     try {
       const fetchPromise = _supabase
         .from('blog_posts')
-        .select('id, title, slug, status, evergreen, tags, published_at, updated_at, created_at')
+        .select('id, title, slug, status, evergreen, tags, published_at, scheduled_at, updated_at, created_at')
         .order('updated_at', { ascending: false });
       const timeoutPromise = new Promise(function (_, reject) {
         setTimeout(function () { reject(new Error('renderList fetch timed out after 10s')); }, 10000);
@@ -154,14 +155,19 @@
       return;
     }
 
-    // Split into Drafts (work in progress) and Published (live).
+    // Split into Drafts, Scheduled (queued for future publication), and Published.
     // Each section has its own sortable date column, independently flippable.
     const drafts    = posts.filter(function (p) { return p.status === 'draft'; });
+    const scheduled = posts.filter(function (p) { return p.status === 'scheduled'; });
     const published = posts.filter(function (p) { return p.status === 'published'; });
 
+    // Scheduled section uses a dedicated sort preference (by scheduled_at, soonest first)
+    if (!_scheduledSort) _scheduledSort = { col: 'scheduled_at', dir: 'asc' };
+
     container.innerHTML =
-      renderBlogSection('drafts', 'Drafts', drafts, _draftsSort, 'updated_at', 'Updated') +
-      renderBlogSection('published', 'Published', published, _publishedSort, 'published_at', 'Published');
+      renderBlogSection('drafts',    'Drafts',     drafts,    _draftsSort,    'updated_at',   'Updated') +
+      renderBlogSection('scheduled', 'Scheduled',  scheduled, _scheduledSort, 'scheduled_at', 'Goes live') +
+      renderBlogSection('published', 'Published',  published, _publishedSort, 'published_at', 'Published');
 
     // Row click → open editor
     container.querySelectorAll('.blog-row-link').forEach(function (a) {
@@ -182,7 +188,9 @@
     container.querySelectorAll('.blog-sortable').forEach(function (th) {
       th.addEventListener('click', function () {
         const section = th.getAttribute('data-section');
-        const sortDef = section === 'drafts' ? _draftsSort : _publishedSort;
+        const sortDef = section === 'drafts'    ? _draftsSort :
+                        section === 'scheduled' ? _scheduledSort :
+                                                  _publishedSort;
         sortDef.dir = sortDef.dir === 'desc' ? 'asc' : 'desc';
         renderList(document.getElementById('pane-blog'));
       });
@@ -206,11 +214,10 @@
     html += '</div>';
 
     if (sorted.length === 0) {
-      html += '<div class="blog-section-empty muted">' +
-              (sectionKey === 'drafts'
-                ? 'No drafts in progress.'
-                : 'Nothing published yet.') +
-              '</div>';
+      const emptyMsg = sectionKey === 'drafts'    ? 'No drafts in progress.' :
+                       sectionKey === 'scheduled' ? 'No posts scheduled.' :
+                                                    'Nothing published yet.';
+      html += '<div class="blog-section-empty muted">' + emptyMsg + '</div>';
       html += '</section>';
       return html;
     }
@@ -266,6 +273,7 @@
       tags: [],
       status: 'draft',
       evergreen: false,
+      scheduled_at: null,
       // Editorial metadata — surfaced in the analytics export so the LLM
       // workflow can analyze patterns. New posts start blank; the editor
       // exposes them in a collapsed side section.
@@ -298,8 +306,60 @@
     renderEditor(document.getElementById('pane-blog'));
   }
 
+  // ── Scheduling helpers ───────────────────────────────────────
+  // Return the current value of the scheduled-at datetime-local input
+  // as an ISO string, or null if empty / not shown.
+  function getScheduledAtFromInput() {
+    const el = document.getElementById('editorScheduledAt');
+    if (!el || !el.value) return null;
+    // datetime-local gives "YYYY-MM-DDTHH:mm" in local time — convert to UTC ISO
+    return new Date(el.value).toISOString();
+  }
+
+  // Sync the Publish/Schedule button label based on whether a future date is set.
+  function syncPublishBtnLabel() {
+    const btn = document.getElementById('blogPublishBtn');
+    if (!btn) return;
+    const el = document.getElementById('editorScheduledAt');
+    const hasDate = el && el.value;
+    const isFuture = hasDate && new Date(el.value) > new Date();
+    const isAlreadyPublished = _currentPost && _currentPost.status === 'published';
+
+    if (isAlreadyPublished) {
+      btn.textContent = 'Update';
+    } else if (isFuture) {
+      btn.textContent = 'Schedule';
+    } else {
+      btn.textContent = 'Publish';
+    }
+  }
+
+  // Convert a stored scheduled_at ISO string to the local "YYYY-MM-DDTHH:mm"
+  // format that <input type="datetime-local"> expects.
+  function isoToDatetimeLocal(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    // Pad month, day, hours, minutes to two digits
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' +
+           pad(d.getMonth() + 1) + '-' +
+           pad(d.getDate()) + 'T' +
+           pad(d.getHours()) + ':' +
+           pad(d.getMinutes());
+  }
+
   function renderEditor(root) {
     const p = _currentPost;
+
+    // Determine the label for the primary action button
+    let publishBtnLabel = 'Publish';
+    if (p.status === 'published') publishBtnLabel = 'Update';
+    else if (p.status === 'scheduled') publishBtnLabel = 'Schedule';
+
+    // Pre-populate the datetime-local input if the post already has a scheduled_at
+    const scheduledAtValue = isoToDatetimeLocal(p.scheduled_at);
+
     root.innerHTML = `
       <div class="blog-header">
         <div>
@@ -309,7 +369,7 @@
         <div class="editor-actions">
           <span id="autosaveStatus" class="muted"></span>
           <button class="btn-secondary" id="blogSaveDraftBtn">Save draft</button>
-          <button class="btn-primary" id="blogPublishBtn">${p.status === 'published' ? 'Update' : 'Publish'}</button>
+          <button class="btn-primary" id="blogPublishBtn">${escapeHtml(publishBtnLabel)}</button>
         </div>
       </div>
 
@@ -325,6 +385,18 @@
         </div>
 
         <aside class="editor-side">
+          <div class="side-section">
+            <label class="editor-label">Publish date <span class="muted" style="font-weight:400;font-size:11px">(optional — leave blank to publish now)</span></label>
+            <input type="datetime-local" id="editorScheduledAt" class="editor-text"
+              value="${escapeAttr(scheduledAtValue)}"
+              style="cursor:pointer">
+            <div class="muted" style="font-size:11px;margin-top:4px" id="scheduleHint">
+              ${p.status === 'scheduled' && p.scheduled_at
+                ? 'Scheduled for ' + formatDate(p.scheduled_at)
+                : 'Choose a date and time to schedule, or leave blank to publish immediately.'}
+            </div>
+          </div>
+
           <div class="side-section">
             <label class="editor-label">Slug</label>
             <input type="text" id="editorSlugInput" class="editor-text" value="${escapeAttr(p.slug)}" placeholder="auto-generated-from-title">
@@ -346,6 +418,7 @@
             <label class="editor-label">Status</label>
             <div class="muted" id="editorStatusDisplay">${escapeHtml(p.status)}</div>
             ${p.published_at ? '<div class="muted" style="font-size:11px;margin-top:2px">Published ' + formatDate(p.published_at) + '</div>' : ''}
+            ${p.status === 'scheduled' && p.scheduled_at ? '<div class="muted" style="font-size:11px;margin-top:2px">Goes live ' + formatDate(p.scheduled_at) + '</div>' : ''}
           </div>
 
           <div class="side-section">
@@ -370,6 +443,30 @@
 
     // Initialize Quill — must run after the container is in the DOM
     initQuill(p.content || '');
+
+    // Wire scheduled-at datetime picker → update button label live
+    const scheduledAtInput = document.getElementById('editorScheduledAt');
+    if (scheduledAtInput) {
+      scheduledAtInput.addEventListener('change', function () {
+        _currentPost.scheduled_at = getScheduledAtFromInput();
+        syncPublishBtnLabel();
+        const hint = document.getElementById('scheduleHint');
+        if (hint) {
+          const v = scheduledAtInput.value;
+          hint.textContent = v
+            ? 'Will go live ' + new Date(v).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Leave blank to publish immediately.';
+        }
+        markDirty();
+      });
+      // Clear button via double-click (ergonomic shortcut)
+      scheduledAtInput.addEventListener('dblclick', function () {
+        scheduledAtInput.value = '';
+        _currentPost.scheduled_at = null;
+        syncPublishBtnLabel();
+        markDirty();
+      });
+    }
 
     // Wire form fields
     wireField('editorTitleInput', function (v) {
@@ -412,7 +509,17 @@
     initTagsInput();
 
     document.getElementById('blogSaveDraftBtn').addEventListener('click', function () { savePost('draft'); });
-    document.getElementById('blogPublishBtn').addEventListener('click', function () { savePost('published'); });
+    document.getElementById('blogPublishBtn').addEventListener('click', function () {
+      // Determine target status from the current scheduled-at value.
+      // If a future date is set → 'scheduled'; otherwise → 'published' (or 'update' for existing).
+      const scheduledIso = getScheduledAtFromInput();
+      const isFuture = scheduledIso && new Date(scheduledIso) > new Date();
+      if (isFuture) {
+        savePost('scheduled');
+      } else {
+        savePost('published');
+      }
+    });
 
     // Render campaign timeline below the editor (saved posts only)
     if (_currentPostId) {
@@ -624,10 +731,15 @@
   // analytics-export Netlify function's docs (it tolerates any value, but
   // the LLM workflow assumes the picklist).
   const FRAMEWORK_OPTIONS = [
-    { value: 'design-game',      label: 'Design Game' },
-    { value: 'readiness-levels', label: 'Readiness Levels' },
-    { value: 'other',            label: 'Other' },
-    { value: 'none',             label: 'None' }
+    { value: 'design-game',           label: 'Design Game' },
+    { value: 'readiness-levels',      label: 'Readiness Levels' },
+    { value: 'systems-thinking',      label: 'Systems Thinking' },
+    { value: 'total-design',          label: 'Total Design' },
+    { value: 'controlled-convergence', label: 'Controlled Convergence' },
+    { value: 'systems-engineering',   label: 'Systems Engineering' },
+    { value: 'dfss',                  label: 'DFSS' },
+    { value: 'other',                 label: 'Other' },
+    { value: 'none',                  label: 'None' }
   ];
   const HOOK_TYPE_OPTIONS = [
     { value: 'story',       label: 'Story' },
@@ -874,10 +986,19 @@
       editorial_notes: _currentPost.editorial_notes || null
     };
 
-    // Set published_at on first publish (don't overwrite on subsequent updates)
+    // Set published_at on first publish (don't overwrite on subsequent updates).
+    // Also clear scheduled_at when publishing immediately so there's no stale value.
     const wasUnpublished = !_currentPost.published_at;
-    if (targetStatus === 'published' && wasUnpublished) {
-      payload.published_at = new Date().toISOString();
+    if (targetStatus === 'published') {
+      if (wasUnpublished) payload.published_at = new Date().toISOString();
+      payload.scheduled_at = null; // clear any previously-set schedule
+    } else if (targetStatus === 'scheduled') {
+      // scheduled_at must already be set on _currentPost by the picker wire-up
+      payload.scheduled_at = _currentPost.scheduled_at || null;
+      // Don't set published_at yet — it'll be set if/when admin re-publishes early
+    } else {
+      // draft — clear scheduled_at so it doesn't linger
+      payload.scheduled_at = null;
     }
 
     let result;
@@ -909,13 +1030,24 @@
     _currentPostId = result.data.id;
     _currentPost = result.data;
     _isDirty = false;
-    setAutosaveStatus('Saved ' + new Date().toLocaleTimeString());
+
+    // Build save confirmation message
+    let savedMsg = 'Saved ' + new Date().toLocaleTimeString();
+    if (targetStatus === 'scheduled' && _currentPost.scheduled_at) {
+      const goLive = new Date(_currentPost.scheduled_at).toLocaleString(undefined, {
+        dateStyle: 'medium', timeStyle: 'short'
+      });
+      savedMsg = 'Scheduled for ' + goLive;
+    }
+    setAutosaveStatus(savedMsg);
 
     if (typeof trackEvent === 'function') {
-      trackEvent(targetStatus === 'published' ? 'blog_post_published' : 'blog_post_saved', {
-        post_id: _currentPostId,
-        slug: _currentPost.slug
-      });
+      trackEvent(
+        targetStatus === 'published' ? 'blog_post_published' :
+        targetStatus === 'scheduled' ? 'blog_post_scheduled' :
+        'blog_post_saved',
+        { post_id: _currentPostId, slug: _currentPost.slug }
+      );
     }
 
     // First publish → auto-create Campaign v1
@@ -923,9 +1055,10 @@
       await ensureCampaignV1(_currentPostId);
     }
 
-    // Refresh editor header (status display, button label)
-    document.getElementById('editorStatusDisplay').textContent = _currentPost.status;
-    document.getElementById('blogPublishBtn').textContent = _currentPost.status === 'published' ? 'Update' : 'Publish';
+    // Refresh editor header (status display + action button label)
+    const statusDisplay = document.getElementById('editorStatusDisplay');
+    if (statusDisplay) statusDisplay.textContent = _currentPost.status;
+    syncPublishBtnLabel();
   }
 
   function validateBeforeSave() {

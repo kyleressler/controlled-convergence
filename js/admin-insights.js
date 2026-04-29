@@ -63,6 +63,7 @@
       loadChannelPerformance(),
       loadTopContent(),
       loadPerformanceByTag(),
+      loadPageViews(),
     ]);
 
     // Action cards are computed from the data the other sections fetched,
@@ -118,6 +119,16 @@
         </p>
         <div id="perfByTagContainer">
           <div class="muted">Loading tag performance…</div>
+        </div>
+      </section>
+
+      <section class="insights-section" id="insightsPageViews">
+        <h2>Most visited pages</h2>
+        <p class="muted" style="margin:-4px 0 12px;font-size:12px">
+          All page visits in the last ${WINDOW_DAYS} days — shows which tools and content are used most.
+        </p>
+        <div id="pageViewsContainer">
+          <div class="muted">Loading page views…</div>
         </div>
       </section>
     `;
@@ -575,6 +586,65 @@
     return String(v).split('-').map(function (w) {
       return w.charAt(0).toUpperCase() + w.slice(1);
     }).join(' ');
+  }
+
+  // ── 6. Most-visited pages ─────────────────────────────────────
+  // Shows raw pageview counts for every path on the site so Kyle can see
+  // which tools are being used most, not just which blog posts perform.
+  // Uses the `top_pages_by_views` query added to the Netlify allowlist.
+  async function loadPageViews() {
+    const container = document.getElementById('pageViewsContainer');
+    if (!container) return;
+
+    const phRes = await fetchPosthogQuery('top_pages_by_views', { days: WINDOW_DAYS, limit: 25 });
+
+    if (!phRes || !phRes.ok) {
+      container.innerHTML = '<div class="muted">' + emptyMessageForPosthog(phRes) + '</div>';
+      return;
+    }
+
+    const rows = phRes.data || [];
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="muted">No pageview data yet.</div>';
+      return;
+    }
+
+    // Humanize a pathname into a readable label.
+    // Hash-based tool routes look like "/#tools/design-game" — strip leading
+    // slashes and the hash, then title-case the remainder.
+    function labelForPath(path) {
+      if (!path) return '(unknown)';
+      // Strip query string + fragment for display
+      const clean = path.split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
+      // Map common paths to friendly names
+      const known = {
+        '/':               'Home',
+        '/blog':           'Blog index',
+        '/app.html':       'App',
+      };
+      if (known[clean]) return known[clean];
+      // /blog/<slug> → blog post title hint
+      const blogMatch = clean.match(/^\/blog\/(.+)$/);
+      if (blogMatch) return 'Blog: ' + blogMatch[1].replace(/-/g, ' ');
+      // Fall back to path with leading slash stripped
+      return clean.replace(/^\//, '').replace(/-/g, ' ') || clean;
+    }
+
+    let html = '<table class="insights-table"><thead><tr>';
+    html += '<th>Page / Tool</th><th>Path</th><th class="num">Views (' + WINDOW_DAYS + 'd)</th><th class="num">Visitors</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function (r) {
+      html += '<tr>';
+      html += '<td>' + escapeHtml(labelForPath(r.path)) + '</td>';
+      html += '<td><code style="font-size:11px">' + escapeHtml(r.path) + '</code></td>';
+      html += '<td class="num">' + formatNum(r.views) + '</td>';
+      html += '<td class="num">' + formatNum(r.visitors) + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
   }
 
   // ── PostHog proxy fetch ───────────────────────────────────────

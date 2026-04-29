@@ -229,6 +229,35 @@ function buildHogql(queryName, params) {
       };
     }
 
+    // Top pages by raw pageviews in the last N days — includes all paths,
+    // not just /blog/ routes. Used by the Insights "Page views" section to
+    // show which tools and pages are visited most. The `limit` param is
+    // clamped to [1, 100]; default 25.
+    case 'top_pages_by_views': {
+      const limit = clampInt(params && params.limit, 25, 1, 100);
+      return {
+        hogql: `
+          SELECT
+            properties.$pathname AS path,
+            count() AS views,
+            count(distinct distinct_id) AS visitors
+          FROM events
+          WHERE event = '$pageview'
+            AND timestamp > now() - INTERVAL ${days} DAY
+            AND properties.$pathname IS NOT NULL
+            AND properties.$pathname != ''
+          GROUP BY path
+          ORDER BY views DESC
+          LIMIT ${limit}
+        `,
+        transform: function (rows) {
+          return (rows || []).map(function (r) {
+            return { path: r[0] || '', views: r[1] || 0, visitors: r[2] || 0 };
+          });
+        },
+      };
+    }
+
     default:
       return null;
   }
