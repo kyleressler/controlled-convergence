@@ -72,6 +72,7 @@
       <button class="nav-tool" data-page="pair"         onclick="switchPage('pair',this);closeNavDropdown()">Weighting</button>
       <button class="nav-tool" data-page="scor"         onclick="switchPage('scor',this);closeNavDropdown()">Concept Scoring</button>
       <button class="nav-tool" data-page="pugh"         onclick="switchPage('pugh',this);closeNavDropdown()">Pugh Matrix</button>
+      <button class="nav-tool" data-page="trade"        onclick="switchPage('trade',this);closeNavDropdown()">Tradespace Analysis</button>
       <button class="nav-tool" data-page="conv"          onclick="switchPage('conv',this);closeNavDropdown()">Convergence Summary</button>
     </div>
   </div>
@@ -760,6 +761,12 @@
       <div class="home-step-arrow">→</div>
       <div class="home-step">
         <div class="home-step-num">8</div>
+        <div class="home-step-label">Tradespace</div>
+        <div class="home-step-desc">Explore tradeoffs visually across ility dimensions.</div>
+      </div>
+      <div class="home-step-arrow">→</div>
+      <div class="home-step">
+        <div class="home-step-num">9</div>
         <div class="home-step-label">Convergence</div>
         <div class="home-step-desc">Define your preferred solution.</div>
       </div>
@@ -1713,8 +1720,8 @@
     <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
       ← Return to Concept Scoring
     </button>
-    <button class="btn btn-continue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
-      Continue to Convergence Summary →
+    <button class="btn btn-continue" onclick="switchPage('trade', document.querySelector('[data-page=trade]'))">
+      Continue to Tradespace →
     </button>
   </div>
 
@@ -1753,8 +1760,8 @@
     <button class="btn btn-back" onclick="switchPage('scor', document.querySelector('[data-page=scor]'))">
       ← Return to Concept Scoring
     </button>
-    <button class="btn btn-continue" id="btnPughContinue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
-      Continue to Convergence Summary →
+    <button class="btn btn-continue" id="btnPughContinue" onclick="switchPage('trade', document.querySelector('[data-page=trade]'))">
+      Continue to Tradespace →
     </button>
   </div>
 
@@ -1771,6 +1778,85 @@
 </main>
 
 
+<!-- ── TRADESPACE ANALYSIS PAGE ── -->
+<main class="main page" id="page-trade" style="display:none">
+
+  <div class="page-header">
+    <div class="page-title">Tradespace Analysis <button class="info-icon" onclick="openSidebarToSlide('trade', 0)" title="What is Tradespace Analysis?">ⓘ</button></div>
+    <div class="page-subtitle">Explore tradeoffs between lifecycle properties to understand where your concepts stand before converging.</div>
+  </div>
+
+  <!-- Top navigation buttons -->
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      ← Return to Pugh Matrix
+    </button>
+    <button class="btn btn-continue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
+      Continue to Convergence →
+    </button>
+  </div>
+
+  <!-- Empty state — shown when <2 ilities have Pugh scores -->
+  <div id="tradeEmptyState" style="display:none;text-align:center;padding:52px 24px;color:var(--text-light);font-size:13px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;margin-bottom:24px">
+    Tradespace Analysis requires at least two Lifecycle Properties with Pugh Matrix scores. Go to <strong>Pugh Matrix</strong> and score your concepts first.
+  </div>
+
+  <!-- Main tradespace content -->
+  <div id="tradeContent" style="display:none">
+
+    <!-- Ility selector row -->
+    <div id="tradeIlityRow" style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);white-space:nowrap">Lifecycle Properties:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1" id="tradeIlityDropdowns">
+        <!-- 2–3 selects rendered by tradespace.js -->
+      </div>
+    </div>
+
+    <!-- Charts + concept panel layout -->
+    <div id="tradeLayout" style="display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start">
+
+      <!-- Left: scatter charts + radar -->
+      <div id="tradeChartsCol">
+        <!-- Scatter chart grid — rendered by tradespace.js -->
+        <div id="tradeScatterGrid" style="display:grid;gap:14px;margin-bottom:14px">
+          <!-- chart cards injected here -->
+        </div>
+        <!-- Radar chart -->
+        <div id="tradeRadarCard" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px">Radar Chart</div>
+          <div id="tradeRadarMsg" style="display:none;font-size:13px;color:var(--text-light);text-align:center;padding:24px 0">
+            Select a 3rd Lifecycle Property to enable the Radar Chart.
+          </div>
+          <div id="tradeRadarWrap" style="position:relative;height:340px">
+            <canvas id="tradeRadarCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: concept selector panel -->
+      <div id="tradeConceptPanel" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;position:sticky;top:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:10px">Concepts</div>
+        <div id="tradeConceptList">
+          <!-- rows injected by tradespace.js -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom navigation buttons -->
+  <div class="continue-btn-wrap" style="margin-top:24px">
+    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
+      ← Return to Pugh Matrix
+    </button>
+    <button class="btn btn-continue" onclick="switchPage('conv', document.querySelector('[data-page=conv]'))">
+      Continue to Convergence →
+    </button>
+  </div>
+
+</main>
+
+
 <!-- ── CONVERGENCE SUMMARY PAGE ── -->
 <main class="main page" id="page-conv" style="display:none">
 
@@ -1781,8 +1867,8 @@
 
   <!-- Top navigation buttons -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
-    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
-      ← Return to Pugh Matrix
+    <button class="btn btn-back" onclick="switchPage('trade', document.querySelector('[data-page=trade]'))">
+      ← Return to Tradespace
     </button>
     <button class="btn btn-continue" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
       Return to Project Manager →
@@ -1926,8 +2012,8 @@
 
   <!-- Navigation -->
   <div class="continue-btn-wrap" style="margin-top:16px">
-    <button class="btn btn-back" onclick="switchPage('pugh', document.querySelector('[data-page=pugh]'))">
-      ← Return to Pugh Matrix
+    <button class="btn btn-back" onclick="switchPage('trade', document.querySelector('[data-page=trade]'))">
+      ← Return to Tradespace
     </button>
     <button class="btn btn-continue" onclick="switchPage('proj', document.querySelector('[data-page=proj]'))">
       Return to Project Manager →
@@ -2108,6 +2194,9 @@
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="rptPUGH" checked> Concept Rankings
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="rptTRADE" checked> Tradespace Charts
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="rptCONV" checked> Convergence Summary
@@ -3013,6 +3102,7 @@
 <script src="js/projects.js"></script>
 <script src="js/sidebar-content.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/tradespace.js"></script>
 <script src="js/example.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/blog-app-render.js"></script>

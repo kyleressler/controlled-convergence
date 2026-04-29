@@ -172,7 +172,26 @@ const SIDEBAR_CONTENT = {
     },
     {
       title: "What's Next",
-      body: `Once you've studied the matrix, move to Convergence Summary. That's where you record your chosen concept, explain your rationale, complete your goal statement, and document lessons learned and next steps.`
+      body: `Once you've studied the matrix, move to Tradespace Analysis. There you'll visualize your concepts as scatter charts across pairs of lifecycle properties — with Pareto fronts, quadrant shading, and a radar chart — so you can see the tradeoff landscape before making your final decision.`
+    },
+  ],
+
+  trade: [
+    {
+      title: "What Is Tradespace Analysis?",
+      body: `Tradespace Analysis visualizes how your design concepts perform across pairs of lifecycle properties — plotting each concept as a dot on scatter charts where both axes are utility scores derived from your Pugh Matrix. It's the clearest way to see tradeoffs: a concept that excels on Performance but falls short on Affordability shows up immediately as a dot in the wrong quadrant. The Pareto front highlights concepts where no other option is strictly better on both axes simultaneously — those are your frontier concepts worth serious consideration.`
+    },
+    {
+      title: "How to Read the Scatter Charts",
+      body: `Each chart plots two lifecycle properties as axes, with utility scores running 0–100%. The amber dot is your Datum — always at 50% on every axis because the datum is the baseline all scores are relative to. The dashed green quadrant lines divide the space at the datum position; the upper-right quadrant (green shading) is where you want your chosen concept to land — better than the datum on both properties simultaneously. The stepped green dashed line is the Pareto front: any concept on it is not dominated by any other concept. Use the concept panel on the right to highlight specific concepts across all charts at once.`
+    },
+    {
+      title: "How to Read the Radar Chart",
+      body: `The radar chart (requires 3 lifecycle properties selected) shows all highlighted concepts as overlapping polygons on a spider diagram. The outer gray dotted boundary represents the concept space envelope — the maximum score achieved by any concept on each axis. The amber dashed ring at 50% on every spoke marks the datum baseline. Each colored polygon is one of your selected concepts. Concepts that push out toward the envelope on multiple spokes simultaneously are strong performers across dimensions — though watch for concepts that excel on some spokes at the expense of others.`
+    },
+    {
+      title: "Tips for Getting the Most Out of Tradespace",
+      body: `Start by looking at which concepts appear on the Pareto front — these are your most promising candidates. Then use the concept panel to compare them directly on the radar chart. Look for a concept that sits in the upper-right quadrant on most scatter charts and has a consistently large polygon on the radar. If no single concept dominates, note which dimensions are causing the tradeoff — that often points to requirements that need to be weighted differently or a hybrid concept worth exploring before you converge.`
     },
   ],
 
@@ -183,7 +202,7 @@ const SIDEBAR_CONTENT = {
     },
     {
       title: "How to Complete the Convergence Summary",
-      body: `Select your chosen concept and write your rationale — this is your chance to explain the decision in plain language, including any factors that the matrix couldn't fully capture, like cost, feasibility, or stakeholder preference. Then work through the lessons learned prompts: what surprised you about your requirements, what concepts you wish you'd explored, what assumptions turned out to be wrong, and what you'd do differently. Finally, log any open risks or unvalidated assumptions, assign next steps, and hit Log Convergence Date to close the project.`
+      body: `Select your chosen concept and write your rationale — this is your chance to explain the decision in plain language, including any factors that the Pugh Matrix and Tradespace couldn't fully capture, like cost, feasibility, or stakeholder preference. Then work through the lessons learned prompts: what surprised you about your requirements, what concepts you wish you'd explored, what assumptions turned out to be wrong, and what you'd do differently. Finally, log any open risks or unvalidated assumptions, assign next steps, and hit Log Convergence Date to close the project.`
     },
     {
       title: "Common Mistakes",

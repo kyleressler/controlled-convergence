@@ -1705,7 +1705,7 @@
   // past Project Manager. Reminds them their changes won't persist
   // unless they create a project.
   var _ACTIVATE_BANNER_PAGES = [
-    'tbus', 'stak', 'ilities', 'requirements', 'pair', 'scor', 'pugh', 'conv', 'basic'
+    'tbus', 'stak', 'ilities', 'requirements', 'pair', 'scor', 'pugh', 'trade', 'conv', 'basic'
   ];
   function _renderActivateProjectBanner() {
     var banner = document.getElementById('activateProjectBanner');
@@ -3850,6 +3850,20 @@
 
   ${pughHtml ? `<div class="section-break">${pughHtml}</div>` : ''}
 
+  ${sections.trade && typeof getTradespaceReportData === 'function' ? (() => {
+    const charts = getTradespaceReportData();
+    if (!charts.length) return '';
+    const imgs = charts.map(d => `
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px">${d.title}</div>
+        <img src="${d.dataUrl}" style="width:100%;border:1px solid #e2e2df;border-radius:6px">
+      </div>`).join('');
+    return `<div class="section-break">
+      <h2 style="font-size:15px;font-weight:700;color:#1a1a18;margin:28px 0 10px">Tradespace Analysis</h2>
+      ${imgs}
+    </div>`;
+  })() : ''}
+
   <!-- Screen-only footer -->
   <div class="no-print" style="margin-top:40px;padding:12px 40px;border-top:1px solid #e2e2df;font-size:11px;color:#9b9b94;text-align:center">
     Report Generated with <strong>ControlledConvergence.com</strong>
@@ -4124,8 +4138,9 @@
       rtm:  document.getElementById('rptRTM')  ? document.getElementById('rptRTM').checked  : true,
       pair: document.getElementById('rptPAIR').checked,
       scor: document.getElementById('rptSCOR').checked,
-      pugh: document.getElementById('rptPUGH').checked,
-      conv: document.getElementById('rptCONV') ? document.getElementById('rptCONV').checked : false,
+      pugh:  document.getElementById('rptPUGH').checked,
+      trade: document.getElementById('rptTRADE') ? document.getElementById('rptTRADE').checked : false,
+      conv:  document.getElementById('rptCONV')  ? document.getElementById('rptCONV').checked  : false,
     };
 
     // ── Focus Concepts ──
@@ -7055,7 +7070,8 @@ ${sections}
     if (pageId === 'ilities') renderIlityGrid();
     if (pageId === 'stak') renderStakGrid();
     if (pageId === 'scor') { renderConceptCards(); syncScoringModeButtons(); renderScorerFilterDropdown(); }
-    if (pageId === 'conv') { renderConvPage(); }
+    if (pageId === 'conv')  { renderConvPage(); }
+    if (pageId === 'trade') { if (typeof renderTradespace === 'function') renderTradespace(); }
     if (pageId === 'pugh') {
       renderPughMatrix();
       updatePughAccountToggles();
@@ -7184,6 +7200,8 @@ ${sections}
 
     // Notify easter-eggs.js (no-op if file isn't loaded)
     if (typeof window._easterEggThemeChanged === 'function') window._easterEggThemeChanged(theme);
+    // Re-render tradespace charts with new theme colors (no-op if not on that page)
+    if (typeof _tradeOnThemeChange === 'function') _tradeOnThemeChange();
   }
 
   function loadTheme() {
