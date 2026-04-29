@@ -307,22 +307,25 @@
   }
 
   // ── Scheduling helpers ───────────────────────────────────────
-  // Return the current value of the scheduled-at datetime-local input
-  // as an ISO string, or null if empty / not shown.
+  // Return the combined date + time inputs as an ISO string, or null if no
+  // date has been chosen. Time defaults to 10:00 AM (Eastern) so the date
+  // input is the only required selection.
   function getScheduledAtFromInput() {
-    const el = document.getElementById('editorScheduledAt');
-    if (!el || !el.value) return null;
-    // datetime-local gives "YYYY-MM-DDTHH:mm" in local time — convert to UTC ISO
-    return new Date(el.value).toISOString();
+    const dateEl = document.getElementById('editorScheduledDate');
+    const timeEl = document.getElementById('editorScheduledTime');
+    if (!dateEl || !dateEl.value) return null;
+    const timeVal = (timeEl && timeEl.value) || '10:00';
+    return new Date(dateEl.value + 'T' + timeVal).toISOString();
   }
 
   // Sync the Publish/Schedule button label based on whether a future date is set.
   function syncPublishBtnLabel() {
     const btn = document.getElementById('blogPublishBtn');
     if (!btn) return;
-    const el = document.getElementById('editorScheduledAt');
-    const hasDate = el && el.value;
-    const isFuture = hasDate && new Date(el.value) > new Date();
+    const dateEl = document.getElementById('editorScheduledDate');
+    const hasDate = dateEl && dateEl.value;
+    const scheduledIso = hasDate ? getScheduledAtFromInput() : null;
+    const isFuture = scheduledIso && new Date(scheduledIso) > new Date();
     const isAlreadyPublished = _currentPost && _currentPost.status === 'published';
 
     if (isAlreadyPublished) {
@@ -334,19 +337,17 @@
     }
   }
 
-  // Convert a stored scheduled_at ISO string to the local "YYYY-MM-DDTHH:mm"
-  // format that <input type="datetime-local"> expects.
-  function isoToDatetimeLocal(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d)) return '';
-    // Pad month, day, hours, minutes to two digits
+  // Split a stored scheduled_at ISO string into { date: 'YYYY-MM-DD', time: 'HH:mm' }
+  // for pre-populating the separate date/time inputs. Returns defaults when null.
+  function isoToDateAndTime(iso) {
     const pad = function (n) { return String(n).padStart(2, '0'); };
-    return d.getFullYear() + '-' +
-           pad(d.getMonth() + 1) + '-' +
-           pad(d.getDate()) + 'T' +
-           pad(d.getHours()) + ':' +
-           pad(d.getMinutes());
+    if (!iso) return { date: '', time: '10:00' };
+    const d = new Date(iso);
+    if (isNaN(d)) return { date: '', time: '10:00' };
+    return {
+      date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+      time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+    };
   }
 
   function renderEditor(root) {
@@ -357,8 +358,8 @@
     if (p.status === 'published') publishBtnLabel = 'Update';
     else if (p.status === 'scheduled') publishBtnLabel = 'Schedule';
 
-    // Pre-populate the datetime-local input if the post already has a scheduled_at
-    const scheduledAtValue = isoToDatetimeLocal(p.scheduled_at);
+    // Pre-populate date/time inputs from stored scheduled_at (if any)
+    const scheduledDT = isoToDateAndTime(p.scheduled_at);
 
     root.innerHTML = `
       <div class="blog-header">
@@ -387,13 +388,18 @@
         <aside class="editor-side">
           <div class="side-section">
             <label class="editor-label">Publish date <span class="muted" style="font-weight:400;font-size:11px">(optional — leave blank to publish now)</span></label>
-            <input type="datetime-local" id="editorScheduledAt" class="editor-text"
-              value="${escapeAttr(scheduledAtValue)}"
-              style="cursor:pointer">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="date" id="editorScheduledDate" class="editor-text"
+                value="${escapeAttr(scheduledDT.date)}"
+                style="flex:1;cursor:pointer">
+              <input type="time" id="editorScheduledTime" class="editor-text"
+                value="${escapeAttr(scheduledDT.time)}"
+                style="width:100px">
+            </div>
             <div class="muted" style="font-size:11px;margin-top:4px" id="scheduleHint">
               ${p.status === 'scheduled' && p.scheduled_at
                 ? 'Scheduled for ' + formatDate(p.scheduled_at)
-                : 'Choose a date and time to schedule, or leave blank to publish immediately.'}
+                : 'Pick a date to schedule. Time defaults to 10:00 AM — adjust if needed.'}
             </div>
           </div>
 
@@ -444,29 +450,28 @@
     // Initialize Quill — must run after the container is in the DOM
     initQuill(p.content || '');
 
-    // Wire scheduled-at datetime picker → update button label live
-    const scheduledAtInput = document.getElementById('editorScheduledAt');
-    if (scheduledAtInput) {
-      scheduledAtInput.addEventListener('change', function () {
-        _currentPost.scheduled_at = getScheduledAtFromInput();
-        syncPublishBtnLabel();
-        const hint = document.getElementById('scheduleHint');
-        if (hint) {
-          const v = scheduledAtInput.value;
-          hint.textContent = v
-            ? 'Will go live ' + new Date(v).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-            : 'Leave blank to publish immediately.';
+    // Wire the date + time pickers → update scheduled_at and button label live
+    function onScheduleChange() {
+      _currentPost.scheduled_at = getScheduledAtFromInput();
+      syncPublishBtnLabel();
+      const hint = document.getElementById('scheduleHint');
+      if (hint) {
+        const dateEl = document.getElementById('editorScheduledDate');
+        if (dateEl && dateEl.value) {
+          const iso = _currentPost.scheduled_at;
+          hint.textContent = iso
+            ? 'Will go live ' + new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Pick a date to schedule.';
+        } else {
+          hint.textContent = 'Pick a date to schedule. Time defaults to 10:00 AM — adjust if needed.';
         }
-        markDirty();
-      });
-      // Clear button via double-click (ergonomic shortcut)
-      scheduledAtInput.addEventListener('dblclick', function () {
-        scheduledAtInput.value = '';
-        _currentPost.scheduled_at = null;
-        syncPublishBtnLabel();
-        markDirty();
-      });
+      }
+      markDirty();
     }
+    const scheduledDateInput = document.getElementById('editorScheduledDate');
+    const scheduledTimeInput = document.getElementById('editorScheduledTime');
+    if (scheduledDateInput) scheduledDateInput.addEventListener('change', onScheduleChange);
+    if (scheduledTimeInput) scheduledTimeInput.addEventListener('change', onScheduleChange);
 
     // Wire form fields
     wireField('editorTitleInput', function (v) {
@@ -530,9 +535,62 @@
     startAutosave();
   }
 
-  function backToList() {
+  // Themed modal replacing browser confirm() for the unsaved-changes warning.
+  // Returns a Promise that resolves true (leave) or false (stay).
+  function showUnsavedChangesModal() {
+    return new Promise(function (resolve) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = [
+        'position:fixed', 'inset:0', 'z-index:9999',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'background:rgba(0,0,0,0.45)', 'backdrop-filter:blur(2px)',
+      ].join(';');
+
+      overlay.innerHTML =
+        '<div style="' + [
+          'background:var(--surface)',
+          'border:1px solid var(--border-strong)',
+          'border-radius:10px',
+          'padding:28px 32px',
+          'max-width:380px',
+          'width:90%',
+          'box-shadow:0 8px 32px rgba(0,0,0,0.18)',
+        ].join(';') + '">' +
+          '<div style="font-weight:600;font-size:15px;color:var(--text);margin-bottom:8px">Unsaved changes</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:24px">You have unsaved changes. If you leave now they\'ll be lost.</div>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+            '<button id="unsavedStay"  class="btn-secondary" style="font-size:13px;padding:7px 16px">Keep editing</button>' +
+            '<button id="unsavedLeave" style="' + [
+              'font-size:13px', 'padding:7px 16px', 'border-radius:6px', 'border:none',
+              'background:#dc2626', 'color:#fff', 'cursor:pointer', 'font-weight:500',
+            ].join(';') + '">Discard & leave</button>' +
+          '</div>' +
+        '</div>';
+
+      document.body.appendChild(overlay);
+
+      overlay.querySelector('#unsavedStay').addEventListener('click', function () {
+        document.body.removeChild(overlay);
+        resolve(false);
+      });
+      overlay.querySelector('#unsavedLeave').addEventListener('click', function () {
+        document.body.removeChild(overlay);
+        resolve(true);
+      });
+      // Click outside = stay (safe default)
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  async function backToList() {
     if (_isDirty) {
-      if (!confirm('You have unsaved changes. Leave anyway?')) return;
+      const leave = await showUnsavedChangesModal();
+      if (!leave) return;
     }
     stopAutosave();
     _view = 'list';
