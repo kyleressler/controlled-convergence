@@ -123,12 +123,12 @@
       </section>
 
       <section class="insights-section" id="insightsPageViews">
-        <h2>Most visited pages</h2>
+        <h2>Tool usage</h2>
         <p class="muted" style="margin:-4px 0 12px;font-size:12px">
-          All page visits in the last ${WINDOW_DAYS} days — shows which tools and content are used most.
+          How often each tool is opened in the last ${WINDOW_DAYS} days — shows what users actually use once they're inside the app.
         </p>
         <div id="pageViewsContainer">
-          <div class="muted">Loading page views…</div>
+          <div class="muted">Loading tool usage…</div>
         </div>
       </section>
     `;
@@ -588,15 +588,26 @@
     }).join(' ');
   }
 
-  // ── 6. Most-visited pages ─────────────────────────────────────
-  // Shows raw pageview counts for every path on the site so Kyle can see
-  // which tools are being used most, not just which blog posts perform.
-  // Uses the `top_pages_by_views` query added to the Netlify allowlist.
+  // ── 6. Tool usage ─────────────────────────────────────────────
+  // Uses the `tool_viewed` custom event fired by switchPage() in app.js.
+  // Blog posts are already in the Top Content section; admin is never tracked.
+  const TOOL_LABELS = {
+    proj:         'Project Manager',
+    tbus:         'Goals (TBUS)',
+    requirements: 'Requirements',
+    ilities:      '-ilities',
+    stak:         'Stakeholders',
+    scor:         'Concept Scoring',
+    conv:         'Convergence',
+    pugh:         'Pugh Matrix',
+    pair:         'Pairwise Analysis',
+  };
+
   async function loadPageViews() {
     const container = document.getElementById('pageViewsContainer');
     if (!container) return;
 
-    const phRes = await fetchPosthogQuery('top_pages_by_views', { days: WINDOW_DAYS, limit: 25 });
+    const phRes = await fetchPosthogQuery('tool_views', { days: WINDOW_DAYS });
 
     if (!phRes || !phRes.ok) {
       container.innerHTML = '<div class="muted">' + emptyMessageForPosthog(phRes) + '</div>';
@@ -605,39 +616,18 @@
 
     const rows = phRes.data || [];
     if (rows.length === 0) {
-      container.innerHTML = '<div class="muted">No pageview data yet.</div>';
+      container.innerHTML = '<div class="muted">No tool usage data yet — visits will appear here once users navigate between tools.</div>';
       return;
     }
 
-    // Humanize a pathname into a readable label.
-    // Hash-based tool routes look like "/#tools/design-game" — strip leading
-    // slashes and the hash, then title-case the remainder.
-    function labelForPath(path) {
-      if (!path) return '(unknown)';
-      // Strip query string + fragment for display
-      const clean = path.split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
-      // Map common paths to friendly names
-      const known = {
-        '/':               'Home',
-        '/blog':           'Blog index',
-        '/app.html':       'App',
-      };
-      if (known[clean]) return known[clean];
-      // /blog/<slug> → blog post title hint
-      const blogMatch = clean.match(/^\/blog\/(.+)$/);
-      if (blogMatch) return 'Blog: ' + blogMatch[1].replace(/-/g, ' ');
-      // Fall back to path with leading slash stripped
-      return clean.replace(/^\//, '').replace(/-/g, ' ') || clean;
-    }
-
     let html = '<table class="insights-table"><thead><tr>';
-    html += '<th>Page / Tool</th><th>Path</th><th class="num">Views (' + WINDOW_DAYS + 'd)</th><th class="num">Visitors</th>';
+    html += '<th>Tool</th><th class="num">Opens (' + WINDOW_DAYS + 'd)</th><th class="num">Unique users</th>';
     html += '</tr></thead><tbody>';
 
     rows.forEach(function (r) {
+      const label = TOOL_LABELS[r.tool] || r.tool;
       html += '<tr>';
-      html += '<td>' + escapeHtml(labelForPath(r.path)) + '</td>';
-      html += '<td><code style="font-size:11px">' + escapeHtml(r.path) + '</code></td>';
+      html += '<td>' + escapeHtml(label) + '</td>';
       html += '<td class="num">' + formatNum(r.views) + '</td>';
       html += '<td class="num">' + formatNum(r.visitors) + '</td>';
       html += '</tr>';

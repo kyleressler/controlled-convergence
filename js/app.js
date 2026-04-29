@@ -7098,6 +7098,13 @@ ${sections}
       syncPairView();
       updatePairProgress();
     }
+
+    // Track tool navigation for the Insights "tool usage" section.
+    // Excluded: admin (private), blog (tracked via UTM elsewhere), home.
+    const SKIP_TRACK = { admin: true, blog: true, home: true, basic: true };
+    if (!SKIP_TRACK[pageId] && typeof trackEvent === 'function') {
+      trackEvent('tool_viewed', { tool: pageId });
+    }
   }
 
 
