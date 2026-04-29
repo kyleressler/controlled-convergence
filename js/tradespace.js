@@ -795,7 +795,11 @@ window._tradeToggleDatum = function(val) {
   if (_tradeRadar) { try { _tradeRadar.update(); } catch(e){} }
 };
 
-window._tradeToggleConcept = function(id, val) {
+window._tradeToggleConcept = function(idStr, val) {
+  // Template literals always produce strings; look up the real ID from pughConcepts
+  // so the Set holds the same native type used everywhere else (avoids '1' !== 1 mismatches).
+  const concept = pughConcepts.find(c => String(c.id) === String(idStr));
+  const id = concept ? concept.id : idStr;
   if (val) _tradeSelConcepts.add(id);
   else     _tradeSelConcepts.delete(id);
   // Redraw concept panel dot colors
