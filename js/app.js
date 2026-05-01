@@ -4964,6 +4964,8 @@ ${sections}
     if (nws) nws.style.display = (!isWeighted) ? '' : 'none';
     if (frs) frs.style.display = (isWeighted && isForced)  ? '' : 'none';
     if (pw)  pw.style.display  = (isWeighted && !isForced) ? '' : 'none';
+    var pmb = document.getElementById('pairModeBar');
+    if (pmb) pmb.style.display = (isWeighted && !isForced) ? '' : 'none';
 
     // Update non-weighted section title/desc for current subject
     const nwTitle = document.getElementById('pairNonWeightedTitle');
@@ -5172,7 +5174,7 @@ ${sections}
   }
   function showNewRequirementForm() {
     var card = document.getElementById('reqFormCard');
-    if (card) card.style.display = '';
+    if (card) card.style.display = 'block';
     setTimeout(function() {
       // Focus whichever text input is visible (depends on agile vs incose mode)
       var t = document.getElementById('reqAgileWant') ||

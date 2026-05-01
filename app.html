@@ -485,7 +485,6 @@
   <!-- Phase 4.6: + New Project button toggles projFormCard visibility.
        Form is hidden by default; auto-closes on successful create. -->
   <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px;gap:8px">
-    <div></div>
     <button class="btn btn-secondary" id="newProjectToggleBtn" onclick="toggleNewProjectForm()">+ New Project</button>
     <button class="btn btn-continue" onclick="switchPage('tbus', document.querySelector('[data-page=tbus]'))">
       Continue to Goal Statement →
@@ -703,13 +702,15 @@
     <div class="home-hero-inner">
       <h1 class="home-headline">Make Better Design Decisions</h1>
       <p class="home-tagline">A structured methodology for evaluating design concepts against real engineering requirements — objectively, systematically, and collaboratively.</p>
-      <div class="home-cta-row">
-        <button class="home-cta-quick" onclick="setMode('basic')">⚡ Quick Project →</button>
-        <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Project →</button>
-      </div>
-      <p class="home-cta-sub">Quick Project: All on one page analysis &nbsp;|&nbsp; Full Project: Structured complete workflow</p>
-      <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
-        <button class="home-cta-example" onclick="loadExampleProject()">Explore Example Project</button>
+      <div style="display:inline-flex;flex-direction:column;align-items:stretch">
+        <div class="home-cta-row">
+          <button class="home-cta-quick" onclick="setMode('basic')">⚡ Quick Project →</button>
+          <button class="home-cta-guided" onclick="setMode('full'); switchPage('proj', document.querySelector('[data-page=proj]'))">◈ Full Project →</button>
+        </div>
+        <p class="home-cta-sub">Quick Project: All on one page analysis &nbsp;|&nbsp; Full Project: Structured complete workflow</p>
+        <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+          <button class="home-cta-example" onclick="loadExampleProject()">Explore Example Project</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1366,7 +1367,7 @@
   </div>
 
   <!-- Top navigation buttons -->
-  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:16px">
+  <div class="continue-btn-wrap" style="margin-top:0;margin-bottom:4px">
     <button class="btn btn-back" onclick="switchPage('requirements', document.querySelector('[data-page=requirements]'))">
       ← Return to Requirements
     </button>
@@ -1374,15 +1375,17 @@
       Continue to Concept Scoring →
     </button>
   </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button class="btn btn-ghost" style="font-size:12px;padding:2px 4px;background:none;border:none;color:var(--text-muted);cursor:pointer;text-decoration:underline" onclick="resetPair()">Reset</button>
+  </div>
 
-  <div class="pair-mode-bar">
+  <div class="pair-mode-bar" id="pairModeBar" style="display:none">
     <div class="pair-progress-bar-wrap" id="pairProgressWrap" style="display:none">
       <div class="pair-progress-label" id="pairProgressLabel">0 of 0 pairs</div>
       <div class="pair-progress-track">
         <div class="pair-progress-fill" id="pairProgressFill" style="width:0%"></div>
       </div>
     </div>
-    <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="resetPair()">Reset</button>
   </div>
 
   <div id="pairWeightedSection">

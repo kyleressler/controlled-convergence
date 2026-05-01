@@ -876,7 +876,7 @@
       transition: background 0.1s;
     }
     .statement-part:last-child { border-bottom: none; }
-    .statement-part:focus-within { background: var(--bg); }
+    .statement-part:focus-within { background: var(--surface); }
 
     .part-label-wrap {
       flex-shrink: 0;
@@ -909,7 +909,7 @@
       min-height: 72px;
       padding: 18px 20px 18px 12px;
       border: none;
-      background: none;
+      background: var(--surface);
       font-family: var(--font);
       font-size: 14px;
       color: var(--text);
@@ -3549,12 +3549,13 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     body.theme-green-yellow .home-cta-guided { background: var(--accent); color: #ffffff; }
     .home-cta-sub { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px; }
     .home-cta-example {
-      display: inline-block; background: transparent; color: var(--text-muted);
-      border: 1px solid var(--border-strong); border-radius: 6px; padding: 9px 24px;
-      font-size: 0.9rem; font-weight: 500; cursor: pointer; font-family: var(--font);
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      display: block; width: 100%; box-sizing: border-box;
+      background: var(--success); color: #fff;
+      border: 1px solid var(--success); border-radius: 6px; padding: 14px 32px;
+      font-size: 1rem; font-weight: 600; cursor: pointer; font-family: var(--font);
+      transition: opacity 0.15s;
     }
-    .home-cta-example:hover { background: var(--surface); color: var(--text); border-color: var(--text-muted); }
+    .home-cta-example:hover { opacity: 0.88; }
 
     /* Hide the guided-tools dropdown only on the Quick Project page itself.
        (Earlier this was tied to body.mode-basic, which kept the dropdown hidden
