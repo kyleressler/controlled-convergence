@@ -4902,6 +4902,10 @@ ${sections}
 
 
 
+  // AI Coaching removed — handleCoachingClick(), coachingResponses, and getCoaching()
+  // commented out. btnCoach element removed from app.html.
+  // TODO: remove these functions entirely in a future cleanup pass.
+  /*
   function handleCoachingClick() {
     if (!userTierMeets('pro')) {
       showUpgradePrompt('coaching');
@@ -4909,6 +4913,7 @@ ${sections}
     }
     getCoaching();
   }
+  */
 
   function handlePairModeClick(mode, btn) {
     if (mode === 'weighted' && userTier === 'free') {
@@ -6230,7 +6235,14 @@ ${sections}
 
   // ── CHECK CONTINUE ──
 
-  // ── COACHING (SIMULATED) ──
+  // ── COACHING / TO·BY·WHILE — REMOVED ──
+  // coachingResponses, getCoaching(), showExample(), switchGoalMode(), onGoalBasicInput(),
+  // saveStatement(), clearAll(), exportStatement(), continueToNext() all commented out.
+  // The TO/BY/WHILE structured form and advisor zone have been removed from app.html.
+  // The single text field goal statement (input-goal-basic / goalBasicForm) is current design.
+  // TODO: remove these functions entirely, plus onInput()/checkTo()/checkBy()/checkWhile()
+  //       validation logic, and related CSS in a future cleanup pass.
+  /*
   const coachingResponses = [
     // Response based on TO issues
     (vals) => {
@@ -6400,6 +6412,7 @@ ${sections}
   function continueToNext() {
     alert('In the full app, this would advance to the Requirements Builder — where you select ilities, write requirements, and see live coverage charting.');
   }
+  */ // end of removed TO/BY/WHILE + coaching block
 
   // ── BIBLIOGRAPHY ──
   function toggleBib(el) {
@@ -6811,12 +6824,11 @@ ${sections}
     const incoseSection = document.getElementById('reqIncoseSection');
     const agileBtn  = document.getElementById('reqFmtAgileBtn');
     const incoseBtn = document.getElementById('reqFmtIncoseBtn');
-    const typeSelector  = document.getElementById('reqTypeSelector');
     if (agileSection)  agileSection.style.display  = format === 'agile'  ? '' : 'none';
     if (incoseSection) incoseSection.style.display = format === 'incose' ? '' : 'none';
     if (agileBtn)  agileBtn.classList.toggle('active',  format === 'agile');
     if (incoseBtn) incoseBtn.classList.toggle('active', format === 'incose');
-    if (typeSelector)  typeSelector.style.display  = format === 'agile' ? 'none' : '';
+    // reqTypeSelector removed from DOM (TYPE classification no longer used)
     // INCOSE type defaults to none — clear any previously active chip
     if (format === 'incose' && !_editingReqId) {
       document.querySelectorAll('.req-type-chip').forEach(b => b.classList.remove('active'));
@@ -9514,9 +9526,7 @@ ${sections}
   }
 
   function updateTierBadges() {
-    // Coaching button: show PRO badge for free/account; hide when already pro+
-    const coachBadge = document.getElementById('coachProBadge');
-    if (coachBadge) coachBadge.style.display = userTierMeets('pro') ? 'none' : '';
+    // coachProBadge removed from DOM (AI Coaching removed)
 
     // Pugh settings panel account+ badges: hide when already account or above
     const isAboveFree = userTier === 'account' || userTierMeets('pro');

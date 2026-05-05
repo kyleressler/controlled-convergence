@@ -819,67 +819,10 @@
     </div>
   </div>
 
-  <!-- Statement Form -->
-  <div class="statement-card" id="statementCard" style="display:none">
-
-    <!-- TO -->
-    <div class="statement-part" id="part-to">
-      <div class="part-label-wrap">
-        <span class="part-keyword to-kw">TO</span>
-        <span class="part-hint">Solution-neutral intent — describe the outcome for a person, not a product</span>
-        <button class="info-icon" onclick="openSidebarToSlide('tbus', 1)" title="The TO · BY · WHILE framework">ⓘ</button>
-      </div>
-      <textarea class="part-input" id="input-to" placeholder="Describe the intent of this project without specifying the solution.&#10;&#10;Example: Help commuters cross the river between downtown and Riverside safely, at any time of year." rows="3" oninput="onInput('to')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-to"></div></div>
-    </div>
-    <div class="validation-msg" id="val-to">
-      <span id="val-to-text"></span>
-    </div>
-
-    <!-- BY -->
-    <div class="statement-part" id="part-by">
-      <div class="part-label-wrap">
-        <span class="part-keyword by-kw">BY</span>
-        <span class="part-hint">How you will accomplish the To — specific function or approach</span>
-      </div>
-      <textarea class="part-input" id="input-by" placeholder="How will you accomplish the To above? Unlike the To, the By can and should be specific.&#10;&#10;Example: providing a fixed crossing structure that supports pedestrians and cyclists in all weather conditions." rows="3" oninput="onInput('by')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-by"></div></div>
-    </div>
-    <div class="validation-msg" id="val-by">
-      <span id="val-by-text"></span>
-    </div>
-
-    <!-- USING -->
-    <div class="statement-part" id="part-using" style="opacity:0.55;pointer-events:none">
-      <div class="part-label-wrap">
-        <span class="part-keyword using-kw">USING</span>
-        <span class="part-hint">Converged solution</span>
-      </div>
-      <textarea class="part-input" id="input-using" placeholder="The USING is the specific solution form we are going to use and will be determined through Controlled Convergence in our Pugh Matrix. To Be Determined..." rows="3" readonly tabindex="-1"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-using"></div></div>
-    </div>
-    <div class="validation-msg" id="val-using" style="display:none">
-      <span id="val-using-text"></span>
-    </div>
-
-    <!-- WHILE -->
-    <div class="statement-part" id="part-while">
-      <div class="part-label-wrap">
-        <span class="part-keyword while-kw">WHILE</span>
-        <span class="part-hint">Constraint or condition</span>
-        <button class="info-icon" onclick="openSidebarToSlide('tbus', 2)" title="Common Goal Statement mistakes">ⓘ</button>
-      </div>
-      <textarea class="part-input" id="input-while" placeholder="A real constraint that could actually eliminate a concept if violated. Ask: would a concept that ignores this still be acceptable?&#10;&#10;Example: staying within a $4M capital budget and minimizing disruption to ongoing river traffic." rows="3" oninput="onInput('while')"></textarea>
-      <div class="part-status"><div class="status-dot" id="dot-while"></div></div>
-    </div>
-    <div class="validation-msg" id="val-while">
-      <span id="val-while-text"></span>
-    </div>
-
-  </div>
-
-  <!-- Live Preview Banner -->
-  <div class="preview-banner" id="previewBanner"></div>
+  <!-- TO/BY/WHILE structured form removed — single text field goal statement is current design.
+       TODO: remove onInput(), checkTo(), checkBy(), checkWhile(), switchGoalMode(), showExample(),
+       saveStatement(), clearAll(), coachingResponses, getCoaching(), handleCoachingClick(),
+       previewBanner CSS, statement-card CSS, and advisor-zone CSS in a future cleanup pass. -->
 
   <!-- Navigation buttons -->
   <div class="continue-btn-wrap">
@@ -891,35 +834,9 @@
     </button>
   </div>
 
-  <!-- Advisor Zone -->
-  <div class="advisor-zone">
-    <div class="advisor-header">
-      <div class="advisor-avatar">STU</div>
-      <div>
-        <div class="advisor-name">STU</div>
-        <div class="advisor-role">Controlled Convergence Coach</div>
-      </div>
-    </div>
-
-    <div class="advisor-body" id="advisorBody">
-      <p>AI Coaching Coming Soon...</p>
-    </div>
-
-    <div class="advisor-thinking" id="advisorThinking">
-      <span>Reviewing your statement</span>
-      <div class="dots">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
-
-    <div class="advisor-footer">
-      <button class="btn btn-secondary" id="btnCoach" onclick="handleCoachingClick()" style="display:flex;align-items:center;gap:6px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        Get Coaching
-        <span class="pro-badge-inline" id="coachProBadge">PRO</span>
-      </button>
-    </div>
-  </div>
+  <!-- AI Coaching removed — not planned for implementation.
+       TODO: remove handleCoachingClick(), coachingResponses, getCoaching() from app.js,
+       advisor-zone CSS from style.css, and 'coaching' upgrade prompt from showUpgradePrompt(). -->
 
 
 </main>
@@ -1097,14 +1014,8 @@
   </div>
 
   <div class="req-form-card" id="reqFormCard" style="display:none">
-    <div class="req-form-label">Type</div>
-    <div class="req-type-selector" id="reqTypeSelector">
-      <button class="req-type-chip active" data-type="essential" onclick="setReqType('essential', this)">Essential</button>
-      <button class="req-type-chip" data-type="desirable" onclick="setReqType('desirable', this)">Desirable</button>
-      <button class="req-type-chip" data-type="optional" onclick="setReqType('optional', this)">Optional</button>
-      <button class="req-type-chip" data-type="willnot" onclick="setReqType('willnot', this)">Will Not</button>
-      <button class="req-type-chip" data-type="mustnot" onclick="setReqType('mustnot', this)">Must Not</button>
-    </div>
+    <!-- TYPE classification removed — MoSCoW typing is no longer part of the workflow.
+         TODO: remove setReqType(), reqType variable, and req-type-chip CSS from app.js/style.css in a future cleanup pass. -->
 
     <!-- ── AGILE / JIRA form ── -->
     <div id="reqAgileSection" style="margin-top:12px">
