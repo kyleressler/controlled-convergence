@@ -2284,6 +2284,7 @@
     }
 
     closeInviteModal();
+    _showToast('Invite sent to ' + email, 'success');
     // Refresh the Tasks panel badge
     _refreshTasksNavBtn();
     // Show a brief confirmation inline on the project card
@@ -2347,14 +2348,44 @@
 
   var _revokeTargetMemberId = null; // user_id of collaborator pending revoke
 
-  function openTeamAccessModal() {
+  var _pendingInvites = []; // cache of pending collab_invite tasks for the active project
+
+  async function openTeamAccessModal() {
     if (!activeProject) return;
     const titleEl = document.getElementById('teamAccessProjectName');
     if (titleEl) titleEl.textContent = activeProject.name;
+
+    // Fetch pending invites so the owner can see/cancel them (UX-13)
+    _pendingInvites = [];
+    try {
+      var { data: pendingRows } = await _supabase
+        .from('tasks')
+        .select('id, assignee_email, payload, created_at')
+        .eq('project_id', activeProject.id)
+        .eq('task_type',  'collab_invite')
+        .eq('status',     'pending')
+        .order('created_at', { ascending: true });
+      _pendingInvites = pendingRows || [];
+    } catch(e) {
+      console.warn('[openTeamAccessModal] pending invites fetch failed:', e);
+    }
+
     renderTeamAccessList();
     var modal = document.getElementById('teamAccessModal');
     if (modal) modal.classList.add('open');
   }
+
+  async function _cancelPendingInvite(taskId) {
+    try {
+      await _supabase.from('tasks').update({ status: 'cancelled' }).eq('id', taskId);
+      _pendingInvites = _pendingInvites.filter(function(t) { return t.id !== taskId; });
+      renderTeamAccessList();
+      _showToast('Invite cancelled', 'info');
+    } catch(e) {
+      console.warn('[_cancelPendingInvite] failed:', e);
+    }
+  }
+  window._cancelPendingInvite = _cancelPendingInvite;
 
   function closeTeamAccessModal() {
     var modal = document.getElementById('teamAccessModal');
@@ -2367,7 +2398,7 @@
     var listEl = document.getElementById('teamAccessList');
     if (!listEl) return;
 
-    if (!projectCollaborators || projectCollaborators.length === 0) {
+    if ((!projectCollaborators || projectCollaborators.length === 0) && (!_pendingInvites || _pendingInvites.length === 0)) {
       listEl.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:12px 0">No collaborators yet. Use the <strong>+ Invite</strong> button to add team members.</div>';
       return;
     }
@@ -2426,6 +2457,26 @@
     // of the team access modal via _resolveStakEmailTiers.
     if (emailsForBadge.length && typeof _resolveStakEmailTiers === 'function') {
       _resolveStakEmailTiers(emailsForBadge);
+    }
+
+    // UX-13: append pending invites section so the owner can see and cancel
+    // invites that haven't been accepted yet.
+    if (_pendingInvites && _pendingInvites.length > 0) {
+      var pendingHtml = '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">'
+        + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:8px">Pending Invites</div>';
+      _pendingInvites.forEach(function(t) {
+        var invEmail = t.assignee_email || (t.payload && t.payload.invited_by_email ? t.payload.invited_by_email : '—');
+        var roleLabel = (t.payload && t.payload.role === 'editor') ? 'Editor' : 'Viewer';
+        var safeEmail = String(invEmail).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        pendingHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;opacity:0.85">'
+          + '<div style="flex:1;min-width:0;font-size:13px;color:var(--text)">' + safeEmail + '</div>'
+          + '<span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:3px 9px;background:var(--bg-alt,rgba(0,0,0,0.06));border-radius:4px;white-space:nowrap">' + roleLabel + '</span>'
+          + '<span style="font-size:11px;color:var(--text-muted);font-style:italic;white-space:nowrap">Pending</span>'
+          + '<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--danger,#e53e3e);white-space:nowrap" onclick="_cancelPendingInvite(\'' + t.id + '\')">Cancel</button>'
+          + '</div>';
+      });
+      pendingHtml += '</div>';
+      listEl.innerHTML += pendingHtml;
     }
   }
 
@@ -8104,6 +8155,28 @@ ${sections}
   function _hideSessionWarning() {
     const el = document.getElementById('sessionWarningBanner');
     if (el) el.remove();
+  }
+
+  // ── TOAST NOTIFICATIONS ──
+  // Lightweight, self-dismissing status messages. No library required.
+  // Usage: _showToast('Invite sent to user@example.com', 'success')
+  // type: 'success' | 'error' | 'info'
+  function _showToast(message, type) {
+    var bg = type === 'error' ? 'var(--danger,#b91c1c)'
+           : type === 'success' ? '#15803d'
+           : 'var(--text,#1a1a2e)';
+    var el = document.createElement('div');
+    el.style.cssText = [
+      'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
+      'background:' + bg, 'color:#fff', 'padding:10px 20px', 'border-radius:8px',
+      'font-size:13px', 'font-weight:500', 'z-index:99999',
+      'box-shadow:0 4px 16px rgba(0,0,0,0.2)', 'opacity:1',
+      'transition:opacity 0.4s', 'pointer-events:none', 'white-space:nowrap'
+    ].join(';');
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(function() { el.style.opacity = '0'; }, 2600);
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3000);
   }
 
   // ── IMMEDIATE SAVE HELPER ──

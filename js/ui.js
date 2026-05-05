@@ -343,10 +343,17 @@ async function _resolveStakEmailTiers(emails) {
       ? ''
       : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();activateProjectOnly('${p.id}')" title="Activate this project">Activate</button>`;
 
-    // Invite button — visible to all logged-in non-free tiers; Pro gate fires inside openInviteModal()
-    const inviteBtn = (isActive && userTier !== 'free' && appState.currentUser)
-      ? `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`
-      : '';
+    // Invite button — Pro users get full button; account (free) users see a
+    // visually-gated version with a PRO badge so they know upfront it requires
+    // an upgrade (UX-03). Anonymous users see nothing.
+    let inviteBtn = '';
+    if (isActive && appState.currentUser) {
+      if (userTier === 'pro' || userTier === 'admin') {
+        inviteBtn = `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Invite a collaborator">+ Invite</button>`;
+      } else if (userTier === 'account') {
+        inviteBtn = `<button class="btn btn-ghost proj-invite-btn" onclick="event.stopPropagation();openInviteModal('${p.id}')" title="Inviting collaborators requires Pro" style="opacity:0.75">+ Invite <span class="pro-badge-inline" style="font-size:9px;padding:1px 5px;vertical-align:middle">PRO</span></button>`;
+      }
+    }
 
     // Team Access button on active card — lets the owner see and manage collaborators
     let collabHtml = '';
