@@ -123,8 +123,11 @@ async function logout() {
   // change reliably, so we force-clear them to prevent the session
   // from being restored on the next page load.
   try {
+    // Scrub Supabase session keys (Safari doesn't always propagate signOut())
+    // and all app-level cc_* keys so the next user doesn't inherit stale
+    // project state (active project ID, last page, session count, etc.)
     Object.keys(localStorage)
-      .filter(k => k.startsWith('sb-'))
+      .filter(k => k.startsWith('sb-') || k.startsWith('cc_'))
       .forEach(k => localStorage.removeItem(k));
   } catch (e) { /* localStorage may be restricted in some Safari contexts */ }
   appState.currentUser = null;
