@@ -5710,6 +5710,11 @@ ${sections}
     loadProject(id);
     const projNavBtn = document.querySelector('[data-page="proj"]');
     switchPage('proj', projNavBtn);
+    // Explicitly re-render the project page so the active project banner and
+    // lock pill are guaranteed to reflect the just-activated project, regardless
+    // of any async navigation that setMode() triggered inside loadProject().
+    if (typeof renderProjPage === 'function') renderProjPage();
+    if (typeof _renderLockBanner === 'function') _renderLockBanner();
   }
 
   function deactivateProject() {
@@ -6242,6 +6247,11 @@ ${sections}
   // The single text field goal statement (input-goal-basic / goalBasicForm) is current design.
   // TODO: remove these functions entirely, plus onInput()/checkTo()/checkBy()/checkWhile()
   //       validation logic, and related CSS in a future cleanup pass.
+
+  // goalMode must remain declared even though switchGoalMode() is removed —
+  // it is read by snapshotCurrentState, renderConvPage, _doSetMode, and others.
+  let goalMode = 'basic'; // always 'basic' now; 'structured' (TO/BY/WHILE) was removed.
+
   /*
   const coachingResponses = [
     // Response based on TO issues
