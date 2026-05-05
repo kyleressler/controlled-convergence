@@ -374,6 +374,11 @@ async function _resolveStakEmailTiers(emails) {
       ? `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();convertQuickToFull('${p.id}')" title="Convert this Quick Project to a Full Project (data is preserved)">Convert to Full Project</button>`
       : '';
 
+    // Open Quick Analysis button — only on active Quick Project cards.
+    const openQuickBtn = (isActive && projType === 'quick')
+      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();setMode('basic')" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
+      : '';
+
     return `
     <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">
       <div style="flex:1;min-width:0">
@@ -381,6 +386,7 @@ async function _resolveStakEmailTiers(emails) {
         ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
         <div class="proj-item-meta">${_projDateStr(p)}${p.owner ? ' · ' + p.owner : ''}</div>
         ${collabHtml}
+        ${openQuickBtn}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         ${activateBtn}
@@ -434,12 +440,18 @@ async function _resolveStakEmailTiers(emails) {
       ? ''
       : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();activateProjectOnly('${p.id}')" title="Activate this project">Activate</button>`;
 
+    const collabProjType = (p.projectType === 'quick') ? 'quick' : 'full';
+    const openQuickBtnCollab = (isActive && collabProjType === 'quick')
+      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();setMode('basic')" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
+      : '';
+
     return `
     <div class="proj-item" style="${activeBorder}" ondblclick="event.stopPropagation();activateProjectAndGo('${p.id}')" title="Double-click to activate">
       <div style="flex:1;min-width:0">
         <div class="proj-item-name">${activeIndicator}${p.name}</div>
         ${p.description ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.description}</div>` : ''}
         <div class="proj-item-meta">${_projDateStr(p)}</div>
+        ${openQuickBtnCollab}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         ${activateBtn}
