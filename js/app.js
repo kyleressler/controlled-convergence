@@ -7903,10 +7903,17 @@ ${sections}
   var _warningCountdownTimer  = null;
   var _inactivityWarningVisible = false;
 
-  // Reset the inactivity clock. Called by activity events and by "Still Working" button.
+  // Reset the inactivity clock. Called by passive activity events (mousemove, keydown, etc.).
+  // Does NOT dismiss the warning modal — once it's shown, the user must explicitly click
+  // "Still Working" to confirm they're present.
   function _resetInactivityTimer() {
     _lastActivityAt = Date.now();
-    if (_inactivityWarningVisible) _hideInactivityWarning();
+  }
+
+  // Called by the "Still Working" button. Resets the clock AND dismisses the modal.
+  function _dismissInactivityWarning() {
+    _lastActivityAt = Date.now();
+    _hideInactivityWarning();
   }
 
   // Show the warning modal and start the 60-minute countdown.
@@ -7980,9 +7987,9 @@ ${sections}
   //   1. The modal's onclick="..." attributes need window-scope functions.
   //   2. Enables console testing: call window._showInactivityWarning() to
   //      trigger the modal immediately without waiting 3 hours.
-  window._resetInactivityTimer  = _resetInactivityTimer;
-  window._doInactivityLogout    = _doInactivityLogout;
-  window._showInactivityWarning = _showInactivityWarning;
+  window._dismissInactivityWarning = _dismissInactivityWarning;
+  window._doInactivityLogout       = _doInactivityLogout;
+  window._showInactivityWarning    = _showInactivityWarning;
 
   // ── SESSION WARNING BANNER ──
   // Shows a persistent banner when saves stop responding (expired session).
