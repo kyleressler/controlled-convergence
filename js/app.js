@@ -2187,6 +2187,23 @@
     var proj = savedProjects.find(function(p) { return p.id === _inviteTargetProjectId; });
 
     try {
+      // Dedupe check: block sending if a pending invite already exists for this
+      // email + project combination (BUG-11). Without this the user could send
+      // duplicate invites, creating multiple pending tasks for the recipient.
+      var { data: existingInvites } = await _supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id',     _inviteTargetProjectId)
+        .eq('assignee_email', email)
+        .eq('task_type',      'collab_invite')
+        .eq('status',         'pending')
+        .limit(1);
+      if (existingInvites && existingInvites.length > 0) {
+        if (btnEl) { btnEl.textContent = 'Send Invite'; btnEl.disabled = false; }
+        if (errEl) { errEl.textContent = 'A pending invite already exists for this email.'; errEl.style.display = ''; }
+        return;
+      }
+
       // Resolve email → Supabase user ID (best-effort — null if user has no account)
       try {
         var { data: resolvedId, error: rpcErr } = await _supabase.rpc('get_user_id_by_email', { lookup_email: email });
