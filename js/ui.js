@@ -493,7 +493,7 @@ async function _resolveStakEmailTiers(emails) {
     }
 
     // ── Projects (Collaborating) section ──────────────────────
-    html += `<div class="proj-section-header" style="margin-top:24px">Projects (Collaborating) <span class="proj-section-count">${collabProjects.length}${isFinite(collabLimit) ? ' / ' + collabLimit : ''}</span></div>`;
+    html += `<div class="proj-section-header" style="margin-top:24px">Projects (Collaborating) <span class="proj-section-count">${collabProjects.length}${isFinite(collabLimit) ? ' / ' + collabLimit : ' — Unlimited'}</span></div>`;
     if (collabLocked) {
       html += `<div class="proj-lock-banner">⚠️ Your collaborating projects list is over the limit for your current tier. Upgrade to Pro or remove excess projects to unlock.</div>`;
     }
@@ -520,7 +520,7 @@ async function _resolveStakEmailTiers(emails) {
     } else if (userTier === 'account') {
       msg.innerHTML = '<strong>Free Account:</strong> Own up to ' + quickLimit + ' Quick Projects (' + ownedQuickCount + ' of ' + quickLimit + ' used) and ' + fullLimit + ' Full Projects (' + ownedFullCount + ' of ' + fullLimit + ' used). Collaborate on up to ' + collabLimit + ' more (' + collabCount + ' of ' + collabLimit + ' used). Upgrade to Pro for more.';
     } else {
-      msg.innerHTML = '<strong>Pro tier:</strong> Own up to ' + quickLimit + ' Quick + ' + fullLimit + ' Full Projects. Collaboration features — inviting team members to review and contribute — are on the roadmap.';
+      msg.innerHTML = '<strong>Pro tier:</strong> Own up to ' + quickLimit + ' Quick + ' + fullLimit + ' Full Projects. Unlimited collaboration — invite team members to review and contribute to your projects.';
     }
   }
 
@@ -1920,6 +1920,15 @@ async function _resolveStakEmailTiers(emails) {
     // True when the user has turned on weighted mode (Account/Pro only)
     const isWeightedMode = (typeof pairMode !== 'undefined' ? pairMode : 'nonweighted') === 'weighted'
                         && userTier !== 'free';
+
+    // Show a mode badge in the toolbar so users can always see whether
+    // weighted scoring is active without leaving the Pugh page (BUG-10).
+    const modeBadgeEl = document.getElementById('pughModeBadge');
+    if (modeBadgeEl) {
+      modeBadgeEl.textContent  = isWeightedMode ? 'Weighted' : 'Non-Weighted';
+      modeBadgeEl.style.color  = isWeightedMode ? 'var(--accent)' : 'var(--text-muted)';
+      modeBadgeEl.style.background = isWeightedMode ? 'rgba(var(--accent-rgb,26,86,219),0.08)' : 'var(--surface)';
+    }
 
     // Ordered ility groups (only those with selected ilities that have reqs)
     const ilityOrder = [...ILITIES, ...customIlities].filter(il => selectedIlities.has(il.id));
