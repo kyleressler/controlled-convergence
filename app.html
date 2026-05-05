@@ -522,7 +522,7 @@
        Auto-closes on successful create (createProject calls hideNewProjectForm). -->
   <div class="proj-form-card" id="projFormCard" style="display:none">
     <div style="margin-bottom:12px">
-      <div class="req-form-label">Project Name <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
+      <div class="req-form-label">Project Name <span style="color:var(--danger,#e53e3e)" title="Required">*</span> <button class="info-icon" onclick="openSidebarToSlide('proj', 1)" title="How to create a project">ⓘ</button></div>
       <input type="text" class="add-custom-input" id="projNameInput" placeholder="e.g. Bridge Design 2026, Patient Monitor Refresh..." style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')createProject('full')">
     </div>
     <div style="margin-bottom:12px">

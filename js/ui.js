@@ -1946,7 +1946,7 @@ async function _resolveStakEmailTiers(emails) {
       : '';
     const thCols = sortedConcepts.map((c) => {
       const isDatum = c.id === datumId;
-      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</span></th>`;
+      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}" title="${escHtml(c.name)}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</span></th>`;
     }).join('');
     // Determine collapse-all triangle state for cell A1
     const totalCols = sortedConcepts.length + 1 + (showMASCol ? 1 : 0);

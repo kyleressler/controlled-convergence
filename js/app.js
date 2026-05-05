@@ -5237,7 +5237,10 @@ ${sections}
       ? String(opts.name || '').trim()
       : (input ? input.value.trim() : '');
     if (!name) {
-      if (!_useOpts && input) input.focus();
+      if (!_useOpts) {
+        if (errEl) { errEl.textContent = 'Project Name is required. Please enter a name to continue.'; errEl.style.display = ''; }
+        if (input) input.focus();
+      }
       return;
     }
     // Duplicate name check (case-insensitive)
@@ -6488,6 +6491,9 @@ ${sections}
     // The chip's other state doesn't depend on a re-render.
     var el = document.getElementById('chip-' + id);
     if (el) el.classList.toggle('selected', nowSelected);
+    // Update the counter without a full re-render (BUG-03 fix)
+    var ilityCountEl = document.getElementById('ilityCount');
+    if (ilityCountEl) ilityCountEl.textContent = selectedIlities.size;
     populateReqForms();
   }
 
@@ -6552,6 +6558,9 @@ ${sections}
     // Phase 6.x: surgical class toggle (see toggleIlity comment).
     var el = document.getElementById('stak-chip-' + id);
     if (el) el.classList.toggle('selected', nowSelected);
+    // Update the counter without a full re-render (BUG-03 fix)
+    var stakCountEl = document.getElementById('stakCount');
+    if (stakCountEl) stakCountEl.textContent = selectedStakeholders.size;
     populateReqForms();
   }
 
