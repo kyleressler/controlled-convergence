@@ -147,12 +147,21 @@ async function saveProject(project) {
   if (appState.currentUser) {
     const isOwner = !project.user_id || project.user_id === appState.currentUser.id;
 
-    // Phase 2: only the owner may write to a project. Non-owners (viewers)
-    // get a clear client-side error before we even hit the network. RLS
-    // enforces this server-side too, so even if a UI bug let a viewer
-    // attempt a save, the database would reject it.
-    if (!isOwner) {
-      console.warn('[saveProject] non-owner attempted save — blocked',
+    // Phase 3+: collaborators who hold the checkout lock may also write.
+    // The RLS UPDATE policy enforces this server-side (editing_user_id = auth.uid()),
+    // so we mirror that here to avoid blocking the pre-checkin save that
+    // submitCheckIn() needs to flush the collaborator's edits before release_lock
+    // snapshots them. Without this, the collaborator's changes are silently
+    // discarded and the snapshot stored by release_lock is stale.
+    const currentHolderId = (typeof currentProjectLock !== 'undefined' &&
+                             currentProjectLock &&
+                             currentProjectLock.editing_user_id) || null;
+    const isLockHolder = !!(currentHolderId && currentHolderId === appState.currentUser.id);
+
+    // Phase 2: block saves from anyone who is neither owner nor lock holder.
+    // Viewers get a clear client-side error before we even hit the network.
+    if (!isOwner && !isLockHolder) {
+      console.warn('[saveProject] non-owner non-lock-holder attempted save — blocked',
                    '| user:', appState.currentUser.id,
                    '| project:', project.id);
       return { data: null, error: 'You do not have permission to edit this project.' };

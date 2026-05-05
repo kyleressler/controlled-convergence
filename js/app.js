@@ -5704,17 +5704,59 @@ ${sections}
   }
 
   // Single-click Activate button on a project card: activate without navigating away
-  // from Project Manager. loadProject() calls setMode() which would normally redirect
-  // to the home page, so we immediately bring the user back to the proj page.
-  function activateProjectOnly(id) {
+  // from Project Manager. Fetches fresh project data from the server first so any
+  // collaborator check-ins are immediately visible — then stays on the proj page.
+  async function activateProjectOnly(id) {
+    await _fetchAndRefreshProject(id);
+    const proj = savedProjects.find(p => p.id === id);
+    const projType = (proj && proj.projectType === 'quick') ? 'quick' : 'full';
+
+    if (projType === 'quick') {
+      // Quick projects: navigate directly to Quick Analysis.
+      // setMode('basic') inside loadProject handles the switchPage call.
+      loadProject(id);
+      return;
+    }
+
+    // Full projects: stay on Project Manager.
     loadProject(id);
     const projNavBtn = document.querySelector('[data-page="proj"]');
     switchPage('proj', projNavBtn);
-    // Explicitly re-render the project page so the active project banner and
-    // lock pill are guaranteed to reflect the just-activated project, regardless
-    // of any async navigation that setMode() triggered inside loadProject().
+    // Explicitly re-render so the active project banner and lock pill reflect
+    // the just-activated project, regardless of setMode() async navigation.
     if (typeof renderProjPage === 'function') renderProjPage();
     if (typeof _renderLockBanner === 'function') _renderLockBanner();
+  }
+
+  // Fetch a single project fresh from Supabase and update savedProjects in place.
+  // Called before activating a project so collaborator check-ins are always visible.
+  async function _fetchAndRefreshProject(id) {
+    if (!appState || !appState.currentUser) return;
+    try {
+      const { data: full, error } = await _supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !full) return;
+      const fresh = Object.assign({
+        id:          full.id,
+        user_id:     full.user_id,
+        name:        full.name,
+        owner:       full.owner || '',
+        description: full.description || '',
+        created_at:  full.created_at,
+        updated_at:  full.updated_at,
+        is_owner:    full.user_id === (appState.currentUser && appState.currentUser.id),
+        editing_user_id: full.editing_user_id || null,
+        checked_out_at:  full.checked_out_at  || null
+      }, full.data || {});
+      const idx = savedProjects.findIndex(p => p.id === id);
+      if (idx >= 0) savedProjects[idx] = fresh; else savedProjects.push(fresh);
+      appState.projects = savedProjects.slice();
+    } catch(e) {
+      console.warn('[_fetchAndRefreshProject] error:', e);
+    }
   }
 
   function deactivateProject() {
