@@ -7885,6 +7885,96 @@ ${sections}
     }
   });
 
+  // ── INACTIVITY SESSION MANAGEMENT ──
+  // Tracks user activity and warns + logs out after inactivity.
+  //
+  // Timeline:
+  //   0 ─────────────── 3 hrs idle ── show warning ── 4 hrs idle ── logout
+  //                                    (60-min countdown)
+  //
+  // "Still Working" resets the clock back to 0.
+  // Before logout, handleLogout() saves all project state first.
+  // Only fires when a user is signed in — anonymous users are unaffected.
+
+  var _INACTIVITY_TIMEOUT_MS  = 4 * 60 * 60 * 1000; // 4 hours total
+  var _INACTIVITY_WARNING_MS  = 3 * 60 * 60 * 1000; // warn after 3 hours
+  var _lastActivityAt         = Date.now();
+  var _inactivityCheckTimer   = null;
+  var _warningCountdownTimer  = null;
+  var _inactivityWarningVisible = false;
+
+  // Reset the inactivity clock. Called by activity events and by "Still Working" button.
+  function _resetInactivityTimer() {
+    _lastActivityAt = Date.now();
+    if (_inactivityWarningVisible) _hideInactivityWarning();
+  }
+
+  // Show the warning modal and start the 60-minute countdown.
+  function _showInactivityWarning() {
+    if (_inactivityWarningVisible) return;
+    _inactivityWarningVisible = true;
+
+    // Save before showing the warning so the user knows their work is protected.
+    _autoSaveNow();
+
+    var modal = document.getElementById('inactivityWarningModal');
+    if (modal) modal.style.display = 'flex';
+
+    // Countdown: seconds remaining until the 4-hour wall from _lastActivityAt.
+    function _tick() {
+      var elapsed  = Date.now() - _lastActivityAt;
+      var remaining = Math.max(0, _INACTIVITY_TIMEOUT_MS - elapsed);
+      var totalSecs = Math.ceil(remaining / 1000);
+      var mins = Math.floor(totalSecs / 60);
+      var secs = totalSecs % 60;
+      var el = document.getElementById('inactivityCountdown');
+      if (el) el.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+      if (remaining <= 0) _doInactivityLogout();
+    }
+
+    _tick(); // render immediately so there's no 1-second blank
+    _warningCountdownTimer = setInterval(_tick, 1000);
+  }
+
+  // Hide the warning modal and stop the countdown.
+  function _hideInactivityWarning() {
+    _inactivityWarningVisible = false;
+    if (_warningCountdownTimer) { clearInterval(_warningCountdownTimer); _warningCountdownTimer = null; }
+    var modal = document.getElementById('inactivityWarningModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  // Called when the countdown hits zero, or when the user clicks "Log out now".
+  function _doInactivityLogout() {
+    _hideInactivityWarning();
+    if (typeof handleLogout === 'function') {
+      handleLogout(); // saves project state, signs out, reloads page
+    }
+  }
+
+  // Called every 60 seconds to check elapsed idle time.
+  function _checkInactivity() {
+    if (!appState || !appState.currentUser) return; // only affects signed-in users
+    var elapsed = Date.now() - _lastActivityAt;
+    if (elapsed >= _INACTIVITY_TIMEOUT_MS) {
+      _doInactivityLogout();
+    } else if (elapsed >= _INACTIVITY_WARNING_MS && !_inactivityWarningVisible) {
+      _showInactivityWarning();
+    }
+  }
+
+  // Start tracking. Called once at app init.
+  // Activity events reset _lastActivityAt without a full re-render.
+  function _startInactivityTracker() {
+    // Activity event handler — passive so it never blocks scroll/input
+    var _activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    _activityEvents.forEach(function(evt) {
+      document.addEventListener(evt, _resetInactivityTimer, { passive: true });
+    });
+    // Check once per minute — lightweight, no network calls
+    _inactivityCheckTimer = setInterval(_checkInactivity, 60 * 1000);
+  }
+
   // ── SESSION WARNING BANNER ──
   // Shows a persistent banner when saves stop responding (expired session).
   // Dismissed automatically when the session is successfully refreshed.
@@ -8083,6 +8173,7 @@ ${sections}
   if (typeof _authStartAutoRefresh === 'function') {
     _authStartAutoRefresh();
   }
+  _startInactivityTracker();
 
   // Bootstrap Supabase auth — restores session, sets up onAuthStateChange listener.
   // On success, _onAuthStateUpdated() in auth.js triggers renderProjList() automatically.

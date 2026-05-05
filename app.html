@@ -425,6 +425,24 @@
 <!-- Phase 4.5: the historical view banner has moved into the nav as
      well, alongside the lock pill. See _renderHistoricalViewBanner in app.js. -->
 
+<!-- ── INACTIVITY WARNING MODAL ──
+     Shown 60 minutes before automatic logout due to inactivity (3 hrs idle).
+     Managed entirely by the inactivity tracker in app.js. -->
+<div class="modal-overlay" id="inactivityWarningModal" style="display:none">
+  <div class="modal-card" style="max-width:420px;text-align:center">
+    <div class="modal-title" style="margin-bottom:12px">Still there?</div>
+    <p style="color:var(--text-light);font-size:14px;line-height:1.6;margin-bottom:8px">
+      You've been inactive for a while. To protect your session, you'll be automatically logged out in:
+    </p>
+    <div id="inactivityCountdown" style="font-size:36px;font-weight:700;color:var(--accent);letter-spacing:0.04em;margin:16px 0">60:00</div>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:24px">Your work has been saved.</p>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button class="btn btn-primary" onclick="_resetInactivityTimer()">Still Working</button>
+      <button class="btn btn-ghost" onclick="_doInactivityLogout()">Log out now</button>
+    </div>
+  </div>
+</div>
+
 <!-- Phase 4.6: "you're working in a temporary project" banner.
      Shows for logged-in users with no active project on work pages
      (anywhere past Project Manager). Themed via CSS variables. -->
