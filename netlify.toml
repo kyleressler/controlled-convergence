@@ -46,6 +46,13 @@
   to = "/blog-post.html?slug=:slug"
   status = 200
 
+# Catch-all: any route not matched above (e.g. /login, /dashboard, /projects)
+# redirects to the app. The app handles auth state and routes internally.
+[[redirects]]
+  from = "/*"
+  to = "/app"
+  status = 301
+
 
 # ── Cache headers ────────────────────────────────────────────
 # Long-cache static assets so repeat visitors don't re-download. Images and
