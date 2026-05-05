@@ -5308,6 +5308,16 @@ ${sections}
       pughCollapsedIlities = new Set(); pughUserInteractedCollapse = false; pughChartSort = 'order';
       goalMode = 'basic';
 
+      // Clear convergence state — these were missing from the reset and caused
+      // the previous project's chosen concept, rationale, and log date to bleed
+      // into the new project's Convergence Summary page (BUG-09).
+      convSelectedConceptId = '';
+      convRationale         = '';
+      convLessons           = { req: '', concepts: '', assumption: '', different: '' };
+      convRisks             = '';
+      convNextSteps         = [];
+      convClosedAt          = null;
+
       // Clear goal fields
       ['input-to','input-by','input-using','input-while','input-goal-basic'].forEach(id => {
         const el = document.getElementById(id);
