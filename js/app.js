@@ -7918,7 +7918,7 @@ ${sections}
     _autoSaveNow();
 
     var modal = document.getElementById('inactivityWarningModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) modal.classList.add('open');
 
     // Countdown: seconds remaining until the 4-hour wall from _lastActivityAt.
     function _tick() {
@@ -7941,7 +7941,7 @@ ${sections}
     _inactivityWarningVisible = false;
     if (_warningCountdownTimer) { clearInterval(_warningCountdownTimer); _warningCountdownTimer = null; }
     var modal = document.getElementById('inactivityWarningModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.classList.remove('open');
   }
 
   // Called when the countdown hits zero, or when the user clicks "Log out now".
