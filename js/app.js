@@ -353,6 +353,11 @@
 
   async function handleLogout() {
     if (!appState.currentUser) return;
+    // Suppress the session-warning banner during intentional logout.
+    // Any in-flight auto-saves will fail as the session is cleared, and
+    // without this guard they would flash the "session expired" banner
+    // right before the page reloads — confusing and incorrect (BUG-08).
+    _loggingOut = true;
     // Flush any unsaved in-memory state to Supabase before signing out.
     // This prevents data loss when the user logs out without having navigated
     // away from the current page (which would otherwise trigger a nav-save).
@@ -8046,7 +8051,16 @@ ${sections}
   // ── SESSION WARNING BANNER ──
   // Shows a persistent banner when saves stop responding (expired session).
   // Dismissed automatically when the session is successfully refreshed.
+  //
+  // _loggingOut: suppresses the banner during intentional logout so in-flight
+  //   auto-saves don't flash "session expired" as the session is being cleared.
+  // _saveFailCount: requires 2 consecutive save failures before showing the
+  //   banner, preventing a single transient network blip from alarming the user.
+  var _loggingOut    = false;
+  var _saveFailCount = 0;
+
   function _showSessionWarning() {
+    if (_loggingOut) return;
     let el = document.getElementById('sessionWarningBanner');
     if (!el) {
       el = document.createElement('div');
@@ -8105,17 +8119,23 @@ ${sections}
     try {
       const result = await Promise.race([saveProject(snap), timeoutPromise]);
       if (result && !result.error) {
+        _saveFailCount = 0; // reset on success
         if (typeof _hideSessionWarning === 'function') _hideSessionWarning();
         return;
       }
       console.warn('[_autoSaveNow] save failed:', result && result.error);
-      _showSessionWarning();
+      _saveFailCount++;
     } catch (err) {
       if (err.isTimeout) {
         console.warn('[_autoSaveNow] save timed out at 12s');
       } else {
         console.warn('[_autoSaveNow] save threw:', err);
       }
+      _saveFailCount++;
+    }
+    // Only show the banner after 2 consecutive failures — prevents a single
+    // transient network blip (e.g. brief CORS error) from alarming the user.
+    if (_saveFailCount >= 2) {
       _showSessionWarning();
     }
   }

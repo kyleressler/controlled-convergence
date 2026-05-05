@@ -258,7 +258,7 @@ async function _resolveStakEmailTiers(emails) {
       banner.style.display = '';
       if (activeNameEl) activeNameEl.textContent = activeProject.name;
       const ownerPart = activeProject.owner ? ' · ' + activeProject.owner : '';
-      if (activeMetaEl) activeMetaEl.textContent = 'Started ' + new Date(activeProject.createdAt).toLocaleDateString() + ownerPart;
+      if (activeMetaEl) activeMetaEl.textContent = 'Started ' + new Date(activeProject.created_at || activeProject.createdAt).toLocaleDateString() + ownerPart;
       if (activeDescEl) activeDescEl.textContent = activeProject.description || '';
     } else if (banner) {
       banner.style.display = 'none';
