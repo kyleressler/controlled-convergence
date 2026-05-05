@@ -255,16 +255,20 @@ function _onAuthStateUpdated() {
 function _refreshLogoutButton() {
   const btn = document.getElementById('logoutBtn');
   if (!btn) return;
+  // handleLogout() has its own guard (if !appState.currentUser return) so we
+  // don't need to null out onclick — just reflect the visual state. Resetting
+  // textContent here also restores the label after a "Logging out…" in-progress state
+  // (e.g. if the user logs back in without a page reload).
+  const label = document.getElementById('logoutBtnLabel');
+  if (label) label.textContent = 'Log Out';
   if (appState.currentUser) {
     btn.style.opacity = '1';
     btn.style.cursor  = 'pointer';
     btn.title = '';
-    btn.onclick = handleLogout;
   } else {
     btn.style.opacity = '0.5';
     btn.style.cursor  = 'not-allowed';
     btn.title = 'Sign in first';
-    btn.onclick = null;
   }
 }
 

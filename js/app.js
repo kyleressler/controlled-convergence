@@ -358,6 +358,16 @@
     // without this guard they would flash the "session expired" banner
     // right before the page reloads — confusing and incorrect (BUG-08).
     _loggingOut = true;
+    // Immediate visual feedback — prevent double-clicks and signal that
+    // logout is in progress (the pre-logout save can take 1-2 seconds).
+    const _logoutBtn = document.getElementById('logoutBtn');
+    const _logoutLabel = document.getElementById('logoutBtnLabel');
+    if (_logoutBtn) {
+      if (_logoutLabel) _logoutLabel.textContent = 'Logging out…';
+      _logoutBtn.style.opacity = '0.5';
+      _logoutBtn.style.cursor  = 'not-allowed';
+      _logoutBtn.onclick = null;
+    }
     // Flush any unsaved in-memory state to Supabase before signing out.
     // This prevents data loss when the user logs out without having navigated
     // away from the current page (which would otherwise trigger a nav-save).
