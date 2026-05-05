@@ -191,8 +191,9 @@ async function saveProject(project) {
         // Someone else holds the lock — silently skip.
         return { data: project, error: null };
       }
-      if (!holderId) {
-        // No one holds the lock — silently skip (we'd 403 anyway).
+      if (!holderId && !isOwner) {
+        // No one holds the lock and we're not the owner — skip (would 403).
+        // Owners can always save their own projects via the updated RLS policy.
         return { data: project, error: null };
       }
     }
@@ -203,7 +204,10 @@ async function saveProject(project) {
 
     const result = await _restPost('projects', {
       id:         project.id,
-      user_id:    appState.currentUser.id,
+      // First save: use current user as owner. Subsequent saves: preserve the
+      // project's existing user_id so collaborators don't accidentally transfer
+      // ownership to themselves.
+      user_id:    isFirstSave ? appState.currentUser.id : (project.user_id || appState.currentUser.id),
       created_at: project.created_at,
       ...payload,
       ...insertExtras

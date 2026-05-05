@@ -376,7 +376,7 @@ async function _resolveStakEmailTiers(emails) {
 
     // Open Quick Analysis button — only on active Quick Project cards.
     const openQuickBtn = (isActive && projType === 'quick')
-      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();setMode('basic')" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
+      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();switchPage('basic',null)" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
       : '';
 
     return `
@@ -442,7 +442,7 @@ async function _resolveStakEmailTiers(emails) {
 
     const collabProjType = (p.projectType === 'quick') ? 'quick' : 'full';
     const openQuickBtnCollab = (isActive && collabProjType === 'quick')
-      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();setMode('basic')" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
+      ? `<div style="margin-top:6px"><button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="event.stopPropagation();switchPage('basic',null)" title="Go to the one-page quick analysis">Open One Page Quick Project Analysis</button></div>`
       : '';
 
     return `
