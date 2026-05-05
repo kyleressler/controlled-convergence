@@ -7975,6 +7975,15 @@ ${sections}
     _inactivityCheckTimer = setInterval(_checkInactivity, 60 * 1000);
   }
 
+  // ── Expose inactivity controls globally ──
+  // Required for two reasons:
+  //   1. The modal's onclick="..." attributes need window-scope functions.
+  //   2. Enables console testing: call window._showInactivityWarning() to
+  //      trigger the modal immediately without waiting 3 hours.
+  window._resetInactivityTimer  = _resetInactivityTimer;
+  window._doInactivityLogout    = _doInactivityLogout;
+  window._showInactivityWarning = _showInactivityWarning;
+
   // ── SESSION WARNING BANNER ──
   // Shows a persistent banner when saves stop responding (expired session).
   // Dismissed automatically when the session is successfully refreshed.
