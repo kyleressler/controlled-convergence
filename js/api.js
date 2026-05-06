@@ -198,20 +198,37 @@ async function saveProject(project) {
       }
     }
 
-    const insertExtras = isFirstSave
-      ? { editing_user_id: appState.currentUser.id, checked_out_at: new Date().toISOString() }
-      : {};
-
-    const result = await _restPost('projects', {
-      id:         project.id,
-      // First save: use current user as owner. Subsequent saves: preserve the
-      // project's existing user_id so collaborators don't accidentally transfer
-      // ownership to themselves.
-      user_id:    isFirstSave ? appState.currentUser.id : (project.user_id || appState.currentUser.id),
-      created_at: project.created_at,
-      ...payload,
-      ...insertExtras
-    }, { upsert: true });
+    // Route to the correct HTTP method based on whether this is a new project.
+    //
+    // IMPORTANT: Do NOT use POST upsert for existing projects. Supabase evaluates
+    // the INSERT RLS policy first on any POST upsert, before conflict resolution
+    // kicks in. The INSERT policy requires user_id = auth.uid() (only the owner
+    // can create a project row), so a collaborator upsert always fails the INSERT
+    // check — even though the UPDATE policy explicitly allows editing_user_id =
+    // auth.uid(). The UPDATE policy never gets a chance to run.
+    //
+    // Fix: use PATCH for existing projects. PATCH only invokes the UPDATE policy,
+    // which already permits lock-holding collaborators to write. Never include
+    // user_id, editing_user_id, or checked_out_at in the PATCH payload — those
+    // are immutable from the client's perspective and managed by the claim_lock /
+    // release_lock RPCs.
+    let result;
+    if (isFirstSave) {
+      // New project — INSERT via POST. Sets ownership and initial lock in one shot.
+      result = await _restPost('projects', {
+        id:              project.id,
+        user_id:         appState.currentUser.id,
+        created_at:      project.created_at,
+        editing_user_id: appState.currentUser.id,
+        checked_out_at:  new Date().toISOString(),
+        ...payload
+      });
+    } else {
+      // Existing project — UPDATE via PATCH. Checks UPDATE policy only.
+      // Collaborators holding the lock satisfy editing_user_id = auth.uid()
+      // and can now write successfully.
+      result = await _restPatch('projects', payload, 'id=eq.' + encodeURIComponent(project.id));
+    }
 
     if (!result.ok) {
       console.error('[saveProject] error:', result.error,
