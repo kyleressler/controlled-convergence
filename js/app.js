@@ -358,15 +358,18 @@
     // without this guard they would flash the "session expired" banner
     // right before the page reloads — confusing and incorrect (BUG-08).
     _loggingOut = true;
-    // Immediate visual feedback — prevent double-clicks and signal that
-    // logout is in progress (the pre-logout save can take 1-2 seconds).
+    // Immediate visual feedback — signal that logout is in progress.
+    // NOTE: we intentionally do NOT null out onclick here. If the logout
+    // call hangs (SDK signOut stuck promise) and the page never reloads,
+    // nulling onclick would permanently disable the button for the session.
+    // Double-click protection comes from the `if (!appState.currentUser) return`
+    // guard at the top of this function (currentUser is cleared by logout()).
     const _logoutBtn = document.getElementById('logoutBtn');
     const _logoutLabel = document.getElementById('logoutBtnLabel');
     if (_logoutBtn) {
       if (_logoutLabel) _logoutLabel.textContent = 'Logging out…';
       _logoutBtn.style.opacity = '0.5';
       _logoutBtn.style.cursor  = 'not-allowed';
-      _logoutBtn.onclick = null;
     }
     // Flush any unsaved in-memory state to Supabase before signing out.
     // This prevents data loss when the user logs out without having navigated
@@ -379,11 +382,16 @@
         console.warn('[handleLogout] pre-logout save failed:', e);
       }
     }
-    // Best-effort server-side sign-out. If the JWT has already expired Supabase
-    // may return an error, but logout() still clears localStorage and wipes
-    // appState.currentUser — so the user is logged out locally regardless.
-    // Never block the reload on a signOut error.
-    await logout();
+    // Best-effort server-side sign-out with a 6-second timeout.
+    // The Supabase SDK signOut() can hang indefinitely in certain states
+    // (stuck promise, Safari storage lock). We race it against a timeout
+    // so the page always reloads — logout() explicitly clears localStorage
+    // before returning, so the session is wiped locally even if the server
+    // call times out.
+    await Promise.race([
+      logout(),
+      new Promise(resolve => setTimeout(resolve, 6000))
+    ]);
     window.location.reload();
   }
 
@@ -1378,11 +1386,42 @@
     // Make sure any in-progress edits land in the row BEFORE we snapshot.
     // saveProject is fire-and-forget normally; here we await it so the
     // snapshot reflects the final state.
+    //
+    // IMPORTANT: We check the return value, not just exceptions. saveProject()
+    // returns { data: null, error: '...' } (no throw) when the server rejects
+    // the write — most commonly because the Supabase RLS UPDATE policy is
+    // blocking a collaborator write even though they hold the lock. If we
+    // ignore the error and call releaseLock(), the version snapshot is created
+    // from the stale DB row and the collaborator's edits are silently lost.
+    var _saveOk = true;
     try {
       var snap = snapshotCurrentState(activeProject);
-      await saveProject(snap);
+      var saveResult = await saveProject(snap);
+      if (saveResult && saveResult.error) {
+        _saveOk = false;
+        console.warn('[submitCheckIn] pre-checkin save returned error:', saveResult.error);
+      }
     } catch (e) {
-      console.warn('[submitCheckIn] pre-checkin save failed:', e);
+      _saveOk = false;
+      console.warn('[submitCheckIn] pre-checkin save threw:', e);
+    }
+
+    // If the save failed, warn the user before proceeding. The version snapshot
+    // that release_lock creates will reflect the last *successfully saved* state,
+    // not the current in-memory edits — so the user should know.
+    if (!_saveOk) {
+      if (btn) { btn.textContent = 'Check in'; btn.disabled = false; }
+      var proceed = await _showConfirm(
+        'Could not save your changes',
+        'Your latest edits could not be written to the database before check-in. ' +
+        'This is usually a permissions issue — your version snapshot may not include your most recent changes.\n\n' +
+        'Contact the project owner to verify your Editor role, then try again.\n\n' +
+        'Check in anyway (snapshot may be incomplete)?',
+        'Check In Anyway',
+        true  // danger styling
+      );
+      if (!proceed) return;
+      if (btn) { btn.textContent = 'Checking in…'; btn.disabled = true; }
     }
 
     var result = await releaseLock(activeProject.id, comment);
