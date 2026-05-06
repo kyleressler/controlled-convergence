@@ -1273,6 +1273,18 @@
   function _stopLockPoll() {
     if (_lockPollTimer) { clearInterval(_lockPollTimer); _lockPollTimer = null; }
   }
+
+  // Auto-save while holding the lock so the DB is current if the owner
+  // revokes and chooses "Keep their changes" — the revoke_lock_keep RPC
+  // snapshots the DB row, not the collaborator's in-memory state.
+  var _lockAutoSaveTimer = null;
+  function _startLockAutoSave() {
+    if (_lockAutoSaveTimer) return;
+    _lockAutoSaveTimer = setInterval(_autoSaveNow, 30 * 1000);
+  }
+  function _stopLockAutoSave() {
+    if (_lockAutoSaveTimer) { clearInterval(_lockAutoSaveTimer); _lockAutoSaveTimer = null; }
+  }
   async function _pollLockState() {
     if (!activeProject || !appState.currentUser) return;
     var result = await fetchLockState(activeProject.id);
@@ -1289,6 +1301,8 @@
       updated_at:      fresh.updated_at      || null
     };
 
+    // If the lock moved away from us, stop the auto-save timer.
+    if (holderChanged && !iHoldLock) _stopLockAutoSave();
     if (holderChanged) _renderLockBanner();
 
     // If someone else checked in changes while I'm viewing, pull fresh state.
@@ -1351,6 +1365,10 @@
     _refreshCachedLockState();
     _renderLockBanner();
     _rerenderProjectViews();
+    // Start periodic auto-save so DB stays current while we hold the lock.
+    // Protects against Revoke-Keep data loss: the revoke RPC snapshots the
+    // DB row, so we want in-memory edits written there regularly.
+    _startLockAutoSave();
   }
 
   // Phase 4: check-in opens a modal for an optional comment, then calls
@@ -1382,6 +1400,10 @@
     var comment = ta ? ta.value : '';
 
     if (btn) { btn.textContent = 'Checking in…'; btn.disabled = true; }
+
+    // Stop the lock auto-save timer before we do our own explicit save below,
+    // so we don't fire two concurrent writes.
+    _stopLockAutoSave();
 
     // Make sure any in-progress edits land in the row BEFORE we snapshot.
     // saveProject is fire-and-forget normally; here we await it so the
