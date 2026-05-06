@@ -723,6 +723,19 @@
     }
     .sidebar-tab:hover { color: var(--text); }
 
+    /* Full-bar click overlay — covers the collapsed 36px bar so any click opens
+       the sidebar, not just a click on the icon. Disabled when sidebar is open. */
+    .sidebar-click-overlay {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      z-index: 1;
+    }
+    .sidebar-left.open   .sidebar-click-overlay,
+    .sidebar-right.open  .sidebar-click-overlay { pointer-events: none; cursor: default; }
+    /* Ensure the tab icon always stays above the overlay */
+    .sidebar-tab { z-index: 2; }
+
     .sidebar-content {
       padding: 56px 16px 24px;
       width: var(--sidebar-w);
@@ -1651,6 +1664,13 @@
     .chart-expand-content .rtm-corner { font-size: 10px; }
     .chart-expand-content .rtm-req-col { min-width: 180px; max-width: 260px; padding: 2px 10px; font-size: 11px; color: var(--text-muted); white-space: nowrap; vertical-align: bottom; }
     .chart-expand-content .rtm-req-text { font-size: 11px; padding: 2px 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+
+    /* RTM coverage counter row (tfoot) */
+    .rtm-table tfoot tr { border-top: 1.5px solid var(--border-strong); }
+    .rtm-count-corner { padding: 2px 5px; text-align: right; font-size: 9px; font-weight: 700; color: var(--text-light); background: var(--surface); }
+    .rtm-count-label  { padding: 2px 6px; font-size: 9px; font-weight: 700; color: var(--text-light); background: var(--surface); }
+    .rtm-count-cell   { width: 16px; height: 16px; text-align: center; font-size: 9px; font-weight: 700; color: var(--accent); background: var(--accent-light); border: 1px solid var(--border); padding: 0 2px; }
+    .rtm-count-cell.rtm-count-zero { color: var(--text-light); background: var(--surface); }
 
     /* ── STAK ── */
     .stak-grid {
@@ -3407,6 +3427,45 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
     .pugh-cell-n1 { background: rgba(var(--danger-rgb),0.08);  color: var(--danger); }
     .pugh-cell-n2 { background: rgba(var(--danger-rgb),0.16);  color: var(--danger); }
     .pugh-cell-n3 { background: rgba(var(--danger-rgb),0.26);  color: var(--danger); }
+
+    /* ── PUGH: INCOMPLETE COLUMN HIGHLIGHT ──────────────────────────────────
+       Applied when a concept column has one or more unscored (blank) cells.
+       Uses --warn-rgb so the color adapts to each theme automatically.
+       !important is needed to override per-score-type background rules.       ── */
+    .pugh-col-incomplete {
+      background-color: rgba(var(--warn-rgb), 0.12) !important;
+    }
+    .pugh-concept-th.pugh-col-incomplete {
+      background-color: rgba(var(--warn-rgb), 0.30) !important;
+    }
+    .pugh-incomplete-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--warn);
+      margin-left: 5px;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    /* ── PUGH: ENGINEERING THEME CELL FIX ───────────────────────────────────
+       The engineering theme uses a graph-paper grid on the body background.
+       Transparent rgba cell backgrounds let the grid bleed through, making
+       score colours hard to distinguish and column spacing look broken.
+       Fix: give all cells an opaque base, then re-apply score colours with
+       higher alpha so they read cleanly over the solid surface.
+       ── */
+    body.theme-engineering .pugh-cell            { background-color: var(--surface); }
+    body.theme-engineering .pugh-cell.pugh-cell-plus  { background: rgba(var(--success-rgb),0.40); }
+    body.theme-engineering .pugh-cell.pugh-cell-minus { background: rgba(var(--danger-rgb),0.35); }
+    body.theme-engineering .pugh-cell.pugh-cell-neu   { background: var(--surface); }
+    body.theme-engineering .pugh-cell.pugh-cell-p3    { background: rgba(var(--success-rgb),0.60); }
+    body.theme-engineering .pugh-cell.pugh-cell-p2    { background: rgba(var(--success-rgb),0.45); }
+    body.theme-engineering .pugh-cell.pugh-cell-p1    { background: rgba(var(--success-rgb),0.28); }
+    body.theme-engineering .pugh-cell.pugh-cell-n1    { background: rgba(var(--danger-rgb),0.22); }
+    body.theme-engineering .pugh-cell.pugh-cell-n2    { background: rgba(var(--danger-rgb),0.38); }
+    body.theme-engineering .pugh-cell.pugh-cell-n3    { background: rgba(var(--danger-rgb),0.55); }
+    body.theme-engineering .pugh-cell.pugh-cell-D     { background: rgba(var(--accent-rgb),0.15); }
 
     .pugh-summary-section td {
       background: var(--surface); padding: 6px 8px; text-align: center;
