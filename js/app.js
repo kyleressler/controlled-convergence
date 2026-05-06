@@ -7857,6 +7857,7 @@ ${sections}
   // Wire modal overlay close-on-backdrop after DOM is ready
   // Warn anonymous users with data before they close or refresh the page
   window.addEventListener('beforeunload', function(e) {
+    if (_loggingOut) return; // intentional logout — don't block the reload
     if (_anonHasBasicData()) {
       e.preventDefault();
       e.returnValue = ''; // required for Chrome; message is browser-defined
