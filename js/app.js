@@ -5934,6 +5934,21 @@ ${sections}
       return;
     }
     exampleMode = false;
+
+    // The example project has a hardcoded ID shared by everyone. If we saved with
+    // that ID, only the first user to click Save would succeed — all others would
+    // hit a primary-key conflict and silently fail. Stamp a fresh unique ID so
+    // each user gets their own independent copy as a brand-new database row.
+    if (activeProject) {
+      activeProject.id         = 'proj_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      activeProject.created_at = new Date().toISOString();
+      activeProject.updated_at = new Date().toISOString();
+      // Update the owner display name from the hardcoded example value to the
+      // actual user so the project header reads correctly on reload.
+      const u = appState.currentUser;
+      activeProject.owner = (u && (u.displayName || u.user_metadata?.full_name || u.email)) || activeProject.owner;
+    }
+
     // Take a full snapshot so requirements, pugh, convergence etc. are embedded
     const snap = snapshotCurrentState(activeProject);
     const existing = savedProjects.findIndex(p => p.id === snap.id);
@@ -8705,16 +8720,21 @@ ${sections}
     return filtered;
   }
 
-  function _buildFilterBlock(items, activeFilter, matchMode, onChangeFn, onModeFn, emptyMsg, onSelectAllFn) {
+  function _buildFilterBlock(items, activeFilter, matchMode, onChangeFn, onModeFn, emptyMsg, onSelectAllFn, onClearFn) {
     if (items.length === 0) {
       return `<div style="font-size:12px;color:var(--text-muted)">${emptyMsg}</div>`;
     }
     const radioDisabled = activeFilter.length < 2 ? 'opacity:0.4;pointer-events:none' : '';
     const uid = onChangeFn; // use fn name as unique key for radio name attr
-    const allSelected = items.every(item => activeFilter.includes(item.id));
-    const selectAllHtml = onSelectAllFn ? `
+    const allSelected  = items.every(item => activeFilter.includes(item.id));
+    const noneSelected = activeFilter.length === 0;
+    // stopPropagation prevents the click from reaching _reqSettingsOutsideHandler
+    // after renderReqSettingsPanel() replaces the button in the DOM — without it
+    // the detached element is no longer inside the panel and the handler closes it.
+    const selectAllHtml = (onSelectAllFn || onClearFn) ? `
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;height:auto" onclick="${onSelectAllFn}()" ${allSelected ? 'disabled style="opacity:0.4"' : ''}>Select All</button>
+        ${onSelectAllFn ? `<button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;height:auto" onclick="event.stopPropagation();${onSelectAllFn}()" ${allSelected ? 'disabled' : ''}>Select All</button>` : ''}
+        ${onClearFn    ? `<button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;height:auto" onclick="event.stopPropagation();${onClearFn}()"    ${noneSelected ? 'disabled' : ''}>Deselect All</button>` : ''}
       </div>` : '';
     return `
       ${selectAllHtml}
@@ -8756,11 +8776,14 @@ ${sections}
     const countEl   = document.getElementById('reqFilterCount');
 
     if (ilityBody) ilityBody.innerHTML = _buildFilterBlock(ilityItems, reqPageIlityFilter, reqPageIlityMatchMode,
-      'setReqPageIlityFilter', 'setReqPageIlityMatchMode', 'No ilities assigned to requirements yet.', 'selectAllReqPageIlityFilter');
+      'setReqPageIlityFilter', 'setReqPageIlityMatchMode', 'No ilities assigned to requirements yet.',
+      'selectAllReqPageIlityFilter', 'clearReqPageIlityFilter');
     if (stakBody)  stakBody.innerHTML  = _buildFilterBlock(stakItems, reqPageStakeholderFilter, reqPageStakeholderMatchMode,
-      'setReqPageStakeholderFilter', 'setReqPageStakeholderMatchMode', 'No stakeholders assigned to requirements yet.', 'selectAllReqPageStakeholderFilter');
+      'setReqPageStakeholderFilter', 'setReqPageStakeholderMatchMode', 'No stakeholders assigned to requirements yet.',
+      'selectAllReqPageStakeholderFilter', 'clearReqPageStakeholderFilter');
     if (tagBody)   tagBody.innerHTML   = _buildFilterBlock(allTags, reqPageTagFilter, reqPageTagMatchMode,
-      'setReqPageTagFilter', 'setReqPageTagMatchMode', 'No tags defined on requirements yet.', 'selectAllReqPageTagFilter');
+      'setReqPageTagFilter', 'setReqPageTagMatchMode', 'No tags defined on requirements yet.',
+      'selectAllReqPageTagFilter', 'clearReqPageTagFilter');
 
     const filtered = getReqPageFilteredReqs();
     if (countEl) countEl.textContent = `Showing ${filtered.length} of ${requirements.length} requirement${requirements.length !== 1 ? 's' : ''}`;
@@ -8801,6 +8824,10 @@ ${sections}
     reqPageIlityFilter = allIlities.filter(i => usedIds.has(i.id)).map(i => i.id);
     renderReqSettingsPanel(); renderRequirements();
   }
+  function clearReqPageIlityFilter() {
+    reqPageIlityFilter = [];
+    renderReqSettingsPanel(); renderRequirements();
+  }
 
   function selectAllReqPageStakeholderFilter() {
     const allStakeholders = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])];
@@ -8808,9 +8835,17 @@ ${sections}
     reqPageStakeholderFilter = allStakeholders.filter(s => usedIds.has(s.id)).map(s => s.id);
     renderReqSettingsPanel(); renderRequirements();
   }
+  function clearReqPageStakeholderFilter() {
+    reqPageStakeholderFilter = [];
+    renderReqSettingsPanel(); renderRequirements();
+  }
 
   function selectAllReqPageTagFilter() {
     reqPageTagFilter = getAllReqTags();
+    renderReqSettingsPanel(); renderRequirements();
+  }
+  function clearReqPageTagFilter() {
+    reqPageTagFilter = [];
     renderReqSettingsPanel(); renderRequirements();
   }
 
