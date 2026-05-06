@@ -8,10 +8,10 @@
   <!-- App styles -->
   <link rel="stylesheet" href="css/style.css" />
 
-  <!-- Theme fonts: Oswald (Red & Black), Open Sans (Green & Yellow) -->
+  <!-- Theme fonts: Oswald (Red & Black), Open Sans (Green & Yellow), Caveat (Springfield easter egg) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Caveat:wght@400;700&display=swap" rel="stylesheet" />
 
   <!-- Chart.js (Pugh concept score chart) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"
@@ -136,6 +136,10 @@
 
 <!-- ── LEFT SIDEBAR ── -->
 <div class="sidebar-left" id="leftSidebar">
+  <!-- Full-bar click overlay: opens the sidebar when clicking anywhere on the
+       collapsed 36px bar. pointer-events are disabled when open so it doesn't
+       swallow clicks inside the sidebar content. -->
+  <div class="sidebar-click-overlay" onclick="toggleSidebar('left')"></div>
   <!-- Only the hamburger tab is visible when collapsed -->
   <div class="sidebar-tab" onclick="toggleSidebar('left')" title="Controls">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -287,6 +291,8 @@
 
 <!-- ── RIGHT SIDEBAR ── -->
 <div class="sidebar-right" id="rightSidebar">
+  <!-- Full-bar click overlay for right sidebar -->
+  <div class="sidebar-click-overlay" onclick="toggleSidebar('right')"></div>
   <!-- Drag handle — grab to resize width -->
   <div class="sidebar-resize-handle" id="rightResizeHandle"></div>
   <div class="sidebar-tab" onclick="toggleSidebar('right')" title="Learn">

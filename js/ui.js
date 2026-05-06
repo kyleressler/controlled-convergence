@@ -1032,7 +1032,21 @@ async function _resolveStakEmailTiers(emails) {
       html += '</tr>';
     });
 
-    html += '</tbody></table></div>';
+    html += '</tbody>';
+
+    // Coverage counter row — shows how many requirements each column covers
+    html += '<tfoot><tr>';
+    html += '<td class="rtm-count-corner" title="Coverage count">#</td>';
+    if (expanded) html += '<td class="rtm-count-label">Coverage</td>';
+    cols.forEach(col => {
+      let count = 0;
+      reqs.forEach(req => { if (hasRelation(req, col)) count++; });
+      const pct = reqs.length > 0 ? Math.round((count / reqs.length) * 100) : 0;
+      html += `<td class="rtm-count-cell${count === 0 ? ' rtm-count-zero' : ''}" title="${count} of ${reqs.length} requirements (${pct}%)">${count}</td>`;
+    });
+    html += '</tr></tfoot>';
+
+    html += '</table></div>';
     return html;
   }
 
@@ -1969,12 +1983,32 @@ async function _resolveStakEmailTiers(emails) {
     const masColEl     = showMASCol ? `<col style="width:${masColPct}%">` : '';
     const colGroup     = `<colgroup><col style="width:${reqColPct}%">${masColEl}${sortedConcepts.map(() => `<col style="width:${conColPct}%">`).join('')}</colgroup>`;
 
+    // Compute which concept columns have unscored cells (excluding the datum,
+    // which always shows "D"). Used to highlight incomplete columns.
+    const _datumCId = pughConcepts[0]?.id;
+    const incompleteConceptIds = new Set();
+    sortedConcepts.forEach(c => {
+      if (c.id === _datumCId) return;
+      const hasBlank = requirements.some(req => {
+        const s = pughScores[c.id + '_' + req.id];
+        return s === undefined || s === null;
+      });
+      if (hasBlank) incompleteConceptIds.add(c.id);
+    });
+
     const masHeader = showMASCol
       ? `<th class="pugh-mas-cell pugh-mas-header">MAS</th>`
       : '';
     const thCols = sortedConcepts.map((c) => {
       const isDatum = c.id === datumId;
-      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}" title="${escHtml(c.name)}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}</span></th>`;
+      const isIncomplete = incompleteConceptIds.has(c.id);
+      const unscored = isIncomplete
+        ? requirements.filter(req => { const s = pughScores[c.id + '_' + req.id]; return s === undefined || s === null; }).length
+        : 0;
+      const badgeHtml = isIncomplete
+        ? ` <span class="pugh-incomplete-badge" title="${unscored} requirement${unscored !== 1 ? 's' : ''} not yet scored">⚠ ${unscored}</span>`
+        : '';
+      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}${isIncomplete ? ' pugh-col-incomplete' : ''}" title="${escHtml(c.name)}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}${badgeHtml}</span></th>`;
     }).join('');
     // Determine collapse-all triangle state for cell A1
     const totalCols = sortedConcepts.length + 1 + (showMASCol ? 1 : 0);
@@ -2020,13 +2054,13 @@ async function _resolveStakEmailTiers(emails) {
       const wStr = (isWeightedMode && _ilSubj === 'ilities') ? ` <span style="font-weight:400;opacity:0.7">· W:${w || 1}</span>` : '';
       const isCollapsed = pughCollapsedIlities.has(il.id);
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('${il.id}')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>${il.name}${wStr}</td></tr>`;
-      if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts));
+      if (!isCollapsed) reqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts, incompleteConceptIds));
     });
 
     if (ungroupedReqs.length > 0) {
       const isCollapsed = pughCollapsedIlities.has('__ungrouped__');
       html += `<tr class="pugh-ility-header-row"><td colspan="${totalCols}"><button class="pugh-tri-btn pugh-ility-tri-btn" onclick="togglePughIlityCollapse('__ungrouped__')" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="pugh-tri${isCollapsed ? ' tri-collapsed' : ''}">▶</span></button>Other</td></tr>`;
-      if (!isCollapsed) ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts));
+      if (!isCollapsed) ungroupedReqs.forEach(req => html += pughReqRow(req, showMASCol, sortedConcepts, incompleteConceptIds));
     }
 
     // Summary rows
@@ -2042,7 +2076,7 @@ async function _resolveStakEmailTiers(emails) {
     renderPughConceptChart();
   }
 
-  function pughReqRow(req, showMASCol, sortedConcepts) {
+  function pughReqRow(req, showMASCol, sortedConcepts, incompleteConceptIds) {
     sortedConcepts = sortedConcepts || pughConcepts;
     const typeTag = req.format !== 'agile'
       ? ({ essential:'E', desirable:'D', optional:'O', willnot:'WN', mustnot:'MN' }[req.type] || '')
@@ -2065,18 +2099,20 @@ async function _resolveStakEmailTiers(emails) {
     const _datumId = pughConcepts[0]?.id;
     const scoreCells = sortedConcepts.map((c) => {
       if (c.id === _datumId) return `<td class="pugh-cell pugh-cell-D">D</td>`;
+      const incClass = (incompleteConceptIds && incompleteConceptIds.has(c.id)) ? ' pugh-col-incomplete' : '';
       const score = pughScores[c.id + '_' + req.id];
-      return pughScoreCell(c.id, req.id, score, masVal);
+      return pughScoreCell(c.id, req.id, score, masVal, incClass);
     }).join('');
 
     return `<tr>${reqCell}${masCell}${scoreCells}</tr>`;
   }
 
-  function pughScoreCell(conceptId, reqId, score, masVal) {
+  function pughScoreCell(conceptId, reqId, score, masVal, incClass) {
     const _cId = typeof conceptId === 'number' ? conceptId : `'${conceptId}'`;
     const _rId = typeof reqId     === 'number' ? reqId     : `'${reqId}'`;
+    const _inc = incClass || '';
     if (score === undefined || score === null) {
-      return `<td class="pugh-cell pugh-cell-empty" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to score">·</td>`;
+      return `<td class="pugh-cell pugh-cell-empty${_inc}" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to score">·</td>`;
     }
     let cls, display;
     if (score === '+')          { cls = 'pugh-cell-plus';  display = '+'; }
@@ -2097,7 +2133,7 @@ async function _resolveStakEmailTiers(emails) {
       const mNum = scoreToNum(masVal);
       if (sNum !== null && mNum !== null && sNum >= mNum) boldCls = ' pugh-cell-bold';
     }
-    return `<td class="pugh-cell ${cls}${boldCls}" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to change score">${display}</td>`;
+    return `<td class="pugh-cell ${cls}${boldCls}${_inc}" onclick="openScorePopup(event,${_cId},${_rId})" title="Click to change score">${display}</td>`;
   }
 
   function calcConceptSummary(conceptId) {

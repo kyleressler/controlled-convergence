@@ -22,6 +22,11 @@
   var _contraSource   = null;
   var _contraPreTheme = 'light'; // the theme to restore after a page-scoped Contra
 
+  // Tracks whether the Springfield easter egg is active.
+  //   'bart' → persisted in localStorage; cleared when user switches theme
+  //   null   → Springfield not active
+  var _bartSource = null;
+
   // ── UTIL: read the currently-active theme name ───────────────
   function _currentTheme() {
     var btn = document.querySelector('.theme-btn.active');
@@ -46,9 +51,10 @@
   function _applyContraTheme(source) {
     _contraPreTheme = _currentTheme();
     _contraSource   = source;
+    _bartSource     = null; // Springfield yields to Contra
 
     document.body.classList.remove(
-      'theme-dark','theme-engineering','theme-red-black','theme-green-yellow'
+      'theme-dark','theme-engineering','theme-red-black','theme-green-yellow','theme-springfield'
     );
     document.body.classList.add('theme-contra');
     document.querySelectorAll('.theme-btn').forEach(function (b) {
@@ -284,6 +290,11 @@
     if (_contraSource === 'cycle') {
       _contraSource = null;
     }
+    // If Springfield was active, a theme switch clears it
+    if (_bartSource === 'bart') {
+      try { localStorage.removeItem('cc_easter_theme'); } catch (e) {}
+      _bartSource = null;
+    }
 
     // ── Theme cycling tracker ──────────────────────────────────
     var expectedIdx = _cycleBuf.length;
@@ -319,5 +330,186 @@
       _restorePreTheme();
     }
   };
+
+
+  // ════════════════════════════════════════════════════════════
+  // #BART — TYPE "BART" → SPRINGFIELD THEME
+  // Sequence: B A R T (outside inputs)
+  // Persists across reloads via localStorage key 'cc_easter_theme' = 'springfield'
+  // Cleared when the user manually switches to any normal theme.
+  //
+  // Visual: sky-blue D'OH! overlay with CSS donuts, then the Springfield
+  // theme stays active (sky blue bg, handwritten Caveat font, yellow accents,
+  // animated cloud layer) until the user manually changes theme.
+  // ════════════════════════════════════════════════════════════
+
+  var BART_SEQ = ['b', 'a', 'r', 't'];
+  var _bartBuf = [];
+
+  // Build a single CSS donut element (no images, no emoji).
+  // holeColor should match the overlay or body background so the hole shows through.
+  function _makeCSSDonut(holeColor) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;width:72px;height:72px;flex-shrink:0;';
+
+    var body = document.createElement('div');
+    body.style.cssText =
+      'width:72px;height:72px;border-radius:50%;' +
+      'background:#f9a8d4;' +                            /* pink frosting */
+      'box-shadow:' +
+      '  6px -11px 0 -4px #f87171,' +                   /* red sprinkle    */
+      ' -8px  -9px 0 -4px #60a5fa,' +                   /* blue sprinkle   */
+      ' 12px   3px 0 -4px #34d399,' +                   /* green sprinkle  */
+      '-12px   4px 0 -4px #fbbf24,' +                   /* yellow sprinkle */
+      '  3px  12px 0 -4px #a78bfa,' +                   /* purple sprinkle */
+      ' -5px  11px 0 -4px #fb923c;';                    /* orange sprinkle */
+
+    var hole = document.createElement('div');
+    hole.style.cssText =
+      'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+      'width:26px;height:26px;border-radius:50%;' +
+      'background:' + holeColor + ';';
+
+    wrap.appendChild(body);
+    wrap.appendChild(hole);
+    return wrap;
+  }
+
+  function _applySpringfieldTheme() {
+    _bartSource   = 'bart';
+    _contraSource = null; // Contra yields to Springfield
+
+    document.body.classList.remove(
+      'theme-dark','theme-engineering','theme-red-black','theme-green-yellow','theme-contra'
+    );
+    document.body.classList.add('theme-springfield');
+    document.querySelectorAll('.theme-btn').forEach(function (b) {
+      b.classList.remove('active');
+    });
+
+    try { localStorage.setItem('cc_easter_theme', 'springfield'); } catch (e) {}
+
+    _showSpringfieldOverlay();
+  }
+
+  function _showSpringfieldOverlay() {
+    var old = document.getElementById('ee-springfield-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'ee-springfield-overlay';
+    overlay.style.cssText =
+      'position:fixed;top:0;left:0;width:100%;height:100%;' +
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'gap:20px;z-index:99999;pointer-events:none;' +
+      'background:#87ceeb;' +
+      'opacity:0;transition:opacity 0.45s;';
+
+    // ── Cloud layer behind everything ──
+    var cloudLayer = document.createElement('div');
+    cloudLayer.style.cssText =
+      'position:absolute;top:0;left:0;width:100%;height:100%;' +
+      'background-image:' +
+      'radial-gradient(ellipse 100px 60px at 11% 18%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 70px 46px at 7.5% 24%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 70px 46px at 14.5% 24%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 85px 52px at 85% 16%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 60px 40px at 81% 21%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 60px 40px at 89% 21%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 80px 50px at 50% 10%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 56px 38px at 46% 15%, rgba(255,255,255,0.93) 55%, transparent 70%),' +
+      'radial-gradient(ellipse 56px 38px at 54% 15%, rgba(255,255,255,0.93) 55%, transparent 70%);' +
+      'background-repeat:no-repeat;pointer-events:none;';
+    overlay.appendChild(cloudLayer);
+
+    // ── D'OH! ──
+    var heading = document.createElement('div');
+    heading.style.cssText =
+      'position:relative;' +
+      'font-size:96px;font-weight:700;' +
+      'color:#fed90f;' +
+      "font-family:'Caveat',cursive;" +
+      'text-shadow:' +
+      '  4px  4px 0 #3d2b1f,' +
+      ' -3px -3px 0 #3d2b1f,' +
+      '  3px -3px 0 #3d2b1f,' +
+      ' -3px  3px 0 #3d2b1f,' +
+      '  0px  5px 0 #3d2b1f;' +
+      'letter-spacing:6px;';
+    heading.textContent = "D'OH!";
+    overlay.appendChild(heading);
+
+    // ── Three CSS donuts ──
+    var donutRow = document.createElement('div');
+    donutRow.style.cssText =
+      'position:relative;display:flex;gap:32px;align-items:center;';
+    donutRow.appendChild(_makeCSSDonut('#87ceeb'));
+    donutRow.appendChild(_makeCSSDonut('#87ceeb'));
+    donutRow.appendChild(_makeCSSDonut('#87ceeb'));
+    overlay.appendChild(donutRow);
+
+    // ── Unlock label ──
+    var label = document.createElement('div');
+    label.style.cssText =
+      'position:relative;' +
+      'font-size:24px;font-weight:700;' +
+      'color:#3d2b1f;letter-spacing:3px;' +
+      "font-family:'Caveat',cursive;";
+    label.textContent = 'SPRINGFIELD THEME UNLOCKED';
+    overlay.appendChild(label);
+
+    // ── Subtext ──
+    var sub = document.createElement('div');
+    sub.style.cssText =
+      'position:relative;' +
+      'font-size:17px;color:#5c3d1e;' +
+      "font-family:'Caveat',cursive;" +
+      'font-style:italic;';
+    sub.textContent = 'Mmm... donuts...';
+    overlay.appendChild(sub);
+
+    document.body.appendChild(overlay);
+
+    // Fade in → hold → fade out
+    setTimeout(function () { overlay.style.opacity = '1'; }, 20);
+    setTimeout(function () { overlay.style.opacity = '0'; }, 3200);
+    setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 3700);
+  }
+
+  // Restore Springfield theme on page load if it was previously unlocked
+  (function () {
+    try {
+      if (localStorage.getItem('cc_easter_theme') === 'springfield') {
+        document.body.classList.remove(
+          'theme-dark','theme-engineering','theme-red-black','theme-green-yellow','theme-contra'
+        );
+        document.body.classList.add('theme-springfield');
+        document.querySelectorAll('.theme-btn').forEach(function (b) {
+          b.classList.remove('active');
+        });
+        _bartSource = 'bart';
+      }
+    } catch (e) {}
+  }());
+
+  // BART keydown listener
+  document.addEventListener('keydown', function (e) {
+    var tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    var key = e.key.toLowerCase();
+    var expected = BART_SEQ[_bartBuf.length];
+
+    if (key === expected) {
+      _bartBuf.push(key);
+      if (_bartBuf.length === BART_SEQ.length) {
+        _bartBuf = [];
+        _applySpringfieldTheme();
+      }
+    } else {
+      // Reset; re-check if this key starts the sequence
+      _bartBuf = (key === 'b') ? ['b'] : [];
+    }
+  });
 
 }());

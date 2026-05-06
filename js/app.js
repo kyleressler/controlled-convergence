@@ -7394,7 +7394,7 @@ ${sections}
   // ── THEME ──
   function setTheme(theme, btn) {
     // Remove any existing theme class (include theme-contra so easter egg clears on manual switch)
-    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black', 'theme-green-yellow', 'theme-contra');
+    document.body.classList.remove('theme-dark', 'theme-engineering', 'theme-red-black', 'theme-green-yellow', 'theme-contra', 'theme-springfield');
     if (theme !== 'light') document.body.classList.add('theme-' + theme);
 
     // Update active button state
@@ -8705,13 +8705,19 @@ ${sections}
     return filtered;
   }
 
-  function _buildFilterBlock(items, activeFilter, matchMode, onChangeFn, onModeFn, emptyMsg) {
+  function _buildFilterBlock(items, activeFilter, matchMode, onChangeFn, onModeFn, emptyMsg, onSelectAllFn) {
     if (items.length === 0) {
       return `<div style="font-size:12px;color:var(--text-muted)">${emptyMsg}</div>`;
     }
     const radioDisabled = activeFilter.length < 2 ? 'opacity:0.4;pointer-events:none' : '';
     const uid = onChangeFn; // use fn name as unique key for radio name attr
+    const allSelected = items.every(item => activeFilter.includes(item.id));
+    const selectAllHtml = onSelectAllFn ? `
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+        <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;height:auto" onclick="${onSelectAllFn}()" ${allSelected ? 'disabled style="opacity:0.4"' : ''}>Select All</button>
+      </div>` : '';
     return `
+      ${selectAllHtml}
       <div style="margin-bottom:10px">
         ${items.map(item => {
           const checked = activeFilter.includes(item.id) ? 'checked' : '';
@@ -8750,11 +8756,11 @@ ${sections}
     const countEl   = document.getElementById('reqFilterCount');
 
     if (ilityBody) ilityBody.innerHTML = _buildFilterBlock(ilityItems, reqPageIlityFilter, reqPageIlityMatchMode,
-      'setReqPageIlityFilter', 'setReqPageIlityMatchMode', 'No ilities assigned to requirements yet.');
+      'setReqPageIlityFilter', 'setReqPageIlityMatchMode', 'No ilities assigned to requirements yet.', 'selectAllReqPageIlityFilter');
     if (stakBody)  stakBody.innerHTML  = _buildFilterBlock(stakItems, reqPageStakeholderFilter, reqPageStakeholderMatchMode,
-      'setReqPageStakeholderFilter', 'setReqPageStakeholderMatchMode', 'No stakeholders assigned to requirements yet.');
+      'setReqPageStakeholderFilter', 'setReqPageStakeholderMatchMode', 'No stakeholders assigned to requirements yet.', 'selectAllReqPageStakeholderFilter');
     if (tagBody)   tagBody.innerHTML   = _buildFilterBlock(allTags, reqPageTagFilter, reqPageTagMatchMode,
-      'setReqPageTagFilter', 'setReqPageTagMatchMode', 'No tags defined on requirements yet.');
+      'setReqPageTagFilter', 'setReqPageTagMatchMode', 'No tags defined on requirements yet.', 'selectAllReqPageTagFilter');
 
     const filtered = getReqPageFilteredReqs();
     if (countEl) countEl.textContent = `Showing ${filtered.length} of ${requirements.length} requirement${requirements.length !== 1 ? 's' : ''}`;
@@ -8787,6 +8793,25 @@ ${sections}
     reqPageTagFilter = []; reqPageTagMatchMode = 'any';
     renderReqSettingsPanel();
     renderRequirements();
+  }
+
+  function selectAllReqPageIlityFilter() {
+    const allIlities = [...(typeof ILITIES !== 'undefined' ? ILITIES : []), ...(typeof customIlities !== 'undefined' ? customIlities : [])];
+    const usedIds = new Set(requirements.flatMap(r => [r.primary, ...(r.secondaries || [])].filter(Boolean)));
+    reqPageIlityFilter = allIlities.filter(i => usedIds.has(i.id)).map(i => i.id);
+    renderReqSettingsPanel(); renderRequirements();
+  }
+
+  function selectAllReqPageStakeholderFilter() {
+    const allStakeholders = [...(typeof STAKEHOLDERS !== 'undefined' ? STAKEHOLDERS : []), ...(typeof customStakeholders !== 'undefined' ? customStakeholders : [])];
+    const usedIds = new Set(requirements.flatMap(r => r.stakeholders || []).filter(Boolean));
+    reqPageStakeholderFilter = allStakeholders.filter(s => usedIds.has(s.id)).map(s => s.id);
+    renderReqSettingsPanel(); renderRequirements();
+  }
+
+  function selectAllReqPageTagFilter() {
+    reqPageTagFilter = getAllReqTags();
+    renderReqSettingsPanel(); renderRequirements();
   }
 
   function clearConceptTagFilter() {

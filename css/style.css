@@ -298,6 +298,96 @@
       border-color: #009922;
     }
 
+    /* ── THEME: SPRINGFIELD (Easter Egg — type B A R T) ── */
+    body.theme-springfield {
+      --bg: #87ceeb;
+      --surface: #fffde7;
+      --border: #f0e0b8;
+      --border-strong: #e2cc94;
+      --text: #3d2b1f;
+      --text-muted: #7a5c3d;
+      --text-light: #b89668;
+      --accent: #fed90f;
+      --accent-light: #fff9c4;
+      --accent-border: #f5c400;
+      --success: #2e7d32;
+      --success-light: #e8f5e9;
+      --success-border: #a5d6a7;
+      --warn: #e65100;
+      --warn-light: #fff3e0;
+      --warn-border: #ffcc80;
+      --danger: #c62828;
+      --danger-light: #ffebee;
+      --danger-border: #ef9a9a;
+      --success-rgb: 46,125,50;
+      --danger-rgb: 198,40,40;
+      --accent-rgb: 254,217,15;
+      --warn-rgb: 230,81,0;
+      --accent-hover: #f5c400;
+      --success-hover: #1b5e20;
+      --kw-to: #c62828;
+      --kw-by: #1565c0;
+      --kw-using: #2e7d32;
+      --kw-while: #e65100;
+      --font: 'Caveat', 'Patrick Hand', cursive;
+      color-scheme: light;
+    }
+
+    /* Fluffy white clouds drifting across the Springfield sky */
+    body.theme-springfield::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image:
+        /* Cloud A — left */
+        radial-gradient(ellipse 90px 54px at 9%  12%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 64px 42px at 6%  17%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 64px 42px at 12% 17%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        /* Cloud B — center-left */
+        radial-gradient(ellipse 75px 46px at 30%  9%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 54px 36px at 27% 13%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 54px 36px at 33% 13%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        /* Cloud C — center */
+        radial-gradient(ellipse 100px 60px at 55% 14%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 70px 46px at 51%  19%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 70px 46px at 59%  19%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        /* Cloud D — right */
+        radial-gradient(ellipse 82px 50px at 80%  8%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 58px 38px at 77% 12%, rgba(255,255,255,0.93) 55%, transparent 70%),
+        radial-gradient(ellipse 58px 38px at 83% 12%, rgba(255,255,255,0.93) 55%, transparent 70%);
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 0;
+      animation: springfield-drift 90s ease-in-out infinite;
+    }
+
+    @keyframes springfield-drift {
+      0%   { transform: translateX(0); }
+      50%  { transform: translateX(2.5%); }
+      100% { transform: translateX(0); }
+    }
+
+    /* Springfield: forward buttons → Simpsons yellow */
+    body.theme-springfield .btn-continue {
+      background: #fed90f;
+      border-color: #f5c400;
+      color: #3d2b1f;
+      font-weight: 700;
+    }
+    body.theme-springfield .btn-continue:hover {
+      background: #f5c400;
+      border-color: #e8b800;
+    }
+
+    /* Springfield: headings get a friendly bold cartoon weight */
+    body.theme-springfield h1,
+    body.theme-springfield h2,
+    body.theme-springfield h3,
+    body.theme-springfield .nav-logo {
+      font-weight: 700;
+    }
+
     /* ── THEME PICKER ── */
     .theme-picker { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
     .theme-btn {

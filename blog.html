@@ -222,18 +222,25 @@
     }
 
     // ── Render the blog index ──────────────────────────────────
+    // Uses raw fetch to the Supabase REST API instead of the SDK client.
+    // The SDK's hot-path has stuck-promise issues on Safari (documented in
+    // config.js); raw fetch with an AbortController timeout avoids that.
     (async function () {
       const grid = document.getElementById('blogGrid');
-
-      const { data: posts, error } = await _supabase
-        .from('blog_posts')
-        .select('id, title, slug, excerpt, content, tags, published_at')
-        .eq('status', 'published')
-        .order('published_at', { ascending: false });
-
-      if (error) {
+      let posts;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(function () { controller.abort(); }, 12000);
+        const response = await fetch(
+          SUPABASE_URL + '/rest/v1/blog_posts?status=eq.published&order=published_at.desc.nullslast&select=id,title,slug,excerpt,content,tags,published_at',
+          { signal: controller.signal, headers: { 'apikey': SUPABASE_ANON_KEY } }
+        );
+        clearTimeout(timer);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        posts = await response.json();
+      } catch (e) {
+        console.error('[blog] fetch error:', e);
         grid.innerHTML = '<div class="empty-state">Couldn\'t load posts right now. Please try again in a moment.</div>';
-        console.error('[blog] supabase error:', error);
         return;
       }
 

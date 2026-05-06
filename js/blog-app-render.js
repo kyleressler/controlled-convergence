@@ -75,30 +75,21 @@
   }
 
   // ── Index view ────────────────────────────────────────────────
+  // Uses _restGet (supa-rest.js) instead of _supabase.from() — the SDK's
+  // hot-path has stuck-promise issues on Safari (documented in config.js).
   async function renderIndex(root) {
     root.innerHTML = '<div class="blog-app-loading">Loading posts…</div>';
 
-    let posts, error;
-    try {
-      const result = await _supabase
-        .from('blog_posts')
-        .select('id, title, slug, excerpt, content, tags, published_at')
-        .eq('status', 'published')
-        .order('published_at', { ascending: false });
-      posts = result.data;
-      error = result.error;
-    } catch (e) {
-      console.error('[blog-app-render] renderIndex threw:', e);
-      root.innerHTML =
-        '<div class="blog-app-empty">Couldn\'t load posts right now (network error).</div>';
-      return;
-    }
+    const { ok, data: posts, error } = await _restGet('blog_posts',
+      'status=eq.published&order=published_at.desc.nullslast&select=id,title,slug,excerpt,content,tags,published_at'
+    );
 
-    if (error) {
-      console.warn('[blog-app-render] supabase error:', error);
+    if (!ok) {
+      console.warn('[blog-app-render] REST error:', error);
       root.innerHTML =
-        '<div class="blog-app-empty">Couldn\'t load posts right now. ' +
-        '<br><span style="opacity:0.6">' + escapeHtml(error.message) + '</span></div>';
+        '<div class="blog-app-empty">Couldn\'t load posts right now.' +
+        (error ? '<br><span style="opacity:0.6">' + escapeHtml(String(error)) + '</span>' : '') +
+        '</div>';
       return;
     }
 
@@ -152,21 +143,21 @@
   async function renderArticle(root, slug) {
     root.innerHTML = '<div class="blog-app-loading">Loading…</div>';
 
-    const { data: post, error } = await _supabase
-      .from('blog_posts')
-      .select('id, title, slug, excerpt, content, tags, published_at, evergreen')
-      .eq('slug', slug)
-      .eq('status', 'published')
-      .maybeSingle();
+    const { ok, data: rows, error } = await _restGet('blog_posts',
+      'slug=eq.' + encodeURIComponent(slug) +
+      '&status=eq.published&select=id,title,slug,excerpt,content,tags,published_at,evergreen&limit=1'
+    );
 
-    if (error) {
-      console.error('[blog-app-render] supabase error:', error);
+    if (!ok) {
+      console.error('[blog-app-render] REST error:', error);
       root.innerHTML =
         '<div class="blog-app-notfound"><h1>Couldn\'t load post</h1>' +
         '<p>Please try again in a moment.</p>' +
         '<p><a href="#blog" class="blog-app-back">← All posts</a></p></div>';
       return;
     }
+
+    const post = Array.isArray(rows) ? rows[0] : rows;
 
     if (!post) {
       root.innerHTML =
