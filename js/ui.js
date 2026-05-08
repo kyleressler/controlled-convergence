@@ -2092,7 +2092,7 @@ async function _resolveStakEmailTiers(emails) {
     if (showMASCol) {
       const masDisplay = masVal !== undefined && masVal !== null
         ? (masVal === '+' ? '+' : masVal === '-' ? '−' : masVal === '0' ? '0' : (masVal > 0 ? `+${masVal}` : `${masVal}`))
-        : '—';
+        : '';
       masCell = `<td class="pugh-mas-cell">${masDisplay}</td>`;
     }
 
