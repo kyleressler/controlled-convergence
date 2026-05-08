@@ -468,6 +468,7 @@
     updatePughAccountToggles();
     renderProjList();
     closeAuthModal();
+    switchPage('proj', document.querySelector('[data-page="proj"]'));
     await _checkAndShowTasksOnAuth();
   }
 
