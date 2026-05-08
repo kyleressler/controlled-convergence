@@ -1541,8 +1541,10 @@ async function _resolveStakEmailTiers(emails) {
     document.getElementById('datumLevelInput').value = data.level || '';
 
     // Advanced anchors
-    const anchorSec = document.getElementById('datumAnchorSection');
-    anchorSec.style.display = advanced ? '' : 'none';
+    const anchorHighSec = document.getElementById('datumAnchorHighSection');
+    const anchorLowSec  = document.getElementById('datumAnchorLowSection');
+    anchorHighSec.style.display = advanced ? '' : 'none';
+    anchorLowSec.style.display  = advanced ? '' : 'none';
     if (advanced) {
       document.getElementById('datumAnchorHighInput').value = data.anchorHigh || '';
       document.getElementById('datumAnchorLowInput').value  = data.anchorLow  || '';
@@ -1672,25 +1674,23 @@ async function _resolveStakEmailTiers(emails) {
     const advanced  = pughSettings.advancedScoring && userTier !== 'free';
     if (dData.level || dData.anchorHigh || dData.anchorLow) {
       let rows = '';
-      if (advanced && dData.anchorHigh) {
+      if (advanced) {
         rows += `<div class="datum-ref-row">
           <span class="datum-ref-icon" style="color:var(--success)">▲</span>
           <span class="datum-ref-key" style="color:var(--success)">Best (+3)</span>
-          <span class="datum-ref-val">${dData.anchorHigh}</span>
+          <span class="datum-ref-val">${dData.anchorHigh || '—'}</span>
         </div>`;
       }
-      if (dData.level) {
-        rows += `<div class="datum-ref-row">
-          <span class="datum-ref-icon" style="color:var(--accent)">●</span>
-          <span class="datum-ref-key" style="color:var(--accent)">Datum (${advanced ? '0' : 'ref'})</span>
-          <span class="datum-ref-val">${dData.level}</span>
-        </div>`;
-      }
-      if (advanced && dData.anchorLow) {
+      rows += `<div class="datum-ref-row">
+        <span class="datum-ref-icon" style="color:var(--accent)">●</span>
+        <span class="datum-ref-key" style="color:var(--accent)">Datum (${advanced ? '0' : 'ref'})</span>
+        <span class="datum-ref-val">${dData.level || '—'}</span>
+      </div>`;
+      if (advanced) {
         rows += `<div class="datum-ref-row">
           <span class="datum-ref-icon" style="color:var(--danger)">▼</span>
           <span class="datum-ref-key" style="color:var(--danger)">Worst (−3)</span>
-          <span class="datum-ref-val">${dData.anchorLow}</span>
+          <span class="datum-ref-val">${dData.anchorLow || '—'}</span>
         </div>`;
       }
       datumRef.innerHTML = rows;
