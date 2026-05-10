@@ -112,6 +112,7 @@ async function register(email, password, name) {
     const updateData = {};
     if (name) updateData.name = name;
     if (betaAccess) {
+      updateData.tier = 'pro';  // Beta users get Pro tier
       updateData.beta_access = true;
       updateData.beta_signup_date = new Date().toISOString();
     }
