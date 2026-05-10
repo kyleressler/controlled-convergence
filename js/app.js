@@ -5844,43 +5844,16 @@ ${sections}
     renderProjPage();
   }
 
-  // Double-click on a project card: activate it and navigate to its first page.
-  // Quick projects → stay on the basic page (setMode inside loadProject handles
-  // the navigation). Full projects → jump to GOAL.
+  // Double-click on a project card: activate it and stay on Project Manager.
   function activateProjectAndGo(id) {
     loadProject(id);
-    const proj = savedProjects.find(p => p.id === id);
-    const projType = (proj && proj.projectType === 'quick') ? 'quick' : 'full';
-    if (projType === 'full') {
-      const goalNavBtn = document.querySelector('[data-page="tbus"]');
-      switchPage('tbus', goalNavBtn);
-    }
-    // Quick: loadProject → setMode('basic') already navigated to the basic page.
+    renderProjPage();
   }
 
-  // Single-click Activate button on a project card: activate without navigating away
-  // from Project Manager. Fetches fresh project data from the server first so any
-  // collaborator check-ins are immediately visible — then stays on the proj page.
-  async function activateProjectOnly(id) {
-    await _fetchAndRefreshProject(id);
-    const proj = savedProjects.find(p => p.id === id);
-    const projType = (proj && proj.projectType === 'quick') ? 'quick' : 'full';
-
-    if (projType === 'quick') {
-      // Quick projects: navigate directly to Quick Analysis.
-      // setMode('basic') inside loadProject handles the switchPage call.
-      loadProject(id);
-      return;
-    }
-
-    // Full projects: stay on Project Manager.
+  // Activate button on project card: activate and stay on Project Manager.
+  function activateProjectOnly(id) {
     loadProject(id);
-    const projNavBtn = document.querySelector('[data-page="proj"]');
-    switchPage('proj', projNavBtn);
-    // Explicitly re-render so the active project banner and lock pill reflect
-    // the just-activated project, regardless of setMode() async navigation.
-    if (typeof renderProjPage === 'function') renderProjPage();
-    if (typeof _renderLockBanner === 'function') _renderLockBanner();
+    renderProjPage();
   }
 
   // Fetch a single project fresh from Supabase and update savedProjects in place.
