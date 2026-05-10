@@ -5,6 +5,14 @@
 // Called by: app.js (init, handleAccountCTA, handleLogout)
 // ============================================================
 
+// ── Beta Configuration ──────────────────────────────────────
+// Set beta_enabled to false to disable beta signups.
+// Set beta_maxUsers to limit the number of beta testers.
+const BETA_CONFIG = {
+  enabled: true,          // Set to false to disable beta access
+  maxUsers: 50,           // Maximum number of beta users
+};
+
 // ── Client-side login rate limiting ──────────────────────────
 // Tracks failed attempts per email in sessionStorage. After MAX_ATTEMPTS
 // failures within WINDOW_MS, the login function returns an error without
@@ -83,33 +91,47 @@ async function login(email, password) {
  * @param {string} email
  * @param {string} password
  * @param {string} [name] — display name
- * @returns {Promise<{user: object|null, error: string|null, requiresEmailConfirm: boolean}>}
+ * @returns {Promise<{user: object|null, error: string|null, requiresEmailConfirm: boolean, betaAccess: boolean}>}
  */
 async function register(email, password, name) {
   const { data, error } = await _supabase.auth.signUp({ email, password });
-  if (error) return { user: null, error: error.message, requiresEmailConfirm: false };
+  if (error) return { user: null, error: error.message, requiresEmailConfirm: false, betaAccess: false };
 
   // If email confirm is disabled in Supabase dashboard, data.session will be set immediately.
   // If confirm is required, data.session is null and we show a "check your email" message.
   const requiresEmailConfirm = !data.session;
 
   if (!requiresEmailConfirm && data.user) {
-    // Optionally write the name to user_profiles (the trigger creates the row,
-    // but name isn't set by the trigger — we patch it here)
-    if (name) {
+    // Check if this user should get beta access
+    let betaAccess = false;
+    if (BETA_CONFIG.enabled) {
+      betaAccess = await _shouldGrantBetaAccess();
+    }
+
+    // Build the update object
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (betaAccess) {
+      updateData.beta_access = true;
+      updateData.beta_signup_date = new Date().toISOString();
+    }
+
+    // Update user profile
+    if (Object.keys(updateData).length > 0) {
       await _supabase
         .from('user_profiles')
-        .update({ name })
+        .update(updateData)
         .eq('id', data.user.id);
     }
+
     const user = await _buildUserFromSession(data.user);
     appState.currentUser = user;
     userTier = user.tier || 'free';
     if (typeof identifyUser === 'function') identifyUser(user);
-    return { user, error: null, requiresEmailConfirm: false };
+    return { user, error: null, requiresEmailConfirm: false, betaAccess };
   }
 
-  return { user: null, error: null, requiresEmailConfirm: true };
+  return { user: null, error: null, requiresEmailConfirm: true, betaAccess: false };
 }
 
 /**
@@ -203,7 +225,7 @@ function isAdmin() {
 
 /**
  * Build a normalized user object from a Supabase auth user.
- * Fetches the user_profiles row to get tier, name, and theme.
+ * Fetches the user_profiles row to get tier, name, theme, and beta_access.
  */
 async function _buildUserFromSession(supabaseUser) {
   if (!supabaseUser) return null;
@@ -211,16 +233,17 @@ async function _buildUserFromSession(supabaseUser) {
   // Fetch the profile row (created automatically by a DB trigger on signup)
   const { data: profile } = await _supabase
     .from('user_profiles')
-    .select('tier, name, theme')
+    .select('tier, name, theme, beta_access')
     .eq('id', supabaseUser.id)
     .single();
 
   return {
-    id:    supabaseUser.id,
-    email: supabaseUser.email,
-    name:  profile?.name  || supabaseUser.email.split('@')[0],
-    tier:  (profile?.tier || 'free').toLowerCase(),
-    theme: profile?.theme || 'engineering'
+    id:         supabaseUser.id,
+    email:      supabaseUser.email,
+    name:       profile?.name  || supabaseUser.email.split('@')[0],
+    tier:       (profile?.tier || 'free').toLowerCase(),
+    theme:      profile?.theme || 'engineering',
+    betaAccess: profile?.beta_access || false
   };
 }
 
@@ -293,5 +316,62 @@ function _refreshSidebarProfile() {
       rowEl.title   = '';
       rowEl.onclick = null;
     }
+  }
+}
+
+// ── Beta Access Helpers ──────────────────────────────────────
+
+/**
+ * Check if beta spots are available and should grant beta access to a new user.
+ * @returns {Promise<boolean>}
+ */
+async function _shouldGrantBetaAccess() {
+  try {
+    // Count existing beta users
+    const { count, error } = await _supabase
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('beta_access', true);
+
+    if (error) {
+      console.error('Error checking beta user count:', error);
+      return false;
+    }
+
+    const betaUserCount = count || 0;
+    const spotsAvailable = betaUserCount < BETA_CONFIG.maxUsers;
+    return spotsAvailable;
+  } catch (err) {
+    console.error('Error in _shouldGrantBetaAccess:', err);
+    return false;
+  }
+}
+
+/**
+ * Get current beta user statistics (for admin dashboard).
+ * @returns {Promise<{count: number, max: number, remaining: number, enabled: boolean}>}
+ */
+async function getBetaStats() {
+  try {
+    const { count, error } = await _supabase
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('beta_access', true);
+
+    if (error) {
+      console.error('Error getting beta stats:', error);
+      return { count: 0, max: BETA_CONFIG.maxUsers, remaining: BETA_CONFIG.maxUsers, enabled: BETA_CONFIG.enabled };
+    }
+
+    const betaCount = count || 0;
+    return {
+      count: betaCount,
+      max: BETA_CONFIG.maxUsers,
+      remaining: Math.max(0, BETA_CONFIG.maxUsers - betaCount),
+      enabled: BETA_CONFIG.enabled
+    };
+  } catch (err) {
+    console.error('Error in getBetaStats:', err);
+    return { count: 0, max: BETA_CONFIG.maxUsers, remaining: BETA_CONFIG.maxUsers, enabled: BETA_CONFIG.enabled };
   }
 }
