@@ -3443,6 +3443,10 @@
           populateReqForms();
           // Refresh Basic Mode display so imported data appears immediately without toggling modes
           if (typeof syncGuidedToQS === 'function') syncGuidedToQS();
+          // If the imported project is a Quick Project, navigate to the Quick Project page
+          if (data.project?.projectType === 'quick' && typeof setMode === 'function') {
+            setMode('basic');
+          }
           alert('Project data loaded successfully!');
         } catch(err) {
           alert('Could not parse project file. Make sure it is a valid Controlled Convergence JSON export.');
