@@ -5401,7 +5401,7 @@ ${sections}
     const isDup = savedProjects.some(p => p.name.toLowerCase() === name.toLowerCase());
     if (isDup) {
       if (errEl) { errEl.textContent = 'A project with this name already exists. Choose a different name.'; errEl.style.display = ''; }
-      input.focus(); return;
+      if (input) input.focus(); return;
     }
     if (errEl) errEl.style.display = 'none';
 
@@ -8459,6 +8459,10 @@ ${sections}
                     const navBtn = document.querySelector('[data-page="' + lastPage + '"]');
                     switchPage(lastPage, navBtn || null);
                   }
+                } else {
+                  // Project no longer exists (deleted or access removed) — clear
+                  // the stale ID so it doesn't keep failing on every page load.
+                  localStorage.removeItem('cc_activeProjectId');
                 }
               }
             } catch(e) {}
