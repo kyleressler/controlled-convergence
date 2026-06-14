@@ -5505,7 +5505,7 @@ ${sections}
           project.checked_out_at  = project.checked_out_at || new Date().toISOString();
           savedProjects.push(project);
           appState.projects = savedProjects.slice();
-          if (typeof _loadProjectLockFromCache === 'function') _loadProjectLockFromCache(project.id);
+          if (typeof loadCurrentProjectRole === 'function') loadCurrentProjectRole(project.id);
           if (typeof renderProjList === 'function') renderProjList();
           if (typeof renderProjPage === 'function') renderProjPage();
         } else {
