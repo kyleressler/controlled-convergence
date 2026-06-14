@@ -5488,8 +5488,14 @@ ${sections}
       // appeared in-memory but was never written to the database.
       saveProject(project).then(function(result) {
         if (result && !result.error) {
+          // Stamp lock fields onto the in-memory project so _loadProjectLockFromCache
+          // can read them immediately — saveProject sends these to the DB but does
+          // not write them back onto the project object.
+          project.editing_user_id = appState.currentUser.id;
+          project.checked_out_at  = project.checked_out_at || new Date().toISOString();
           savedProjects.push(project);
           appState.projects = savedProjects.slice();
+          if (typeof _loadProjectLockFromCache === 'function') _loadProjectLockFromCache(project.id);
           if (typeof renderProjList === 'function') renderProjList();
         } else {
           console.warn('[createProject] save failed:', result && result.error);
