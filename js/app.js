@@ -5714,6 +5714,8 @@ ${sections}
   async function _executeOwnerDeleteNow(id) {
     var { error } = await deleteProjectAPI(id);
     if (error) { alert('Could not delete project: ' + error); return; }
+    savedProjects = savedProjects.filter(p => p.id !== id);
+    appState.projects = savedProjects.slice();
     if (activeProject && activeProject.id === id) {
       activeProject = null;
       appState.currentProject = null;
