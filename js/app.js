@@ -7798,6 +7798,7 @@ ${sections}
       else renderPairCard();
     }
     updatePairAdvisor();
+    _autoSaveNow();
   }
 
   // Scans the ENTIRE current comparison graph for any 3-cycle.
@@ -7857,6 +7858,7 @@ ${sections}
       else renderPairCard();
     }
     updatePairAdvisor();
+    _autoSaveNow();
   }
 
   function calcWinCounts() {
@@ -8088,6 +8090,14 @@ ${sections}
       updateConvNextStep(el.dataset.stepId, el.dataset.field, el.value);
     }
   });
+
+  // Save goal fields when the user tabs/clicks away. Without this, goal text
+  // is only persisted by the 60-second interval — a browser close mid-edit
+  // would lose the content. Blur fires once per field change.
+  const _GOAL_FIELD_IDS = new Set(['input-to','input-by','input-using','input-while','input-goal-basic']);
+  document.addEventListener('blur', function(e) {
+    if (_GOAL_FIELD_IDS.has(e.target.id)) _autoSaveNow();
+  }, true); // capture phase so it fires even from shadow-DOM or delegated inputs
 
   // Hash listener: lets back/forward and link clicks within blog/admin
   // re-route without a full reload. Only intervenes for these hashes; other
@@ -9730,6 +9740,7 @@ ${sections}
     closeScorePopup();
     renderPughMatrix();
     renderConceptCards();
+    _autoSaveNow();
   }
 
   function closeScorePopup() {
@@ -10285,9 +10296,7 @@ ${sections}
   }
 
   function convAutoSave() {
-    if (!activeProject) return;
-    const snap = snapshotCurrentState(activeProject);
-    saveProject(snap).catch(err => console.warn('[conv-save] failed', err));
+    _autoSaveNow();
   }
 
   function renderConvNextSteps() {
