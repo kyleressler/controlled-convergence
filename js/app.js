@@ -1237,6 +1237,8 @@
     myAssignedScoringTasks = [];
     projectCollaborators = [];
     currentProjectLock = null;
+    _stopLockPoll();
+    _stopLockAutoSave();
     _applyRoleClasses();
     _renderLockBanner();
   }
@@ -1269,7 +1271,7 @@
   var _lockPollTimer = null;
   function _startLockPoll() {
     if (_lockPollTimer) return;
-    _lockPollTimer = setInterval(_pollLockState, 30 * 1000);
+    _lockPollTimer = setInterval(_pollLockState, 10 * 1000);
   }
   function _stopLockPoll() {
     if (_lockPollTimer) { clearInterval(_lockPollTimer); _lockPollTimer = null; }
@@ -2157,7 +2159,7 @@
   // True for the implicit project owner only. Used to gate admin actions
   // (invite, assign tasks, delete project).
   function isOwner() {
-    return !currentProjectRole || currentProjectRole === 'owner';
+    return currentProjectRole === 'owner';
   }
 
   // Phase 3 + 4 + 8: editing requires holding the lock AND not viewing
@@ -2449,7 +2451,7 @@
 
   async function _cancelPendingInvite(taskId) {
     try {
-      await _supabase.from('tasks').update({ status: 'cancelled' }).eq('id', taskId);
+      await _supabase.from('tasks').delete().eq('id', taskId);
       _pendingInvites = _pendingInvites.filter(function(t) { return t.id !== taskId; });
       renderTeamAccessList();
       _showToast('Invite cancelled', 'info');
@@ -2613,6 +2615,14 @@
       alert('Could not revoke access: ' + error.message);
       return;
     }
+    // Clean up any collab_invite tasks for this member on this project so
+    // orphaned rows don't linger in the tasks table.
+    await _supabase
+      .from('tasks')
+      .delete()
+      .eq('assignee_id', memberId)
+      .eq('task_type', 'collab_invite');
+
     // Remove from local state and refresh both views
     projectCollaborators = projectCollaborators.filter(function(c) { return c.user_id !== memberId; });
     renderTeamAccessList();
