@@ -5345,7 +5345,7 @@ ${sections}
   function toggleNewProjectForm() {
     var card = document.getElementById('projFormCard');
     if (!card) return;
-    if (card.style.display === 'none' || card.style.display === '') {
+    if (card.style.display === 'none') {
       showNewProjectForm();
     } else {
       hideNewProjectForm();
@@ -5482,9 +5482,19 @@ ${sections}
     // in-memory-only project that never enters savedProjects (and so
     // never appears as an owned project in the Project Manager list).
     if (appState.currentUser) {
-      savedProjects.push(project);
-      appState.projects = savedProjects.slice();
-      saveProject(project).catch(e => console.warn('save failed', e));
+      // Save BEFORE pushing to savedProjects so that isFirstSave in saveProject
+      // correctly sees this as a new row and uses POST (INSERT) rather than
+      // PATCH (UPDATE). Pushing first caused PATCH to hit 0 rows — the project
+      // appeared in-memory but was never written to the database.
+      saveProject(project).then(function(result) {
+        if (result && !result.error) {
+          savedProjects.push(project);
+          appState.projects = savedProjects.slice();
+          if (typeof renderProjList === 'function') renderProjList();
+        } else {
+          console.warn('[createProject] save failed:', result && result.error);
+        }
+      }).catch(e => console.warn('[createProject] save threw:', e));
       try { localStorage.setItem('cc_activeProjectId', project.id); } catch(e) {}
     } else {
       // Anonymous: do not persist the active id — work is session-only.
