@@ -5507,6 +5507,7 @@ ${sections}
           appState.projects = savedProjects.slice();
           if (typeof _loadProjectLockFromCache === 'function') _loadProjectLockFromCache(project.id);
           if (typeof renderProjList === 'function') renderProjList();
+          if (typeof renderProjPage === 'function') renderProjPage();
         } else {
           console.warn('[createProject] save failed:', result && result.error);
         }
