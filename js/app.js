@@ -9513,18 +9513,26 @@ ${sections}
 
   // Lightbox for the hero image shown in the expanded (scoring) view's
   // Concept Details. Click the image or the backdrop to close.
-  function openConceptHeroLightbox() {
-    const c = pughConcepts.find(x => x.id === scoringConceptId);
-    if (!c || !c.heroImagePath || typeof ConceptImages === 'undefined') return;
+  // Open the lightbox for a specific image path — used by card thumbnails,
+  // the scoring-view images, and Pugh matrix headers.
+  function openConceptHeroLightboxByPath(path) {
+    if (!path || typeof ConceptImages === 'undefined') return;
     const modal = document.getElementById('conceptHeroLightbox');
     const img   = document.getElementById('conceptHeroLightboxImg');
     if (!modal || !img) return;
-    const forId = c.id;
-    ConceptImages.getSignedUrl(c.heroImagePath).then(url => {
-      if (url && scoringConceptId === forId) { img.src = url; modal.classList.add('open'); }
+    ConceptImages.getSignedUrl(path).then(url => {
+      if (url) { img.src = url; modal.classList.add('open'); }
     });
   }
-  function closeConceptHeroLightbox() {
+  // Open the lightbox for the concept currently open in the scoring view.
+  function openConceptHeroLightbox() {
+    const c = pughConcepts.find(x => x.id === scoringConceptId);
+    if (c && c.heroImagePath) openConceptHeroLightboxByPath(c.heroImagePath);
+  }
+  // stopPropagation so closing doesn't reach the document-level "click outside
+  // the scoring view / matrix" handlers, which would tear down that view.
+  function closeConceptHeroLightbox(e) {
+    if (e) e.stopPropagation();
     const modal = document.getElementById('conceptHeroLightbox');
     const img   = document.getElementById('conceptHeroLightboxImg');
     if (modal) modal.classList.remove('open');

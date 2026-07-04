@@ -5365,6 +5365,7 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg) center center / cover no-repeat;
+  cursor: zoom-in;
 }
 
 /* Edit Concept modal — hero image row */
@@ -5404,6 +5405,7 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
   border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--bg) center center / cover no-repeat;
+  cursor: zoom-in;
 }
 
 /* Expanded (scoring) view — larger image beside the Concept Details list.
@@ -5460,7 +5462,8 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
 }
 #conceptHeroImgPreview.open { display: block; }
 
-/* Concept hero image lightbox (click to enlarge) */
+/* Concept hero image lightbox (click to enlarge) — above the hover popups (z 10000) */
+#conceptHeroLightbox { z-index: 11000; }
 .concept-hero-lightbox-img {
   max-width: 90vw; max-height: 90vh; width: auto; height: auto;
   border-radius: 10px; box-shadow: 0 12px 48px rgba(0,0,0,0.4); cursor: zoom-out;

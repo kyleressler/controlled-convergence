@@ -1829,6 +1829,19 @@ async function _resolveStakEmailTiers(emails) {
     wrap._heroPreviewWired = true;
     wrap.addEventListener('mousemove', _cardHeroHoverMove);
     wrap.addEventListener('mouseleave', _hideCardHeroPreview);
+    // Capture phase so we intercept the click BEFORE it reaches the card's
+    // own onclick (startScoringConcept) and open the lightbox instead.
+    wrap.addEventListener('click', _cardHeroClick, true);
+  }
+  function _cardHeroClick(e) {
+    const el = e.target && e.target.closest ? e.target.closest('.concept-card-hero') : null;
+    if (!el) return;
+    e.stopPropagation();
+    const path = el.getAttribute('data-hero-path');
+    if (path && typeof openConceptHeroLightboxByPath === 'function') {
+      _hideCardHeroPreview();
+      openConceptHeroLightboxByPath(path);
+    }
   }
   function _hideCardHeroPreview() {
     const pop = document.getElementById('conceptHeroImgPreview');
@@ -2040,6 +2053,16 @@ async function _resolveStakEmailTiers(emails) {
     wrap.addEventListener('mousemove', _pughHeaderHoverMove);
     wrap.addEventListener('mouseleave', _hidePughHeaderHover);
     wrap.addEventListener('scroll', _hidePughHeaderHover, true); // position would go stale
+    wrap.addEventListener('click', _pughHeaderClick);
+  }
+  function _pughHeaderClick(e) {
+    const th = e.target && e.target.closest ? e.target.closest('.pugh-concept-th') : null;
+    if (!th) return;
+    const path = th.getAttribute('data-hero-path');
+    if (!path) return;
+    e.stopPropagation();
+    _hidePughHeaderHover();
+    if (typeof openConceptHeroLightboxByPath === 'function') openConceptHeroLightboxByPath(path);
   }
 
   function _hidePughHeaderHover() {
