@@ -5356,3 +5356,87 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
   color: var(--accent);
   opacity: 0.85;
 }
+
+/* ══ CONCEPT HERO IMAGES ══════════════════════════════════════ */
+/* Small square in the concept card, between the number badge and name. */
+.concept-card-hero {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg) center center / cover no-repeat;
+}
+
+/* Edit Concept modal — hero image row */
+.concept-hero-editrow { display: flex; align-items: center; gap: 12px; }
+.concept-hero-thumb {
+  flex: 0 0 auto;
+  width: 56px; height: 56px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg) center center / cover no-repeat;
+}
+.concept-hero-thumb.empty { border-style: dashed; background-image: none; }
+.concept-hero-editbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Crop modal */
+.concept-hero-cropstage {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.concept-hero-cropstage img {
+  display: block;
+  max-width: 100%;
+  max-height: 52vh;
+}
+.concept-hero-cropcontrols {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+}
+
+/* Expanded (scoring) view — small square in the header */
+.scor-view-hero-sm {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg) center center / cover no-repeat;
+}
+
+/* Expanded (scoring) view — larger image beside the Concept Details list.
+   The wrap owns the padding/border/background so the image and the list
+   share one unified strip; the image stretches to the list's height. */
+.scor-cf-bodywrap {
+  display: flex; align-items: stretch; gap: 14px;
+  padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg);
+}
+#scorCfBody { padding: 0; border-bottom: none; background: transparent; }
+.scor-cf-hero {
+  flex: 0 0 auto;
+  width: 120px; align-self: stretch; min-height: 90px;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface) center center / cover no-repeat;
+}
+
+/* Pugh matrix header hover popup (full name + hero image) */
+#conceptHeroHoverPopup {
+  position: fixed; z-index: 10000; display: none;
+  width: 200px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  padding: 8px; pointer-events: none;
+}
+#conceptHeroHoverPopup.open { display: block; }
+.pugh-hero-pop-name {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  line-height: 1.3; white-space: normal; word-break: break-word;
+}
+.pugh-hero-pop-img {
+  margin-top: 6px;
+  width: 100%; aspect-ratio: 1 / 1;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg) center center / cover no-repeat;
+}

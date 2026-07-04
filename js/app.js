@@ -4114,8 +4114,16 @@
     });
   }
 
-  function generateReport() {
+  async function generateReport() {
     document.getElementById('exportReportModal').classList.remove('open');
+
+    // Open the print window synchronously (before any await) so pop-up blockers
+    // don't reject it after the async hero-image prefetch below.
+    const _reportWin = window.open('', '_blank');
+    if (!_reportWin) { alert('Please allow pop-ups for this page to generate the report.'); return; }
+    try {
+      _reportWin.document.write('<!doctype html><meta charset="utf-8"><title>Generating report…</title><body style="margin:0;font-family:system-ui,sans-serif;color:#475569;display:flex;align-items:center;justify-content:center;height:100vh">Generating report…</body>');
+    } catch (e) {}
 
     // ── Theme ──
     const themeVal = document.querySelector('input[name="rptTheme"]:checked')?.value || 'light';
@@ -4937,6 +4945,18 @@
           true, T);
       }
 
+      // Prefetch concept hero images as base64 data URLs (private → signed URL → bytes)
+      // so the print window embeds them with no network fetch of its own.
+      const heroDataUrls = {};
+      try {
+        for (const s of focusList) {
+          if (s.c && s.c.heroImagePath) {
+            const durl = await _heroPathToDataUrl(s.c.heroImagePath);
+            if (durl) heroDataUrls[s.c.id] = durl;
+          }
+        }
+      } catch (e) { console.warn('[concept-hero] report image prefetch failed', e); }
+
       // Per-concept deep dive pages
       focusList.forEach(s => {
         const rank = rankMap[s.c.id];
@@ -4964,8 +4984,14 @@
         })();
         const whySummary = `Ranked <strong>#${rank}</strong> of ${rankedConcepts.length} concepts. Net score: <strong>${s.net>=0?'+':''}${s.net}</strong> (${s.plus} wins · ${s.minus} losses · ${s.zero} ties). Win rate vs. datum: <strong>${winRate}%</strong>.${topIl ? ` Strongest area: <strong>${escHtml(topIl)}</strong>.` : ''}${isSelected ? ` <span style="background:${T.winnerBg};color:${T.winnerText};padding:1px 6px;border-radius:3px;border:1px solid ${T.winnerBorder};font-size:11px">Selected concept</span>` : ''}`;
 
+        const _hero = heroDataUrls[s.c.id];
+        const _callout = `<div style="border-left:3px solid ${T.accentLine};padding:11px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;font-size:13px;color:${T.textPrimary};line-height:1.6">${whySummary}</div>`;
+        const _headerRow = _hero
+          ? `<div class="avoid-break" style="display:flex;gap:16px;align-items:flex-start;margin-bottom:18px"><img src="${_hero}" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid ${T.cardBorder};flex:0 0 auto"><div style="flex:1;min-width:0">${_callout}</div></div>`
+          : `<div style="margin-bottom:18px">${_callout}</div>`;
+
         sections += rptSection(++sn, `Deep Dive: ${escHtml(s.c.name)}`,
-          `<div style="border-left:3px solid ${T.accentLine};padding:11px 16px;background:${T.calloutBg};border-radius:0 5px 5px 0;margin-bottom:18px;font-size:13px;color:${T.textPrimary};line-height:1.6">${whySummary}</div>
+          `${_headerRow}
           <div style="display:flex;gap:24px;margin-bottom:20px">
             ${[['Net Score', (s.net>=0?'+':'')+s.net, T.barPosText],['Wins',s.plus,T.barPosText],['Losses',s.minus,T.barNegText],['Ties',s.zero,T.textTertiary],['Rank','#'+rank,T.textPrimary]].map(([label,val,color])=>`
               <div style="flex:1;background:${T.cardBg};border:1px solid ${T.cardBorder};border-radius:6px;padding:12px 8px;text-align:center">
@@ -5052,10 +5078,9 @@ ${sections}
 </body>
 </html>`;
 
-    const win = window.open('', '_blank');
-    if (!win) { alert('Please allow pop-ups for this page to generate the report.'); return; }
-    win.document.write(html);
-    win.document.close();
+    _reportWin.document.open();
+    _reportWin.document.write(html);
+    _reportWin.document.close();
   }
 
 
@@ -9218,6 +9243,9 @@ ${sections}
     if (tagsInput) tagsInput.value = (c.tags || []).join(', ');
     renderConceptTagSuggestions();
 
+    // Hero image preview + controls
+    _conceptHeroRenderModal(c);
+
     document.getElementById('editConceptModal').classList.add('open');
     setTimeout(() => document.getElementById('editConceptNameInput').focus(), 50);
   }
@@ -9279,6 +9307,213 @@ ${sections}
     closeEditConceptModal();
     renderConceptCards();
     if (typeof renderPughMatrix === 'function') renderPughMatrix();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Concept hero images — upload / crop / remove
+  //   Bucket + RLS:  sql/2026-07-03-concept-hero-images.sql
+  //   Signed reads:  js/concept-images.js (window.ConceptImages)
+  //   Path:          <project_id>/<concept_id>-<random>.<ext>
+  // Image changes commit IMMEDIATELY (upload/remove + autosave); they are
+  // not gated by the Edit Concept modal's Save/Cancel. Server RLS is the
+  // real permission gate — the UI checks below only hide controls.
+  // ─────────────────────────────────────────────────────────────
+  const CONCEPT_HERO_BUCKET = 'concept-images';
+  const CONCEPT_HERO_DIM    = 1000;         // square output, px
+  const CONCEPT_HERO_TARGET = 100 * 1024;   // ~100 KB soft target
+  let   _conceptHeroCropper = null;
+
+  function _conceptHeroCanUpload() {
+    return !(typeof isViewOnly === 'function' && isViewOnly());
+  }
+
+  // Fill the modal preview thumb + toggle its buttons for concept `c`.
+  function _conceptHeroRenderModal(c) {
+    const thumb     = document.getElementById('editConceptHeroThumb');
+    const uploadBtn = document.getElementById('editConceptHeroUploadBtn');
+    const removeBtn = document.getElementById('editConceptHeroRemoveBtn');
+    if (!thumb) return;
+
+    const canUpload = _conceptHeroCanUpload();
+    const hasImg    = !!(c && c.heroImagePath);
+    if (uploadBtn) { uploadBtn.style.display = canUpload ? '' : 'none'; uploadBtn.textContent = hasImg ? 'Change image…' : 'Upload image…'; }
+    if (removeBtn) removeBtn.style.display = (hasImg && canUpload) ? '' : 'none';
+
+    thumb.style.backgroundImage = '';
+    thumb.classList.toggle('empty', !hasImg);
+    if (hasImg && typeof ConceptImages !== 'undefined') {
+      const forId = c.id;
+      ConceptImages.getSignedUrl(c.heroImagePath).then(url => {
+        // Guard: the modal may have moved to another concept while we waited.
+        if (url && _editingConceptId === forId) {
+          thumb.style.backgroundImage = `url("${url}")`;
+          thumb.classList.remove('empty');
+        }
+      });
+    }
+  }
+
+  function conceptHeroPickFile() {
+    if (!_conceptHeroCanUpload()) return;
+    if (!activeProject || !activeProject.id) { alert('Save the project before adding images.'); return; }
+    const inp = document.getElementById('editConceptHeroFileInput');
+    if (inp) { inp.value = ''; inp.click(); }
+  }
+
+  function conceptHeroFileChosen(event) {
+    const file = event && event.target && event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { alert('Please choose an image file.'); return; }
+    const fr = new FileReader();
+    fr.onload  = function () { _conceptHeroOpenCrop(fr.result); };
+    fr.onerror = function () { alert('Could not read that image.'); };
+    fr.readAsDataURL(file);
+  }
+
+  function _conceptHeroOpenCrop(dataUrl) {
+    const modal = document.getElementById('conceptHeroCropModal');
+    const img   = document.getElementById('conceptHeroCropImg');
+    const warn  = document.getElementById('conceptHeroCropWarning');
+    if (!modal || !img) return;
+    if (warn) { warn.style.display = 'none'; warn.textContent = ''; }
+
+    if (_conceptHeroCropper) { _conceptHeroCropper.destroy(); _conceptHeroCropper = null; }
+    img.src = dataUrl;
+    modal.classList.add('open');
+
+    if (typeof Cropper === 'undefined') {
+      if (warn) { warn.textContent = 'Image cropper failed to load. Please refresh and try again.'; warn.style.display = ''; }
+      return;
+    }
+    // Cropper needs the <img> laid out; init on next frame.
+    setTimeout(function () {
+      _conceptHeroCropper = new Cropper(img, {
+        aspectRatio: 1, viewMode: 1, autoCropArea: 1, dragMode: 'move',
+        background: false, responsive: true, guides: false, center: true, movable: true, zoomable: true
+      });
+    }, 30);
+  }
+
+  function conceptHeroCropZoom(delta) { if (_conceptHeroCropper) _conceptHeroCropper.zoom(delta); }
+  function conceptHeroCropReset()     { if (_conceptHeroCropper) _conceptHeroCropper.reset(); }
+
+  function conceptHeroCropCancel() {
+    const modal = document.getElementById('conceptHeroCropModal');
+    if (_conceptHeroCropper) { _conceptHeroCropper.destroy(); _conceptHeroCropper = null; }
+    if (modal) modal.classList.remove('open');
+    const inp = document.getElementById('editConceptHeroFileInput');
+    if (inp) inp.value = '';
+  }
+
+  async function conceptHeroCropApply() {
+    const c        = pughConcepts.find(x => x.id === _editingConceptId);
+    const applyBtn = document.getElementById('conceptHeroCropApplyBtn');
+    const warn     = document.getElementById('conceptHeroCropWarning');
+    if (!c || !_conceptHeroCropper) { conceptHeroCropCancel(); return; }
+    if (!activeProject || !activeProject.id) { conceptHeroCropCancel(); alert('Save the project before adding images.'); return; }
+
+    const canvas = _conceptHeroCropper.getCroppedCanvas({
+      width: CONCEPT_HERO_DIM, height: CONCEPT_HERO_DIM,
+      imageSmoothingEnabled: true, imageSmoothingQuality: 'high'
+    });
+    if (!canvas) { if (warn) { warn.textContent = 'Could not process the image.'; warn.style.display = ''; } return; }
+
+    if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
+    try {
+      const enc     = await _conceptHeroEncode(canvas);   // { blob, ext, type }
+      const oldPath = c.heroImagePath || null;
+      const rand    = Math.random().toString(36).slice(2, 8);
+      const path    = activeProject.id + '/' + c.id + '-' + rand + '.' + enc.ext;
+
+      const up = await _supabase.storage.from(CONCEPT_HERO_BUCKET)
+        .upload(path, enc.blob, { contentType: enc.type, upsert: false });
+      if (up.error) throw up.error;
+
+      c.heroImagePath = path;
+      _autoSaveNow();                                     // persist the path
+      if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(path);
+
+      // Best-effort cleanup of the replaced object (deferred sweep handles the rest).
+      if (oldPath && oldPath !== path) {
+        _supabase.storage.from(CONCEPT_HERO_BUCKET).remove([oldPath]).catch(function () {});
+        if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(oldPath);
+      }
+
+      conceptHeroCropCancel();
+      _conceptHeroRenderModal(c);
+      renderConceptCards();
+    } catch (e) {
+      console.warn('[concept-hero] upload failed', e);
+      if (warn) {
+        warn.textContent = /row-level security|permission|denied|not authorized/i.test((e && e.message) || '')
+          ? 'You do not have permission to add an image to this project.'
+          : 'Upload failed. Please try again.';
+        warn.style.display = '';
+      }
+    } finally {
+      if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = 'Apply'; }
+    }
+  }
+
+  async function conceptHeroRemove() {
+    const c = pughConcepts.find(x => x.id === _editingConceptId);
+    if (!c || !c.heroImagePath) return;
+    if (!_conceptHeroCanUpload()) return;
+    if (!confirm('Remove this concept’s hero image?')) return;
+
+    const path = c.heroImagePath;
+    c.heroImagePath = null;
+    _autoSaveNow();
+    _supabase.storage.from(CONCEPT_HERO_BUCKET).remove([path]).catch(function () {});
+    if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(path);
+
+    _conceptHeroRenderModal(c);
+    renderConceptCards();
+  }
+
+  // Encode a square canvas to WebP (JPEG fallback), stepping quality down
+  // toward the ~100 KB target. Mirrors the blog pipeline in admin-blog.js.
+  function _conceptHeroEncode(canvas) {
+    const tryType = async function (type, ext) {
+      let last = null;
+      for (const q of [0.82, 0.72, 0.62, 0.5]) {
+        const blob = await _conceptHeroCanvasToBlob(canvas, type, q);
+        if (!blob) return null;                 // type unsupported by this browser
+        last = blob;
+        if (blob.size <= CONCEPT_HERO_TARGET) return { blob: blob, ext: ext, type: type };
+      }
+      return { blob: last, ext: ext, type: type };
+    };
+    return tryType('image/webp', 'webp').then(function (webp) {
+      return webp || tryType('image/jpeg', 'jpg');
+    });
+  }
+
+  function _conceptHeroCanvasToBlob(canvas, type, quality) {
+    return new Promise(function (resolve) {
+      try { canvas.toBlob(function (b) { resolve(b); }, type, quality); }
+      catch (e) { resolve(null); }
+    });
+  }
+
+  // Resolve a private hero image path to a base64 data URL (signed URL → fetch →
+  // FileReader). Used by the PDF export so the print window embeds images inline
+  // rather than fetching them. Returns null on any failure (report still generates).
+  async function _heroPathToDataUrl(path) {
+    try {
+      if (!path || typeof ConceptImages === 'undefined') return null;
+      const url = await ConceptImages.getSignedUrl(path);
+      if (!url) return null;
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      return await new Promise(function (resolve) {
+        const fr = new FileReader();
+        fr.onload  = function () { resolve(fr.result); };
+        fr.onerror = function () { resolve(null); };
+        fr.readAsDataURL(blob);
+      });
+    } catch (e) { return null; }
   }
 
   function startScoringConcept(id) {

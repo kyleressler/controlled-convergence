@@ -1611,14 +1611,18 @@ async function _resolveStakEmailTiers(emails) {
             <span class="scor-cf-value">${val}</span>
           </div>`;
         }).join('');
+        const bodyWrap = document.getElementById('scorCfBodyWrap');
         const expand = fields.length <= 5;
-        cfBody.style.display  = expand ? '' : 'none';
+        if (bodyWrap) bodyWrap.style.display = expand ? '' : 'none';
         cfToggle.textContent  = expand ? '▼' : '▶';
         cfSection.style.display = '';
       } else {
         cfSection.style.display = 'none';
       }
     }
+    // Hero image: small square in the header when Concept Details is collapsed/absent,
+    // larger image beside the details list when it is expanded.
+    _scorRenderHero(concept);
 
     // Datum routing is handled by startScoringConcept → startDatumDef, so
     // renderScoringView is only ever called for non-datum concepts.
@@ -1765,12 +1769,56 @@ async function _resolveStakEmailTiers(emails) {
   }
 
   function toggleScoringCustomFields() {
-    const cfBody   = document.getElementById('scorCfBody');
+    const bodyWrap = document.getElementById('scorCfBodyWrap');
     const cfToggle = document.getElementById('scorCfToggleIcon');
-    if (!cfBody || !cfToggle) return;
-    const isCollapsed = cfBody.style.display === 'none';
-    cfBody.style.display = isCollapsed ? '' : 'none';
+    if (!bodyWrap || !cfToggle) return;
+    const isCollapsed = bodyWrap.style.display === 'none';
+    bodyWrap.style.display = isCollapsed ? '' : 'none';
     cfToggle.textContent = isCollapsed ? '▼' : '▶';
+    const concept = pughConcepts.find(c => c.id === scoringConceptId);
+    if (concept) _scorRenderHero(concept);
+  }
+
+  // Show the concept hero image in the scoring (expanded) view. Small square in
+  // the header when Concept Details is collapsed/absent; larger image beside the
+  // details list when expanded. Private → resolved via signed URL.
+  function _scorRenderHero(concept) {
+    const small = document.getElementById('scorHeroSmall');
+    const large = document.getElementById('scorHeroLarge');
+    if (!small || !large) return;
+
+    const wrap      = document.getElementById('scorCfBodyWrap');
+    const cfSection = document.getElementById('scorCustomFieldsSection');
+    const detailsShown = !!(cfSection && cfSection.style.display !== 'none'
+                            && wrap && wrap.style.display !== 'none');
+
+    small.style.display = 'none'; small.style.backgroundImage = '';
+    large.style.display = 'none'; large.style.backgroundImage = '';
+
+    const path = concept && concept.heroImagePath;
+    if (!path || typeof ConceptImages === 'undefined') return;
+
+    const target = detailsShown ? large : small;
+    target.style.display = '';
+    const forId = concept.id;
+    ConceptImages.getSignedUrl(path).then(url => {
+      if (url && scoringConceptId === forId) target.style.backgroundImage = `url("${url}")`;
+    });
+  }
+
+  // Resolve signed URLs for any .concept-card-hero[data-hero-path] under `root`
+  // and paint them as background images. Batched to one network round-trip.
+  function _hydrateConceptHeroThumbs(root) {
+    if (!root || typeof ConceptImages === 'undefined') return;
+    const els = root.querySelectorAll('.concept-card-hero[data-hero-path]');
+    if (!els.length) return;
+    const paths = [...new Set([...els].map(e => e.getAttribute('data-hero-path')).filter(Boolean))];
+    ConceptImages.getSignedUrls(paths).then(map => {
+      els.forEach(e => {
+        const url = map.get(e.getAttribute('data-hero-path'));
+        if (url) { e.style.backgroundImage = `url("${url}")`; e.classList.add('loaded'); }
+      });
+    });
   }
 
   function renderConceptCards() {
@@ -1879,8 +1927,14 @@ async function _resolveStakEmailTiers(emails) {
         ? `<div class="concept-tags-row">${c.tags.map(t => `<span class="concept-tag">${t}</span>`).join('')}</div>`
         : '';
 
+      // Hero image: small square shown only when the concept has one.
+      const heroThumb = c.heroImagePath
+        ? `<span class="concept-card-hero" data-hero-path="${escHtml(c.heroImagePath)}"></span>`
+        : '';
+
       return `<div class="concept-card${isBaseline ? ' datum-card' : ''}" style="${tintStyle}" onclick="startScoringConcept(${_cId})">
         ${badge}
+        ${heroThumb}
         <div style="flex:1;min-width:0">
           <div class="concept-card-name">${c.name}</div>
           ${tagsHtml}
@@ -1896,6 +1950,9 @@ async function _resolveStakEmailTiers(emails) {
         </div>
       </div>`;
     }).join('');
+
+    // Fill in hero-image thumbnails asynchronously (private → signed URLs).
+    _hydrateConceptHeroThumbs(wrap);
 
     // Re-attach the scoring view: inline after the active card, or parked after the wrap.
     // Use visibleConcepts index since wrap.children maps to visibleConcepts (not pughConcepts).
@@ -1929,6 +1986,86 @@ async function _resolveStakEmailTiers(emails) {
 
 
 // ── Pugh Matrix renders ───────────────────────────────────────
+
+  // ── Pugh header hover popup: full concept name + hero image ──
+  // Replaces the sluggish native `title` tooltip. Follows the cursor and
+  // updates in near real-time as the mouse sweeps across the column headers.
+  let _pughHoverConceptId = null;
+  let _pughHoverX = 0, _pughHoverY = 0;
+
+  function _ensurePughHeaderHoverWired() {
+    const wrap = document.getElementById('pughTableWrap');
+    if (!wrap || wrap._heroHoverWired) return;
+    wrap._heroHoverWired = true;
+    wrap.addEventListener('mousemove', _pughHeaderHoverMove);
+    wrap.addEventListener('mouseleave', _hidePughHeaderHover);
+    wrap.addEventListener('scroll', _hidePughHeaderHover, true); // position would go stale
+  }
+
+  function _hidePughHeaderHover() {
+    const pop = document.getElementById('conceptHeroHoverPopup');
+    if (pop) { pop.classList.remove('open'); pop.setAttribute('aria-hidden', 'true'); }
+    _pughHoverConceptId = null;
+  }
+
+  function _pughHeaderHoverMove(e) {
+    const th = e.target && e.target.closest ? e.target.closest('.pugh-concept-th') : null;
+    if (!th) { _hidePughHeaderHover(); return; }
+
+    const pop    = document.getElementById('conceptHeroHoverPopup');
+    const nameEl = document.getElementById('conceptHeroHoverName');
+    const imgEl  = document.getElementById('conceptHeroHoverImg');
+    if (!pop || !nameEl || !imgEl) return;
+
+    const cid  = th.getAttribute('data-concept-id');
+    const name = th.getAttribute('data-concept-name') || '';
+    const path = th.getAttribute('data-hero-path') || '';
+
+    // Only rebuild content when the hovered concept changes.
+    if (cid !== _pughHoverConceptId) {
+      _pughHoverConceptId = cid;
+      nameEl.textContent = name;
+      imgEl.style.display = 'none';
+      imgEl.style.backgroundImage = '';
+      if (path && typeof ConceptImages !== 'undefined') {
+        const forId = cid;
+        ConceptImages.getSignedUrl(path).then(url => {
+          if (url && _pughHoverConceptId === forId) {
+            imgEl.style.backgroundImage = `url("${url}")`;
+            imgEl.style.display = '';
+            _positionPughHeaderHover(pop, _pughHoverX, _pughHoverY); // re-clamp after size grows
+          }
+        });
+      }
+      pop.classList.add('open');
+      pop.setAttribute('aria-hidden', 'false');
+    }
+
+    _pughHoverX = e.clientX; _pughHoverY = e.clientY;
+    _positionPughHeaderHover(pop, e.clientX, e.clientY);
+  }
+
+  function _positionPughHeaderHover(pop, cx, cy) {
+    const w = pop.offsetWidth  || 240;
+    const h = pop.offsetHeight || 80;
+    const M = 8, GAP = 14;
+    // Left half of viewport → popup to the right of cursor; right half → to the left.
+    let left = (cx < window.innerWidth / 2) ? (cx + GAP) : (cx - w - GAP);
+    left = Math.max(M, Math.min(left, window.innerWidth - w - M));
+    // Below the cursor, flipping above if it would run off the bottom.
+    let top = cy + GAP;
+    if (top + h > window.innerHeight - M) top = cy - h - GAP;
+    top = Math.max(M, top);
+    pop.style.left = left + 'px';
+    pop.style.top  = top + 'px';
+  }
+
+  // Warm the signed-URL cache for every concept image so hovers are instant.
+  function _pughPrefetchHeroUrls() {
+    if (typeof ConceptImages === 'undefined') return;
+    const paths = pughConcepts.filter(c => c && c.heroImagePath).map(c => c.heroImagePath);
+    if (paths.length) ConceptImages.getSignedUrls(paths);
+  }
 
   function renderPughMatrix() {
     const tableWrap  = document.getElementById('pughTableWrap');
@@ -2008,7 +2145,8 @@ async function _resolveStakEmailTiers(emails) {
       const badgeHtml = isIncomplete
         ? ` <span class="pugh-incomplete-badge" title="${unscored} requirement${unscored !== 1 ? 's' : ''} not yet scored">⚠ ${unscored}</span>`
         : '';
-      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}${isIncomplete ? ' pugh-col-incomplete' : ''}" title="${escHtml(c.name)}"><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}${badgeHtml}</span></th>`;
+      const heroAttr = c.heroImagePath ? ` data-hero-path="${escHtml(c.heroImagePath)}"` : '';
+      return `<th class="pugh-concept-th${isDatum ? ' datum-th' : ''}${isIncomplete ? ' pugh-col-incomplete' : ''}" data-concept-id="${c.id}" data-concept-name="${escHtml(c.name)}"${heroAttr}><span class="pugh-concept-th-inner">${c.name}${isDatum ? '<span class="pugh-datum-tag">Datum</span>' : ''}${badgeHtml}</span></th>`;
     }).join('');
     // Determine collapse-all triangle state for cell A1
     const totalCols = sortedConcepts.length + 1 + (showMASCol ? 1 : 0);
@@ -2068,6 +2206,10 @@ async function _resolveStakEmailTiers(emails) {
 
     html += '</tbody>';
     table.innerHTML = html;
+
+    // Concept hero-image hover popup on the column headers (replaces native title).
+    _ensurePughHeaderHoverWired();
+    _pughPrefetchHeroUrls();
 
     const btn = document.getElementById('btnPughContinue');
     if (btn) btn.disabled = false;

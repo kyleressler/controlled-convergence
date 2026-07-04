@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controlled Convergence</title>
 
+  <!-- Cropper.js (concept hero-image crop UI) — self-hosted, load before app styles so ours can override -->
+  <link rel="stylesheet" href="js/vendor/cropper.min.css" />
+
   <!-- App styles -->
   <link rel="stylesheet" href="css/style.css" />
 
@@ -1505,6 +1508,7 @@
   <div id="scorScoringView" style="display:none">
     <div class="scor-view">
       <div class="scor-view-header">
+        <div class="scor-view-hero-sm" id="scorHeroSmall" style="display:none" aria-hidden="true"></div>
         <div style="flex:1">
           <div class="scor-view-concept-name" id="scorViewName"></div>
           <div class="scor-view-progress" id="scorViewProgress"></div>
@@ -1519,8 +1523,11 @@
           <span class="scor-cf-title">Concept Details</span>
           <span class="scor-cf-toggle" id="scorCfToggleIcon">▼</span>
         </div>
-        <div id="scorCfBody">
-          <!-- populated by renderScoringView() -->
+        <div class="scor-cf-bodywrap" id="scorCfBodyWrap">
+          <div class="scor-cf-hero" id="scorHeroLarge" style="display:none" aria-hidden="true"></div>
+          <div id="scorCfBody" style="flex:1;min-width:0">
+            <!-- populated by renderScoringView() -->
+          </div>
         </div>
       </div>
 
@@ -2005,10 +2012,48 @@
       <div id="editConceptTagSuggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Separate tags with commas. Tags are ordered alphabetically.</div>
     </div>
+    <div class="modal-field" id="editConceptHeroField">
+      <div class="modal-label">Hero image</div>
+      <div class="concept-hero-editrow">
+        <div class="concept-hero-thumb" id="editConceptHeroThumb" aria-hidden="true"></div>
+        <div class="concept-hero-editbtns">
+          <button type="button" class="btn btn-secondary" style="font-size:12px;padding:5px 10px"
+            id="editConceptHeroUploadBtn" onclick="conceptHeroPickFile()">Upload image…</button>
+          <button type="button" class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:var(--danger)"
+            id="editConceptHeroRemoveBtn" onclick="conceptHeroRemove()">Remove</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Square image, cropped on upload. Kept small automatically. Image changes save immediately.</div>
+      <input type="file" id="editConceptHeroFileInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="conceptHeroFileChosen(event)">
+    </div>
     <div id="editConceptWarning" class="modal-warning" style="display:none"></div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveEditConcept()">Save</button>
       <button class="btn btn-secondary" onclick="closeEditConceptModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONCEPT HERO-IMAGE CROP MODAL ── -->
+<div class="modal-overlay" id="conceptHeroCropModal" onclick="if(event.target===this)conceptHeroCropCancel()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-title">Position &amp; crop image</div>
+    <div class="concept-hero-cropstage">
+      <img id="conceptHeroCropImg" alt="">
+    </div>
+    <div class="concept-hero-cropcontrols">
+      <button type="button" class="btn btn-ghost" style="font-size:16px;padding:4px 12px" title="Zoom out"
+        onclick="conceptHeroCropZoom(-0.1)">−</button>
+      <button type="button" class="btn btn-ghost" style="font-size:16px;padding:4px 12px" title="Zoom in"
+        onclick="conceptHeroCropZoom(0.1)">+</button>
+      <button type="button" class="btn btn-ghost" style="font-size:12px;padding:4px 12px" title="Reset"
+        onclick="conceptHeroCropReset()">Reset</button>
+      <span style="font-size:11px;color:var(--text-muted);margin-left:auto">Drag to reposition · scroll to zoom</span>
+    </div>
+    <div id="conceptHeroCropWarning" class="modal-warning" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="conceptHeroCropApplyBtn" onclick="conceptHeroCropApply()">Apply</button>
+      <button class="btn btn-secondary" onclick="conceptHeroCropCancel()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2069,6 +2114,12 @@
 
 <!-- ── PUGH SCORE POPUP ── -->
 <div id="pughScorePopup" role="dialog" aria-label="Set score"></div>
+
+<!-- Concept name/image hover popup for Pugh matrix headers -->
+<div id="conceptHeroHoverPopup" role="tooltip" aria-hidden="true">
+  <div class="pugh-hero-pop-name" id="conceptHeroHoverName"></div>
+  <div class="pugh-hero-pop-img" id="conceptHeroHoverImg"></div>
+</div>
 
 <!-- ── CHART EXPAND MODAL ── -->
 <div class="modal-overlay chart-expand-overlay" id="chartExpandModal" onclick="if(event.target===this)closeChartModal()">
@@ -3053,6 +3104,8 @@
 <script src="js/admin-shell.js"></script>
 <script src="js/admin-insights.js"></script>
 <script src="js/admin-blog.js"></script>
+<script src="js/vendor/cropper.min.js"></script>
+<script src="js/concept-images.js"></script>
 <script src="js/app.js"></script>
 <script src="js/tour.js"></script>
 <script src="js/easter-eggs.js"></script>
