@@ -1524,7 +1524,9 @@
           <span class="scor-cf-toggle" id="scorCfToggleIcon">▼</span>
         </div>
         <div class="scor-cf-bodywrap" id="scorCfBodyWrap">
-          <div class="scor-cf-hero" id="scorHeroLarge" style="display:none" aria-hidden="true"></div>
+          <div class="scor-cf-hero" id="scorHeroLarge" style="display:none" onclick="openConceptHeroLightbox()" title="Click to enlarge">
+            <span class="scor-cf-hero-expand" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1h4M1 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 1h-4M12 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 12h4M1 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12h-4M12 12v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </div>
           <div id="scorCfBody" style="flex:1;min-width:0">
             <!-- populated by renderScoringView() -->
           </div>
@@ -2119,6 +2121,14 @@
 <div id="conceptHeroHoverPopup" role="tooltip" aria-hidden="true">
   <div class="pugh-hero-pop-name" id="conceptHeroHoverName"></div>
   <div class="pugh-hero-pop-img" id="conceptHeroHoverImg"></div>
+</div>
+
+<!-- Concept card thumbnail hover: larger image preview -->
+<div id="conceptHeroImgPreview" aria-hidden="true"></div>
+
+<!-- Concept hero image lightbox (click image or backdrop to close) -->
+<div class="modal-overlay" id="conceptHeroLightbox" onclick="closeConceptHeroLightbox()">
+  <img id="conceptHeroLightboxImg" class="concept-hero-lightbox-img" alt="">
 </div>
 
 <!-- ── CHART EXPAND MODAL ── -->

@@ -1821,6 +1821,45 @@ async function _resolveStakEmailTiers(emails) {
     });
   }
 
+  // ── Concept card thumbnail hover: larger image preview (cursor-following) ──
+  let _cardHoverPath = null, _cardHoverX = 0, _cardHoverY = 0;
+  function _ensureCardHeroHoverWired() {
+    const wrap = document.getElementById('scorConceptCards');
+    if (!wrap || wrap._heroPreviewWired) return;
+    wrap._heroPreviewWired = true;
+    wrap.addEventListener('mousemove', _cardHeroHoverMove);
+    wrap.addEventListener('mouseleave', _hideCardHeroPreview);
+  }
+  function _hideCardHeroPreview() {
+    const pop = document.getElementById('conceptHeroImgPreview');
+    if (pop) pop.classList.remove('open');
+    _cardHoverPath = null;
+  }
+  function _cardHeroHoverMove(e) {
+    const el  = e.target && e.target.closest ? e.target.closest('.concept-card-hero') : null;
+    const pop = document.getElementById('conceptHeroImgPreview');
+    if (!el || !pop) { _hideCardHeroPreview(); return; }
+    const path = el.getAttribute('data-hero-path') || '';
+    if (!path) { _hideCardHeroPreview(); return; }
+    if (path !== _cardHoverPath) {
+      _cardHoverPath = path;
+      pop.classList.remove('open');
+      pop.style.backgroundImage = '';
+      if (typeof ConceptImages !== 'undefined') {
+        const forPath = path;
+        ConceptImages.getSignedUrl(path).then(url => {
+          if (url && _cardHoverPath === forPath) {
+            pop.style.backgroundImage = `url("${url}")`;
+            pop.classList.add('open');
+            _positionPughHeaderHover(pop, _cardHoverX, _cardHoverY);
+          }
+        });
+      }
+    }
+    _cardHoverX = e.clientX; _cardHoverY = e.clientY;
+    if (pop.classList.contains('open')) _positionPughHeaderHover(pop, e.clientX, e.clientY);
+  }
+
   function renderConceptCards() {
     const wrap     = document.getElementById('scorConceptCards');
     const empty    = document.getElementById('scorEmptyState');
@@ -1953,6 +1992,7 @@ async function _resolveStakEmailTiers(emails) {
 
     // Fill in hero-image thumbnails asynchronously (private → signed URLs).
     _hydrateConceptHeroThumbs(wrap);
+    _ensureCardHeroHoverWired();
 
     // Re-attach the scoring view: inline after the active card, or parked after the wrap.
     // Use visibleConcepts index since wrap.children maps to visibleConcepts (not pughConcepts).

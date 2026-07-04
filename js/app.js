@@ -9511,6 +9511,26 @@ ${sections}
     } catch (e) { return null; }
   }
 
+  // Lightbox for the hero image shown in the expanded (scoring) view's
+  // Concept Details. Click the image or the backdrop to close.
+  function openConceptHeroLightbox() {
+    const c = pughConcepts.find(x => x.id === scoringConceptId);
+    if (!c || !c.heroImagePath || typeof ConceptImages === 'undefined') return;
+    const modal = document.getElementById('conceptHeroLightbox');
+    const img   = document.getElementById('conceptHeroLightboxImg');
+    if (!modal || !img) return;
+    const forId = c.id;
+    ConceptImages.getSignedUrl(c.heroImagePath).then(url => {
+      if (url && scoringConceptId === forId) { img.src = url; modal.classList.add('open'); }
+    });
+  }
+  function closeConceptHeroLightbox() {
+    const modal = document.getElementById('conceptHeroLightbox');
+    const img   = document.getElementById('conceptHeroLightboxImg');
+    if (modal) modal.classList.remove('open');
+    if (img) img.src = '';
+  }
+
   function startScoringConcept(id) {
     // Viewers cannot score at all
     if (typeof isViewOnly === 'function' && isViewOnly()) return;

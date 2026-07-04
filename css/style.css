@@ -5410,16 +5410,25 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
    The wrap owns the padding/border/background so the image and the list
    share one unified strip; the image stretches to the list's height. */
 .scor-cf-bodywrap {
-  display: flex; align-items: stretch; gap: 14px;
+  display: flex; align-items: flex-start; gap: 14px;
   padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--bg);
 }
 #scorCfBody { padding: 0; border-bottom: none; background: transparent; }
 .scor-cf-hero {
   flex: 0 0 auto;
-  width: 120px; align-self: stretch; min-height: 90px;
+  width: 140px; height: 140px;
   border-radius: 8px; border: 1px solid var(--border);
   background: var(--surface) center center / cover no-repeat;
+  position: relative; cursor: zoom-in;
 }
+.scor-cf-hero-expand {
+  position: absolute; top: 6px; right: 6px;
+  width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45); color: #fff;
+  opacity: 0; transition: opacity 0.15s; pointer-events: none;
+}
+.scor-cf-hero:hover .scor-cf-hero-expand { opacity: 1; }
 
 /* Pugh matrix header hover popup (full name + hero image) */
 #conceptHeroHoverPopup {
@@ -5439,4 +5448,20 @@ body.theme-dark .task-status-expired  { color: #94a3b8; }
   width: 100%; aspect-ratio: 1 / 1;
   border-radius: 6px; border: 1px solid var(--border);
   background: var(--bg) center center / cover no-repeat;
+}
+
+/* Concept card thumbnail hover: larger image preview */
+#conceptHeroImgPreview {
+  position: fixed; z-index: 10000; display: none;
+  width: 220px; height: 220px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface) center center / cover no-repeat;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18); pointer-events: none;
+}
+#conceptHeroImgPreview.open { display: block; }
+
+/* Concept hero image lightbox (click to enlarge) */
+.concept-hero-lightbox-img {
+  max-width: 90vw; max-height: 90vh; width: auto; height: auto;
+  border-radius: 10px; box-shadow: 0 12px 48px rgba(0,0,0,0.4); cursor: zoom-out;
 }
