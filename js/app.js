@@ -9524,9 +9524,11 @@ ${sections}
       if (url) { img.src = url; modal.classList.add('open'); }
     });
   }
-  // Open the lightbox for the concept currently open in the scoring view.
+  // Open the lightbox for the concept currently open in the expanded view —
+  // the datum when the datum definition view is active, else the scored concept.
   function openConceptHeroLightbox() {
-    const c = pughConcepts.find(x => x.id === scoringConceptId);
+    let c = pughConcepts.find(x => x.id === scoringConceptId);
+    if (!c && typeof datumDefActive !== 'undefined' && datumDefActive) c = pughConcepts[0];
     if (c && c.heroImagePath) openConceptHeroLightboxByPath(c.heroImagePath);
   }
   // stopPropagation so closing doesn't reach the document-level "click outside

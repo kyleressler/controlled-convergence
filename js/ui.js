@@ -1509,6 +1509,9 @@ async function _resolveStakEmailTiers(emails) {
     document.getElementById('scorDatumDefView').style.display = '';
     document.getElementById('scorReqView').style.display      = 'none';
 
+    // Concept Details (custom fields) + hero image for the datum
+    _renderScoringDetails(datum);
+
     // Update back button
     const backBtn = document.querySelector('#scorScoringView .scor-view-header button');
     if (backBtn) { backBtn.textContent = '← All Concepts'; backBtn.onclick = exitDatumDef; }
@@ -1595,34 +1598,8 @@ async function _resolveStakEmailTiers(emails) {
 
     document.getElementById('scorViewName').textContent = concept.name;
 
-    // Custom concept fields
-    const cfSection = document.getElementById('scorCustomFieldsSection');
-    const cfBody    = document.getElementById('scorCfBody');
-    const cfToggle  = document.getElementById('scorCfToggleIcon');
-    if (cfSection && cfBody && cfToggle) {
-      const fields = (typeof conceptCustomFields !== 'undefined') ? conceptCustomFields : [];
-      if (fields.length > 0) {
-        const vals = concept.customFieldValues || {};
-        cfBody.innerHTML = fields.map(f => {
-          const raw = vals[f.id];
-          const val = (raw !== undefined && raw !== '') ? raw : '—';
-          return `<div class="scor-cf-chip">
-            <span class="scor-cf-label">${f.name}</span>
-            <span class="scor-cf-value">${val}</span>
-          </div>`;
-        }).join('');
-        const bodyWrap = document.getElementById('scorCfBodyWrap');
-        const expand = fields.length <= 5;
-        if (bodyWrap) bodyWrap.style.display = expand ? '' : 'none';
-        cfToggle.textContent  = expand ? '▼' : '▶';
-        cfSection.style.display = '';
-      } else {
-        cfSection.style.display = 'none';
-      }
-    }
-    // Hero image: small square in the header when Concept Details is collapsed/absent,
-    // larger image beside the details list when it is expanded.
-    _scorRenderHero(concept);
+    // Concept Details (custom fields) + hero image
+    _renderScoringDetails(concept);
 
     // Datum routing is handled by startScoringConcept → startDatumDef, so
     // renderScoringView is only ever called for non-datum concepts.
@@ -1775,8 +1752,49 @@ async function _resolveStakEmailTiers(emails) {
     const isCollapsed = bodyWrap.style.display === 'none';
     bodyWrap.style.display = isCollapsed ? '' : 'none';
     cfToggle.textContent = isCollapsed ? '▼' : '▶';
-    const concept = pughConcepts.find(c => c.id === scoringConceptId);
+    const concept = pughConcepts.find(c => c.id === _currentExpandedConceptId());
     if (concept) _scorRenderHero(concept);
+  }
+
+  // Renders the Concept Details (custom-field chips) + hero image for `concept`.
+  // Shared by renderScoringView (non-datum) and renderDatumDefView (datum) so both
+  // show the image consistently.
+  function _renderScoringDetails(concept) {
+    const cfSection = document.getElementById('scorCustomFieldsSection');
+    const cfBody    = document.getElementById('scorCfBody');
+    const cfToggle  = document.getElementById('scorCfToggleIcon');
+    if (cfSection && cfBody && cfToggle) {
+      const fields = (typeof conceptCustomFields !== 'undefined') ? conceptCustomFields : [];
+      if (fields.length > 0) {
+        const vals = (concept && concept.customFieldValues) || {};
+        cfBody.innerHTML = fields.map(f => {
+          const raw = vals[f.id];
+          const val = (raw !== undefined && raw !== '') ? raw : '—';
+          return `<div class="scor-cf-chip">
+            <span class="scor-cf-label">${f.name}</span>
+            <span class="scor-cf-value">${val}</span>
+          </div>`;
+        }).join('');
+        const bodyWrap = document.getElementById('scorCfBodyWrap');
+        const expand = fields.length <= 5;
+        if (bodyWrap) bodyWrap.style.display = expand ? '' : 'none';
+        cfToggle.textContent  = expand ? '▼' : '▶';
+        cfSection.style.display = '';
+      } else {
+        cfSection.style.display = 'none';
+      }
+    }
+    _scorRenderHero(concept);
+  }
+
+  // The concept currently open in the expanded view — the datum when the datum
+  // definition view is active, otherwise the scored concept. Used to guard async
+  // image updates against the view having moved on.
+  function _currentExpandedConceptId() {
+    if (typeof datumDefActive !== 'undefined' && datumDefActive) {
+      return pughConcepts[0] ? pughConcepts[0].id : null;
+    }
+    return scoringConceptId;
   }
 
   // Show the concept hero image in the scoring (expanded) view. Small square in
@@ -1802,7 +1820,7 @@ async function _resolveStakEmailTiers(emails) {
     target.style.display = '';
     const forId = concept.id;
     ConceptImages.getSignedUrl(path).then(url => {
-      if (url && scoringConceptId === forId) target.style.backgroundImage = `url("${url}")`;
+      if (url && _currentExpandedConceptId() === forId) target.style.backgroundImage = `url("${url}")`;
     });
   }
 

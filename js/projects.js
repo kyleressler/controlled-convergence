@@ -280,6 +280,11 @@ function restoreProjectState(project) {
 
   // Pugh / scoring
   pughConcepts        = (project.concepts || []).slice();
+  // Restore the id counter to the highest existing concept id, so newly added
+  // concepts get fresh ids instead of colliding with loaded ones. (The counter
+  // is not persisted, so without this a reload resets it to 0 and the next
+  // "Add Concept" reuses id 1 — the datum's id.)
+  pughConceptCounter  = pughConcepts.reduce((max, c) => Math.max(max, Number(c.id) || 0), 0);
   pughScores          = Object.assign({}, project.matrix || {});
   pughSettings        = Object.assign({ advancedScoring: false, showMTHUS: false, showMAS: false }, project.pughSettings || {});
   datumPerformance    = Object.assign({}, project.datumPerformance || {});
