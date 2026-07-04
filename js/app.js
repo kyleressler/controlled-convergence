@@ -9425,19 +9425,15 @@ ${sections}
       const rand    = Math.random().toString(36).slice(2, 8);
       const path    = activeProject.id + '/' + c.id + '-' + rand + '.' + enc.ext;
 
-      const up = await _supabase.storage.from(CONCEPT_HERO_BUCKET)
-        .upload(path, enc.blob, { contentType: enc.type, upsert: false });
-      if (up.error) throw up.error;
+      const up = await ConceptImages.upload(path, enc.blob, enc.type);
+      if (!up.ok) throw new Error(up.error || 'upload failed');
 
       c.heroImagePath = path;
       _autoSaveNow();                                     // persist the path
-      if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(path);
+      ConceptImages.invalidate(path);
 
       // Best-effort cleanup of the replaced object (deferred sweep handles the rest).
-      if (oldPath && oldPath !== path) {
-        _supabase.storage.from(CONCEPT_HERO_BUCKET).remove([oldPath]).catch(function () {});
-        if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(oldPath);
-      }
+      if (oldPath && oldPath !== path) ConceptImages.remove([oldPath]);
 
       conceptHeroCropCancel();
       _conceptHeroRenderModal(c);
@@ -9464,8 +9460,7 @@ ${sections}
     const path = c.heroImagePath;
     c.heroImagePath = null;
     _autoSaveNow();
-    _supabase.storage.from(CONCEPT_HERO_BUCKET).remove([path]).catch(function () {});
-    if (typeof ConceptImages !== 'undefined') ConceptImages.invalidate(path);
+    ConceptImages.remove([path]);
 
     _conceptHeroRenderModal(c);
     renderConceptCards();
