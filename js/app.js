@@ -9553,6 +9553,13 @@ ${sections}
     }
     // Toggle: clicking the already-open card closes the scoring view
     if (scoringConceptId === id) { exitScoringView(); return; }
+    // If the datum definition view was open, leave it cleanly (persist input,
+    // clear the flag) so datumDefActive and scoringConceptId are never both set
+    // — otherwise the expanded view renders the datum's image, not this concept's.
+    if (datumDefActive) {
+      if (typeof saveDatumField === 'function') saveDatumField();
+      datumDefActive = false;
+    }
     scoringConceptId = id;
     scoringReqIndex  = 0;
     document.getElementById('scorEmptyState').style.display = 'none';

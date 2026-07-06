@@ -1791,10 +1791,13 @@ async function _resolveStakEmailTiers(emails) {
   // definition view is active, otherwise the scored concept. Used to guard async
   // image updates against the view having moved on.
   function _currentExpandedConceptId() {
+    // A scored concept takes precedence: if scoringConceptId is set, that's the
+    // expanded concept. Only fall back to the datum when nothing is being scored.
+    if (scoringConceptId != null) return scoringConceptId;
     if (typeof datumDefActive !== 'undefined' && datumDefActive) {
       return pughConcepts[0] ? pughConcepts[0].id : null;
     }
-    return scoringConceptId;
+    return null;
   }
 
   // Show the concept hero image in the scoring (expanded) view. Small square in
